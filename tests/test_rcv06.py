@@ -156,7 +156,7 @@ class TestDesktop06(unittest.TestCase):
     def test_app_window_uses_its_own_profile(self):
         cmd = app_window_command('http://localhost:1/#token=x')
         if cmd:
-            self.assertTrue(any(a.startswith('--user-data-dir=') and 'RCV' in a for a in cmd), cmd)
+            self.assertTrue(any(a.startswith('--user-data-dir=') and 'rcv' in a.lower() for a in cmd), cmd)   # RCV (Windows), rcv (Linux)
             self.assertIn('--disable-extensions', cmd)
 
     def test_author_and_citation(self):
