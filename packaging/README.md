@@ -95,18 +95,27 @@ the downloads, which feeds the website's *Statistics* tab.
 
 ## What was verified
 
-* ViennaRNA 2.7.2 publishes wheels for Windows x64 (cp312), macOS arm64 and macOS x86_64 (10.14+), so the
-  engine's only compiled third-party dependency is installable on both targets.
+* ViennaRNA 2.7.2 publishes wheels for Windows x64 (cp312), macOS arm64, macOS x86_64 and Linux x86_64, so the
+  engine's only compiled third-party dependency is installable on every target.
 * **Windows 10 x64 (0.6.0, PyInstaller 6.22.3, Python 3.12.15, Inno Setup 6.7.3)**: the frozen app predicts
   2D structures with ViennaRNA and runs a full 3D prediction with worker processes (`RCV engine predict`),
   including a run name with non-ASCII characters on a Chinese (GBK) system; `RCV convert` / `RCV info` work;
   the bundled server passes the GUI scenarios for predictions and FASTA batches started in the app, exports,
   video, the user guide with its pictures, the window layout and all ten languages; the installer compiles
-  (≈ 41 MiB).
-* Not yet verified: a macOS build (use the GitHub workflow), the pywebview window and its native Open/Save
-  dialogs, the `.rcv` file association after installation, code signing.
+  (≈ 41 MiB), installs per user, runs and uninstalls without leftovers.
+* **macOS 15 (GitHub runners, Apple Silicon and Intel)**: the `.app` passes the build's self-test (ViennaRNA
+  2D prediction, `convert`, `info`) and the disk images are built (≈ 43 and 48 MB).
+* **Linux (GitHub, Debian 11 container, glibc 2.31)**: the build's self-test passes before and after stripping;
+  the `.deb` and `.rpm` (≈ 45 MB each) install, run (`--version`, ViennaRNA 2D prediction, `convert`, `info`)
+  and uninstall cleanly on Ubuntu 20.04 and 24.04, Debian 12, Fedora, AlmaLinux 9 and openSUSE Leap 15.6. The
+  same build passes all 42 GUI scenarios (`python tools/viewer_smoketest.py --app <unpacked>/opt/rcv/RCV`).
+* Not yet verified: the macOS app on a real Mac (window, file dialogs), the pywebview window and its native
+  Open/Save dialogs, the Linux menu entry on a desktop, double-clicking `.rcv` files, code signing.
 * macOS: double-clicking an `.rcv` file in Finder starts RCV, but pywebview does not pass the file to the app
-  (Apple-event handling); open it with File ▸ Open until that is added. Windows passes it on the command line.
+  (Apple-event handling); open it with File ▸ Open until that is added. Windows and Linux pass it on the
+  command line.
+* `tools/viewer_smoketest.py --app PATH` runs the GUI scenarios against a built RCV program instead of the
+  source, for checking an installer build.
 
 ## Notes for maintainers
 

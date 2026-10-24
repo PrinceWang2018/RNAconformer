@@ -1,6 +1,6 @@
 """GUI smoke test for RCV in a headless Chromium browser (Microsoft Edge or Chrome).
 
-    python tools/viewer_smoketest.py [--out viewer_smoketest] [--browser PATH] [--only morph,video]
+    python tools/viewer_smoketest.py [--out viewer_smoketest] [--browser PATH] [--only morph,video] [--app PATH]
 
 Starts RCV (no window) with the demo ensembles and the test harness (tools/viewer_harness), drives the
 real application through the scenarios in tools/viewer_harness/steps.js, saves screenshots of the visual
@@ -42,14 +42,14 @@ def host_path(p, browser):
 
 
 class Server:
-    def __init__(self, projects):
+    def __init__(self, projects, app=None):
         env = dict(os.environ)
         env['PYTHONPATH'] = os.pathsep.join([str(ROOT / 'src')] + ([env['PYTHONPATH']] if env.get('PYTHONPATH') else []))
         env['RCV_DEVDIR'] = str(ROOT / 'tools' / 'viewer_harness')
         env['RCV_HOME'] = str(Path(projects).parent / 'apphome')
         env['PYTHONUNBUFFERED'] = '1'
-        self.proc = subprocess.Popen([sys.executable, '-m', 'rcv', '--shell', 'none', '--demo', '--port', '0',
-                                      '--projects-dir', str(projects)],
+        cmd = [str(Path(app).resolve())] if app else [sys.executable, '-m', 'rcv']   # --app: a built RCV program
+        self.proc = subprocess.Popen(cmd + ['--shell', 'none', '--demo', '--port', '0', '--projects-dir', str(projects)],
                                      cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         self.lines = []
         self.lock = threading.Lock()
@@ -113,7 +113,7 @@ def run(args):
     out.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='rnaview_smoke_', dir=out))
     print(f'browser: {browser}\noutput:  {out}')
-    server = Server(work / 'projects')
+    server = Server(work / 'projects', args.app)
     results = []
     only = set(args.only.split(',')) if args.only else None
     try:
@@ -166,6 +166,7 @@ def main():
     ap.add_argument('--out', default='viewer_smoketest', help='folder for screenshots (default ./viewer_smoketest)')
     ap.add_argument('--browser', help='path to msedge/chrome executable (auto-detected by default)')
     ap.add_argument('--only', help='comma-separated scenario names')
+    ap.add_argument('--app', help='test a built RCV program (e.g. dist/RCV/RCV or /opt/rcv/RCV) instead of the source')
     ap.add_argument('--timeout', type=float, default=90, help='seconds per scenario (predict/explore get 6x)')
     ap.add_argument('--size', default='1600,1000', help='browser window size W,H (default 1600,1000)')
     ap.add_argument('--scale', type=float, default=1, help='device pixel ratio of the screenshots (2 = sharp on HiDPI screens)')
