@@ -66,7 +66,7 @@ bash packaging/linux/build_linux.sh
 Output: `dist/RCV/RCV` (portable folder), `dist/installer/RCV-<version>-Linux-amd64.deb` and
 `RCV-<version>-Linux-x86_64.rpm`. Both install RCV to `/opt/rcv`, the command `/usr/bin/rcv`, a menu entry
 (with the actions *RCV with demo ensembles* and *RCV User Guide*), icons, the `.rcv` file type and the user guide
-in `/usr/share/doc/rcv/html`. Install with `sudo apt install ./RCV-<version>-Linux-amd64.deb` or
+in `/opt/rcv/docs` (licence files in `/usr/share/doc/rcv`). Install with `sudo apt install ./RCV-<version>-Linux-amd64.deb` or
 `sudo dnf install ./RCV-<version>-Linux-x86_64.rpm`.
 
 The bundle runs on systems whose glibc is at least as new as the build machine's, so build on an old

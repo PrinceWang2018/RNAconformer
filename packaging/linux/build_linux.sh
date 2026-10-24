@@ -3,7 +3,8 @@
 #   dist/installer/RCV-<version>-Linux-amd64.deb    Debian, Ubuntu, Linux Mint, ...   (sudo apt install ./file.deb)
 #   dist/installer/RCV-<version>-Linux-x86_64.rpm   Fedora, RHEL/Rocky/Alma, openSUSE (sudo dnf install ./file.rpm)
 # Both add the `rcv` command, a menu entry (with "RCV with demo ensembles" and "RCV User Guide"), the icon, the
-# .rcv file type and the user guide as web pages in /usr/share/doc/rcv/html.
+# .rcv file type and the user guide as web pages in /opt/rcv/docs (not /usr/share/doc, which minimal and
+# container installations leave out; the menu entry "RCV User Guide" opens it).
 #
 #   Requirements: Python 3.12 with venv and a shared libpython (python.org, Docker "python" images or distro
 #                 packages), dpkg-deb for the .deb and rpmbuild for the .rpm (on Debian/Ubuntu: apt install rpm).
@@ -55,7 +56,7 @@ install -m 644 packaging/linux/rcv-mime.xml "$STAGE/usr/share/mime/packages/rcv.
 for d in packaging/linux/icons/*/; do
   install -D -m 644 "$d/rcv.png" "$STAGE/usr/share/icons/hicolor/$(basename "$d")/apps/rcv.png"
 done
-cp -a build/docs_html "$STAGE/usr/share/doc/rcv/html"
+cp -a build/docs_html "$STAGE/opt/rcv/docs"
 install -m 644 LICENSE packaging/THIRD-PARTY-NOTICES.txt "$STAGE/usr/share/doc/rcv/"
 cat > "$STAGE/usr/share/doc/rcv/copyright" <<EOF
 RCV - RNA Conformation Viewer $VERSION
@@ -67,7 +68,7 @@ RCV is free software under the GNU General Public License version 3 (see LICENSE
 listed, with the ViennaRNA licence and credit, in THIRD-PARTY-NOTICES.txt in this folder.
 EOF
 chmod -R u+rwX,go+rX,go-w "$STAGE"
-find "$STAGE/usr/share" -type f -exec chmod 644 {} +
+find "$STAGE/usr/share" "$STAGE/opt/rcv/docs" -type f -exec chmod 644 {} +
 # Debugging information is not needed to run RCV (ViennaRNA's and Python's libraries shrink from ~85 to ~18 MB).
 # Only libraries that carry it, and not the ones vendored by wheels into *.libs folders (patchelf-modified: an
 # older strip breaks them), nor the RCV program itself (the app's archive sits at its end).

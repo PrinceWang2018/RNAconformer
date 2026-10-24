@@ -19,4 +19,4 @@ Exec=rcv --demo
 
 [Desktop Action guide]
 Name=RCV User Guide
-Exec=xdg-open /usr/share/doc/rcv/html/index.html
+Exec=xdg-open /opt/rcv/docs/index.html

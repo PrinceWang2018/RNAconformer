@@ -115,7 +115,7 @@ jobs:
           rcv engine ss --sequence GGCACUUCGGUGCC
           rcv convert /opt/rcv/_internal/rcv/demo/HIV1_TAR_NMR_1ANR.pdb -o /tmp/t.rcv
           rcv info /tmp/t.rcv
-          test -f /usr/share/applications/rcv.desktop && test -f /usr/share/doc/rcv/html/index.html
+          test -f /usr/share/applications/rcv.desktop && test -f /opt/rcv/docs/index.html
       - name: Uninstall
         run: |
           if command -v apt-get >/dev/null; then apt-get remove -y rcv
