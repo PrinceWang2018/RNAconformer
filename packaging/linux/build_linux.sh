@@ -35,12 +35,12 @@ mkdir -p build
 PID=$!
 for _ in $(seq 120); do grep -q 'running at' build/selftest-server.log && break; sleep 0.5; done
 cat build/selftest-server.log
-PORT=$(grep -o 'localhost:[0-9]*' build/selftest-server.log | head -1 | cut -d: -f2)
+PORT=$(grep -o -m1 'localhost:[0-9]*' build/selftest-server.log | cut -d: -f2)
 python -c "import sys, urllib.request; r = urllib.request.urlopen('http://localhost:$PORT/', timeout=30); print('server', r.status); sys.exit(r.status != 200)"
 kill "$PID"; wait "$PID" || true
 
 VERSION=$(python -c "from rcv import __version__; print(__version__)")
-GLIBC=$(ldd --version | head -1 | grep -oE '[0-9]+\.[0-9]+$')
+GLIBC=$(getconf GNU_LIBC_VERSION | awk '{print $2}')      # (no `| head`: with pipefail it can fail on SIGPIPE)
 python packaging/make_docs.py build/docs_html
 
 # File tree shared by both packages
