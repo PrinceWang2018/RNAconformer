@@ -1,0 +1,56 @@
+{
+ "sample_id": "1F1T_A",
+ "pdb_id": "1F1T",
+ "chain": "A",
+ "family": "malachite green aptamer",
+ "source": "RCSB",
+ "split": "test",
+ "title": "CRYSTAL STRUCTURE OF THE MALACHITE GREEN APTAMER COMPLEXED WITH TETRAMETHYL-ROSAMINE",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.8,
+ "length": 38,
+ "observed_residues": 38,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [
+  [
+   4,
+   "5BU"
+  ],
+  [
+   11,
+   "5BU"
+  ],
+  [
+   25,
+   "5BU"
+  ],
+  [
+   32,
+   "5BU"
+  ],
+  [
+   36,
+   "5BU"
+  ]
+ ],
+ "stratum": "s30_49",
+ "source_file": "raw/1F1T.cif",
+ "source_sha256": "a91c35aaf0ed8c21a301eaefdf208223c85f48a85b88b3cddf1866efb0a3abd9",
+ "retrieved_from": "https://files.rcsb.org/download/1F1T.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 13,
+  "nested_pairs": 13,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -15.5,
+  "pairs": 13,
+  "f1_vs_oracle_nested": 1.0,
+  "f1_vs_oracle_full": 1.0
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

@@ -1,0 +1,44 @@
+{
+ "sample_id": "2QBZ_A",
+ "pdb_id": "2QBZ",
+ "chain": "A",
+ "family": "M-box riboswitch",
+ "source": "RCSB",
+ "split": "test",
+ "title": "Structure of the M-Box Riboswitch Aptamer Domain",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.6,
+ "length": 161,
+ "observed_residues": 153,
+ "missing_residues": [
+  114,
+  115,
+  116,
+  117,
+  118,
+  119,
+  120,
+  121
+ ],
+ "c4_coverage": 0.95,
+ "modified_residues": [],
+ "stratum": "s150_200",
+ "source_file": "raw/2QBZ.cif",
+ "source_sha256": "77cfd456b8193510d0ac46d1fb558c73dffcc9d1e7fc2a324969be744952fc91",
+ "retrieved_from": "https://files.rcsb.org/download/2QBZ.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 46,
+  "nested_pairs": 45,
+  "pseudoknot_pairs_removed": 1,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -56.6,
+  "pairs": 51,
+  "f1_vs_oracle_nested": 0.896,
+  "f1_vs_oracle_full": 0.887
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

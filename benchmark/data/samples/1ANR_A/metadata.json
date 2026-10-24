@@ -1,0 +1,35 @@
+{
+ "sample_id": "1ANR_A",
+ "pdb_id": "1ANR",
+ "chain": "A",
+ "family": "HIV-1 TAR",
+ "source": "RCSB",
+ "split": "test",
+ "title": "CIS-ACTING RNA REGULATORY ELEMENT (HIV-1 TAR), NMR, 20 STRUCTURES",
+ "method": "SOLUTION NMR",
+ "resolution": null,
+ "length": 29,
+ "observed_residues": 29,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "smoke_lt30",
+ "source_file": "raw/1ANR.cif",
+ "source_sha256": "2d11d9eafa3779ca00b78911dde4ea5c7ebe4d22c4f2de0c3c3cf5c9828014f3",
+ "retrieved_from": "https://files.rcsb.org/download/1ANR.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 9,
+  "nested_pairs": 9,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -13.1,
+  "pairs": 10,
+  "f1_vs_oracle_nested": 0.947,
+  "f1_vs_oracle_full": 0.947
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

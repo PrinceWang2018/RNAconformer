@@ -1,0 +1,88 @@
+# Build the RCV installers on GitHub's machines: Windows (x64 setup) and macOS (Apple Silicon and Intel disk
+# images). macOS installers cannot be built on Windows, so this is the way to make them without a Mac.
+#
+#   Run it by hand:  Actions > Build installers > Run workflow      (installers appear as a download on the run)
+#   Or push a tag:   git tag v0.6.0 && git push origin v0.6.0
+#
+# For a tag, the installers are also attached to a release of the website repository (where the download
+# links of www.rnaconfviewer.com point) when the secret WEBSITE_RELEASE_TOKEN is set: a fine-grained token with
+# "Contents: read and write" permission on PrinceWang2018/RNAconfViewer_website.
+name: Build installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy scipy ViennaRNA==2.7.2 fonttools
+      - run: python -m unittest discover -s tests
+        env:
+          PYTHONPATH: src
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows-x64
+          - os: macos-15            # Apple Silicon (arm64)
+            name: macos-arm64
+          - os: macos-15-intel      # Intel (x86_64)
+            name: macos-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1 -Python python
+
+      - name: macOS disk image
+        if: runner.os == 'macOS'
+        run: PYTHON=python bash packaging/macos/build_macos.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RCV-${{ matrix.name }}
+          path: dist/installer/*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      TOKEN: ${{ secrets.WEBSITE_RELEASE_TOKEN }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - run: ls -la installers
+      - name: Attach to the website release
+        if: env.TOKEN != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: PrinceWang2018/RNAconfViewer_website
+          token: ${{ env.TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          name: RCV ${{ github.ref_name }}
+          files: installers/*

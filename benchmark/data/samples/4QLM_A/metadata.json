@@ -1,0 +1,53 @@
+{
+ "sample_id": "4QLM_A",
+ "pdb_id": "4QLM",
+ "chain": "A",
+ "family": "ydaO (c-di-AMP) riboswitch",
+ "source": "RNA-Puzzles 12",
+ "split": "test",
+ "title": "ydao riboswitch binding to c-di-AMP",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.721,
+ "length": 125,
+ "observed_residues": 108,
+ "missing_residues": [
+  1,
+  2,
+  13,
+  14,
+  15,
+  16,
+  17,
+  18,
+  19,
+  20,
+  21,
+  35,
+  36,
+  37,
+  38,
+  124,
+  125
+ ],
+ "c4_coverage": 0.864,
+ "modified_residues": [],
+ "stratum": "s100_149",
+ "source_file": "raw/4QLM.cif",
+ "source_sha256": "66e4f19c772bb74b42a2c4c55f81b79f6d277367f9ce8779c958302202b9b924",
+ "retrieved_from": "https://files.rcsb.org/download/4QLM.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 35,
+  "nested_pairs": 28,
+  "pseudoknot_pairs_removed": 7,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -48.0,
+  "pairs": 35,
+  "f1_vs_oracle_nested": 0.698,
+  "f1_vs_oracle_full": 0.629
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

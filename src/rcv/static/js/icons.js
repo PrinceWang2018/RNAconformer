@@ -1,0 +1,80 @@
+// Stroke icons (24x24 grid), drawn for this app.
+const P = {
+  open: 'M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z',
+  save: 'M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z M8 4v5h7V4 M8 20v-6h8v6',
+  image: 'M4 5h16v14H4z M4 16l5-5 4 4 3-3 4 4 M15.5 9.5h.01',
+  film: 'M4 5h16v14H4z M8 5v14 M16 5v14 M4 9h4 M4 15h4 M16 9h4 M16 15h4',
+  play: 'M8 5.5v13l10.5-6.5z',
+  pause: 'M8 5v14 M16 5v14',
+  prev: 'M15 6l-6 6 6 6',
+  next: 'M9 6l6 6-6 6',
+  plus: 'M12 5v14 M5 12h14',
+  x: 'M6 6l12 12 M18 6L6 18',
+  reset: 'M4 12a8 8 0 1 0 2.4-5.7 M4 4v4.5h4.5',
+  spin: 'M20 12a8 8 0 0 1-14.9 4 M4 12a8 8 0 0 1 14.9-4 M19 3.5V8h-4.5 M5 20.5V16h4.5',
+  sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M12 2.5v2 M12 19.5v2 M4.6 4.6l1.4 1.4 M18 18l1.4 1.4 M2.5 12h2 M19.5 12h2 M4.6 19.4L6 18 M18 6l1.4-1.4',
+  moon: 'M20 14.5A8 8 0 0 1 9.5 4 7.5 7.5 0 1 0 20 14.5z',
+  dna: 'M7 3c0 6 10 6 10 12s-10 6-10 6 M17 3c0 6-10 6-10 12 M8.5 7h7 M8.5 17h7',
+  flask: 'M9 3h6 M10 3v6L5 18a1.5 1.5 0 0 0 1.3 2.2h11.4A1.5 1.5 0 0 0 19 18l-5-9V3 M7.5 14h9',
+  library: 'M4 4h4v16H4z M10 4h4v16h-4z M16.5 4.5l3.5.9-3.6 14.2-3.5-.9',
+  folder: 'M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z',
+  file: 'M6 3h8l4 4v14H6z M14 3v4h4',
+  info: 'M12 8h.01 M11 12h1v5h1 M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
+  puzzle: 'M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4h2a2 2 0 1 0 0-4H6V6h4z',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  warn: 'M12 4l9 16H3z M12 10v4 M12 17h.01',
+  up: 'M12 19V5 M6 11l6-6 6 6',
+  down: 'M12 5v14 M6 13l6 6 6-6',
+  layers: 'M12 4l9 5-9 5-9-5z M3 14l9 5 9-5',
+  target: 'M12 3v4 M12 17v4 M3 12h4 M17 12h4 M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+  panelL: 'M4 5h16v14H4z M9 5v14',
+  panelR: 'M4 5h16v14H4z M15 5v14',
+  download: 'M12 4v11 M7 10.5l5 5 5-5 M5 20h14',
+  upload: 'M12 20V9 M7 13.5l5-5 5 5 M5 4h14',
+  keyboard: 'M3 7h18v10H3z M7 10h.01 M11 10h.01 M15 10h.01 M7 14h10',
+  cube: 'M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5',
+  home: 'M4 11l8-7 8 7 M6 9.5V20h4.5v-5.5h3V20H18V9.5',
+  expand: 'M14 4h6v6 M20 4l-6.5 6.5 M10 20H4v-6 M4 20l6.5-6.5',
+  corner: 'M4 4h16v16H4z M13 13h7v7h-7z',
+  terminal: 'M4 5h16v14H4z M7.5 9.5l3 2.5-3 2.5 M12.5 15h4',
+  ruler: 'M3 15.5L15.5 3 21 8.5 8.5 21z M7 11.5l2 2 M10 8.5l2 2 M13 5.5l2 2',
+  ss2d: 'M7 20V9a5 5 0 0 1 10 0v11 M7 13h10 M7 17h10',
+  bookmark: 'M6 3h12v18l-6-4-6 4z',
+  grid: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z',
+  share: 'M12 3v12 M7.5 7.5L12 3l4.5 4.5 M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7',
+  swap: 'M7 7h11l-3-3 M17 17H6l3 3',
+  copy: 'M8 8h11v12H8z M5 16V4h11',
+  eye: 'M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
+  trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13',
+  seq: 'M4 7h16 M4 12h10 M4 17h13',
+  cursor: 'M6 3.5l12 7.2-5.3 1.3 3.2 6.1-2.4 1.3-3.2-6.1L6 17z',
+  brush: 'M14.5 4.5l5 5-7.8 7.8-5-5z M6.7 12.3c-2.2.3-3.2 1.9-3.2 4.2v3h3c2.3 0 3.9-1 4.2-3.2',
+  tag: 'M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3-8.7 8.7z M8 8h.01',
+  undo: 'M9 14L4 9l5-5 M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
+  redo: 'M15 14l5-5-5-5 M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
+  eraser: 'M7 19h13 M4.8 13.2l8-8a1.5 1.5 0 0 1 2.1 0l4 4a1.5 1.5 0 0 1 0 2.1L12.6 18.6a1.5 1.5 0 0 1-1 .4H8.4a1.5 1.5 0 0 1-1-.4l-2.6-2.6a1.5 1.5 0 0 1 0-2.1z M9 9l6 6',
+  palette: 'M12 3.5a8.5 8.5 0 0 0 0 17c1.4 0 1.9-1 1.6-2.1-.4-1.3.4-2.4 1.8-2.4h1.7c1.9 0 3.4-1.5 3.4-3.4C20.5 7.4 16.7 3.5 12 3.5z M7.5 11.5h.01 M9.5 7.5h.01 M14.5 7.5h.01',
+  surface: 'M12 3.5c4.7 0 8.5 3.8 8.5 8.5s-3.8 8.5-8.5 8.5S3.5 16.7 3.5 12 7.3 3.5 12 3.5z M6 9.5c2 1.3 4 1.9 6 1.9s4-.6 6-1.9',
+  chart: 'M4 4v16h16 M8 16v-5 M12 16V8 M16 16v-8',
+  globe: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M3.5 9h17 M3.5 15h17 M12 3c-2.6 2.6-3.8 5.6-3.8 9s1.2 6.4 3.8 9 M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9',
+  maximize: 'M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5',
+  restore: 'M9 4v5H4 M15 4v5h5 M9 20v-5H4 M15 20v-5h5',
+  fullscreen: 'M3 8V3h5 M21 8V3h-5 M3 16v5h5 M21 16v5h-5 M8 8h8v8H8z',
+  windows: 'M3 5h18v14H3z M3 9h18 M9 9v10',
+  help: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4v.8 M12 17h.01',
+  book: 'M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z',
+  minus: 'M5 12h14',
+  hand: 'M8 13V6.5a1.5 1.5 0 0 1 3 0V12 M11 11V4.5a1.5 1.5 0 0 1 3 0V11 M14 11V5.5a1.5 1.5 0 0 1 3 0V13 M17 9.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1.2a6 6 0 0 1-4.6-2.2L4.5 15.4a1.5 1.5 0 0 1 2.3-1.9L8 15',
+};
+
+export function icon(name, cls = '') {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('class', `icon ${cls}`.trim());
+  s.setAttribute('aria-hidden', 'true');
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', P[name] || P.info);
+  if (name === 'play') p.setAttribute('fill', 'currentColor');
+  s.append(p);
+  return s;
+}

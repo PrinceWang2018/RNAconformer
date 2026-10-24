@@ -1,0 +1,722 @@
+{
+ "1": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "10",
+  "ins_code": "",
+  "comp_id": "GTP",
+  "parent": "G",
+  "modified": true,
+  "n_atoms": 28
+ },
+ "2": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "11",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "3": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "12",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "4": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "13",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "5": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "14",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "6": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "15",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "7": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "16",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "8": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "17",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "9": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "18",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "10": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "19",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "11": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "20",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "12": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "21",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "13": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "22",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "14": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "23",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "15": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "24",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "16": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "25",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "17": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "26",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "18": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "27",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "19": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "28",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "20": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "29",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "21": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "30",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "22": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "31",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "23": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "32",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "24": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "33",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "25": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "34",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "26": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "35",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "27": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "36",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "28": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "37",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "29": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "38",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "30": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "39",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "31": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "40",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "32": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "41",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "33": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "42",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "34": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "43",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "35": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "44",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "36": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "45",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "37": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "46",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "38": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "47",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "39": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "48",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "40": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "49",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "41": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "50",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "42": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "51",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "43": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "52",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "44": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "53",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "45": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "54",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "46": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "55",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "47": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "56",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "48": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "57",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "49": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "58",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "50": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "59",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "51": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "60",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "52": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "61",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "53": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "62",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "54": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "63",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "55": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "64",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "56": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "65",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "57": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "66",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "58": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "67",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "59": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "68",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "60": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "69",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "61": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "70",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "62": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "71",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "63": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "72",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "64": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "73",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "65": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "74",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "66": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "75",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "67": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "76",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "68": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "77",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "69": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "78",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "70": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "79",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "71": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "80",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "72": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "81",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "73": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "82",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "74": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "83",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "75": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "84",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "76": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "85",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "77": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "86",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "78": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "87",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "79": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "88",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "80": {
+  "auth_asym_id": "X",
+  "auth_seq_id": "89",
+  "ins_code": "",
+  "comp_id": "CCC",
+  "parent": "C",
+  "modified": true,
+  "n_atoms": 23
+ }
+}

@@ -1,0 +1,1033 @@
+{
+  "schema": "rnafold3d.ensemble/1",
+  "created": "2026-10-22T20:46:06",
+  "software": {
+    "name": "rnafold3d",
+    "package_version": "0.2.0",
+    "engine": "rnafold3d-v2-foldtree",
+    "engine_version": "2.0.1",
+    "geometry_parameters": "1.0.0",
+    "python": "3.13.13"
+  },
+  "input": {
+    "name": "HIV1_TAR (sequence of PDB 1ANR)",
+    "sequence": "GGCAGAUCUGAGCCUGGGAGCUCUCUGCC",
+    "length": 29,
+    "sha256": "009a3155c2070b7e2bc7fe4b01041587c3baab2a9836a546f93403572b2f4f52",
+    "secondary_structure_mode": "predicted_from_sequence",
+    "secondary_structure_method": {
+      "program": "ViennaRNA",
+      "version": "2.7.2",
+      "temperature_C": 37.0,
+      "no_lonely_pairs": true,
+      "dangles": 2,
+      "ensemble_free_energy_kcal_mol": -13.14,
+      "min_bp_distance_between_hypotheses": 3,
+      "energy_parameters": "ViennaRNA default (Turner 2004)"
+    },
+    "secondary_structures": [
+      {
+        "id": "ss1",
+        "dbn": "((((((...((((......))))))))))",
+        "energy_kcal_mol": -13.1,
+        "source": "vienna_mfe",
+        "probability_in_ensemble": 0.94064,
+        "bp_distance_to_mfe": 0
+      },
+      {
+        "id": "ss2",
+        "dbn": "((((((...(((.((...)))))))))))",
+        "energy_kcal_mol": -9.9,
+        "source": "vienna_suboptimal",
+        "probability_in_ensemble": 0.00523,
+        "bp_distance_to_mfe": 3
+      }
+    ]
+  },
+  "parameters": {
+    "n_models": 10,
+    "trajectories": 24,
+    "seed": 7,
+    "max_structures": 3,
+    "mfe_share": 0.6,
+    "temperature": 37.0,
+    "closure_attempts": 24,
+    "cluster_rmsd": 0.0,
+    "short_loop_max": 4,
+    "pseudoknot_restraints": false,
+    "anneal_steps": 0,
+    "workers": 6,
+    "export_rejected": false,
+    "save_candidates": false,
+    "weights": {
+      "clash": 3.0,
+      "atom_clash": 3.0,
+      "feasibility": 3.0,
+      "chainbreak": 3.0,
+      "compaction": 0.3,
+      "rg_coefficient": 5.5,
+      "compaction_branched_only": true,
+      "stacking": 4.0,
+      "hairpin": 1.0,
+      "electro": 1.5,
+      "debye_length": 10.0,
+      "torsion": 1.0,
+      "restraint": 0.5
+    },
+    "trajectories_run": 24,
+    "trajectory_allocation": {
+      "ss1": 14,
+      "ss2": 10
+    },
+    "cluster_rmsd_threshold": 2.535,
+    "ionic_conditions": "implicit; Debye length 10 A (~0.1 M monovalent); no explicit Mg2+"
+  },
+  "chain": {
+    "id": "A",
+    "numbering": "1..N matches input sequence positions",
+    "atoms": "heavy atoms only; 5'-terminal residue has no phosphate"
+  },
+  "conformers": [
+    {
+      "id": "conf_001",
+      "rank": 1,
+      "files": {
+        "pdb": "conformations/conf_001.pdb",
+        "mmcif": "conformations/conf_001.cif"
+      },
+      "secondary_structure_id": "ss1",
+      "secondary_structure": "((((((...((((......))))))))))",
+      "ss_free_energy_kcal_mol": -13.1,
+      "total_score": 46.271,
+      "score_3d": 46.271,
+      "ss_offset_kT": 0.0,
+      "score_terms": {
+        "total": 27.971,
+        "clash": 0.0,
+        "atom_clash": 0.0,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.239,
+        "chainbreak_sq_A2": 0.003,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": 0.0,
+        "hairpin": 0.0,
+        "electro": 5.532,
+        "torsion": 22.199,
+        "rg": 15.042,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 5,
+      "seed": [
+        7,
+        5
+      ],
+      "cluster_id": 1,
+      "cluster_size": 2,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 28,
+          "C2endo": 1,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 10,
+          "canonical_input_pairs": 10,
+          "recovered": 10,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.015,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0066,
+          "clashes": 0,
+          "torsion_energy": 3.78,
+          "relaxed": false
+        },
+        {
+          "a": 13,
+          "b": 20,
+          "n": 6,
+          "kind": "hairpin",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.018,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0133,
+          "clashes": 1,
+          "torsion_energy": 14.52,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_002",
+      "rank": 2,
+      "files": {
+        "pdb": "conformations/conf_002.pdb",
+        "mmcif": "conformations/conf_002.cif"
+      },
+      "secondary_structure_id": "ss1",
+      "secondary_structure": "((((((...((((......))))))))))",
+      "ss_free_energy_kcal_mol": -13.1,
+      "total_score": 62.901,
+      "score_3d": 62.901,
+      "ss_offset_kT": 0.0,
+      "score_terms": {
+        "total": 35.631,
+        "clash": 0.0,
+        "atom_clash": 0.029,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.379,
+        "chainbreak_sq_A2": 0.005,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": 0.0,
+        "hairpin": 0.0,
+        "electro": 3.772,
+        "torsion": 31.45,
+        "rg": 17.699,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 8,
+      "seed": [
+        7,
+        8
+      ],
+      "cluster_id": 2,
+      "cluster_size": 2,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 27,
+          "C2endo": 2,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 10,
+          "canonical_input_pairs": 10,
+          "recovered": 10,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.034,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.006,
+          "clashes": 0,
+          "torsion_energy": 10.57,
+          "relaxed": false
+        },
+        {
+          "a": 13,
+          "b": 20,
+          "n": 6,
+          "kind": "hairpin",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.018,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0134,
+          "clashes": 3,
+          "torsion_energy": 16.7,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_003",
+      "rank": 3,
+      "files": {
+        "pdb": "conformations/conf_003.pdb",
+        "mmcif": "conformations/conf_003.cif"
+      },
+      "secondary_structure_id": "ss1",
+      "secondary_structure": "((((((...((((......))))))))))",
+      "ss_free_energy_kcal_mol": -13.1,
+      "total_score": 72.489,
+      "score_3d": 72.489,
+      "ss_offset_kT": 0.0,
+      "score_terms": {
+        "total": 42.219,
+        "clash": 0.0,
+        "atom_clash": 0.0,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.23,
+        "chainbreak_sq_A2": 0.003,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": 0.0,
+        "hairpin": 0.0,
+        "electro": 3.751,
+        "torsion": 38.238,
+        "rg": 17.065,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 11,
+      "seed": [
+        7,
+        11
+      ],
+      "cluster_id": 3,
+      "cluster_size": 2,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 28,
+          "C2endo": 1,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 10,
+          "canonical_input_pairs": 10,
+          "recovered": 10,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.011,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0065,
+          "clashes": 0,
+          "torsion_energy": 11.41,
+          "relaxed": false
+        },
+        {
+          "a": 13,
+          "b": 20,
+          "n": 6,
+          "kind": "hairpin",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.034,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.006,
+          "clashes": 2,
+          "torsion_energy": 18.86,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_004",
+      "rank": 4,
+      "files": {
+        "pdb": "conformations/conf_004.pdb",
+        "mmcif": "conformations/conf_004.cif"
+      },
+      "secondary_structure_id": "ss1",
+      "secondary_structure": "((((((...((((......))))))))))",
+      "ss_free_energy_kcal_mol": -13.1,
+      "total_score": 77.098,
+      "score_3d": 77.098,
+      "ss_offset_kT": 0.0,
+      "score_terms": {
+        "total": 42.348,
+        "clash": 0.0,
+        "atom_clash": 0.0,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.227,
+        "chainbreak_sq_A2": 0.003,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": 0.0,
+        "hairpin": 0.0,
+        "electro": 4.886,
+        "torsion": 37.235,
+        "rg": 16.113,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 3,
+      "seed": [
+        7,
+        3
+      ],
+      "cluster_id": 4,
+      "cluster_size": 3,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 28,
+          "C2endo": 1,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 10,
+          "canonical_input_pairs": 10,
+          "recovered": 10,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.012,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0031,
+          "clashes": 0,
+          "torsion_energy": 12.36,
+          "relaxed": false
+        },
+        {
+          "a": 13,
+          "b": 20,
+          "n": 6,
+          "kind": "hairpin",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.029,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0233,
+          "clashes": 0,
+          "torsion_energy": 22.39,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_005",
+      "rank": 5,
+      "files": {
+        "pdb": "conformations/conf_005.pdb",
+        "mmcif": "conformations/conf_005.cif"
+      },
+      "secondary_structure_id": "ss2",
+      "secondary_structure": "((((((...(((.((...)))))))))))",
+      "ss_free_energy_kcal_mol": -9.9,
+      "total_score": 80.929,
+      "score_3d": 75.737,
+      "ss_offset_kT": 5.192,
+      "score_terms": {
+        "total": 40.757,
+        "clash": 0.0,
+        "atom_clash": 1.371,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.418,
+        "chainbreak_sq_A2": 0.006,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": -0.566,
+        "hairpin": 0.0,
+        "electro": 4.127,
+        "torsion": 35.408,
+        "rg": 16.168,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 22,
+      "seed": [
+        7,
+        22
+      ],
+      "cluster_id": 5,
+      "cluster_size": 4,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 26,
+          "C2endo": 3,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 11,
+          "canonical_input_pairs": 11,
+          "recovered": 11,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 12,
+          "b": 14,
+          "n": 1,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.032,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0055,
+          "clashes": 0,
+          "torsion_energy": 1.72,
+          "relaxed": false
+        },
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.038,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0031,
+          "clashes": 2,
+          "torsion_energy": 8.78,
+          "relaxed": false
+        },
+        {
+          "a": 15,
+          "b": 19,
+          "n": 3,
+          "kind": "hairpin",
+          "closure_point": "O5'-C5'",
+          "chainbreak_before_A": 0.029,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0078,
+          "clashes": 3,
+          "torsion_energy": 24.48,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_006",
+      "rank": 6,
+      "files": {
+        "pdb": "conformations/conf_006.pdb",
+        "mmcif": "conformations/conf_006.cif"
+      },
+      "secondary_structure_id": "ss1",
+      "secondary_structure": "((((((...((((......))))))))))",
+      "ss_free_energy_kcal_mol": -13.1,
+      "total_score": 83.102,
+      "score_3d": 83.102,
+      "ss_offset_kT": 0.0,
+      "score_terms": {
+        "total": 46.502,
+        "clash": 0.0,
+        "atom_clash": 0.08,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.066,
+        "chainbreak_sq_A2": 0.001,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": 0.0,
+        "hairpin": 0.0,
+        "electro": 4.284,
+        "torsion": 42.072,
+        "rg": 16.674,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 2,
+      "seed": [
+        7,
+        2
+      ],
+      "cluster_id": 6,
+      "cluster_size": 2,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 29,
+          "C2endo": 0,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 10,
+          "canonical_input_pairs": 10,
+          "recovered": 10,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.006,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0012,
+          "clashes": 0,
+          "torsion_energy": 11.34,
+          "relaxed": false
+        },
+        {
+          "a": 13,
+          "b": 20,
+          "n": 6,
+          "kind": "hairpin",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.033,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0033,
+          "clashes": 2,
+          "torsion_energy": 25.26,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_007",
+      "rank": 7,
+      "files": {
+        "pdb": "conformations/conf_007.pdb",
+        "mmcif": "conformations/conf_007.cif"
+      },
+      "secondary_structure_id": "ss2",
+      "secondary_structure": "((((((...(((.((...)))))))))))",
+      "ss_free_energy_kcal_mol": -9.9,
+      "total_score": 87.628,
+      "score_3d": 82.436,
+      "ss_offset_kT": 5.192,
+      "score_terms": {
+        "total": 43.496,
+        "clash": 0.0,
+        "atom_clash": 0.0,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 1.629,
+        "chainbreak_sq_A2": 0.022,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": -1.739,
+        "hairpin": 0.0,
+        "electro": 6.67,
+        "torsion": 36.936,
+        "rg": 14.047,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 18,
+      "seed": [
+        7,
+        18
+      ],
+      "cluster_id": 7,
+      "cluster_size": 2,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 29,
+          "C2endo": 0,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 11,
+          "canonical_input_pairs": 11,
+          "recovered": 11,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 12,
+          "b": 14,
+          "n": 1,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.021,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0046,
+          "clashes": 1,
+          "torsion_energy": 3.9,
+          "relaxed": false
+        },
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.022,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0029,
+          "clashes": 0,
+          "torsion_energy": 10.87,
+          "relaxed": false
+        },
+        {
+          "a": 15,
+          "b": 19,
+          "n": 3,
+          "kind": "hairpin",
+          "closure_point": "O5'-C5'",
+          "chainbreak_before_A": 0.032,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0195,
+          "clashes": 3,
+          "torsion_energy": 24.17,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_008",
+      "rank": 8,
+      "files": {
+        "pdb": "conformations/conf_008.pdb",
+        "mmcif": "conformations/conf_008.cif"
+      },
+      "secondary_structure_id": "ss1",
+      "secondary_structure": "((((((...((((......))))))))))",
+      "ss_free_energy_kcal_mol": -13.1,
+      "total_score": 88.513,
+      "score_3d": 88.513,
+      "ss_offset_kT": 0.0,
+      "score_terms": {
+        "total": 48.193,
+        "clash": 0.0,
+        "atom_clash": 0.048,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.184,
+        "chainbreak_sq_A2": 0.002,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": -0.018,
+        "hairpin": 0.0,
+        "electro": 4.873,
+        "torsion": 43.105,
+        "rg": 15.289,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 12,
+      "seed": [
+        7,
+        12
+      ],
+      "cluster_id": 8,
+      "cluster_size": 2,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 29,
+          "C2endo": 0,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 10,
+          "canonical_input_pairs": 10,
+          "recovered": 10,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.015,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0065,
+          "clashes": 1,
+          "torsion_energy": 18.78,
+          "relaxed": false
+        },
+        {
+          "a": 13,
+          "b": 20,
+          "n": 6,
+          "kind": "hairpin",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.029,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0187,
+          "clashes": 2,
+          "torsion_energy": 21.54,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_009",
+      "rank": 9,
+      "files": {
+        "pdb": "conformations/conf_009.pdb",
+        "mmcif": "conformations/conf_009.cif"
+      },
+      "secondary_structure_id": "ss1",
+      "secondary_structure": "((((((...((((......))))))))))",
+      "ss_free_energy_kcal_mol": -13.1,
+      "total_score": 89.326,
+      "score_3d": 89.326,
+      "ss_offset_kT": 0.0,
+      "score_terms": {
+        "total": 49.366,
+        "clash": 0.0,
+        "atom_clash": 0.015,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.306,
+        "chainbreak_sq_A2": 0.004,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": 0.0,
+        "hairpin": 0.0,
+        "electro": 4.587,
+        "torsion": 44.458,
+        "rg": 15.323,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 13,
+      "seed": [
+        7,
+        13
+      ],
+      "cluster_id": 9,
+      "cluster_size": 4,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 27,
+          "C2endo": 2,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 10,
+          "canonical_input_pairs": 10,
+          "recovered": 10,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.018,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.01,
+          "clashes": 1,
+          "torsion_energy": 12.81,
+          "relaxed": false
+        },
+        {
+          "a": 13,
+          "b": 20,
+          "n": 6,
+          "kind": "hairpin",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.023,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0009,
+          "clashes": 1,
+          "torsion_energy": 27.15,
+          "relaxed": false
+        }
+      ]
+    },
+    {
+      "id": "conf_010",
+      "rank": 10,
+      "files": {
+        "pdb": "conformations/conf_010.pdb",
+        "mmcif": "conformations/conf_010.cif"
+      },
+      "secondary_structure_id": "ss1",
+      "secondary_structure": "((((((...((((......))))))))))",
+      "ss_free_energy_kcal_mol": -13.1,
+      "total_score": 90.09,
+      "score_3d": 90.09,
+      "ss_offset_kT": 0.0,
+      "score_terms": {
+        "total": 47.95,
+        "clash": 0.0,
+        "atom_clash": 0.0,
+        "clash_scale": 25.0,
+        "restraint": 0.0,
+        "chainbreak": 0.208,
+        "chainbreak_sq_A2": 0.003,
+        "feasibility": 0.0,
+        "compaction": 0.0,
+        "stacking": 0.0,
+        "hairpin": 0.0,
+        "electro": 3.832,
+        "torsion": 43.91,
+        "rg": 16.739,
+        "rg0": 16.898,
+        "compaction_applied": false,
+        "n_stacked_helix_ends": 0
+      },
+      "trajectory": 1,
+      "seed": [
+        7,
+        1
+      ],
+      "cluster_id": 10,
+      "cluster_size": 1,
+      "validation": {
+        "passed": true,
+        "severe_clashes": 0,
+        "heavy_atom_overlaps_per_1000_atoms": 0.0,
+        "bond_outliers_4sd": 0,
+        "angle_outliers_4sd": 0,
+        "sugar_puckers": {
+          "C3endo": 29,
+          "C2endo": 0,
+          "other": 0
+        },
+        "pair_recovery": {
+          "input_pairs": 10,
+          "canonical_input_pairs": 10,
+          "recovered": 10,
+          "recovery": 1.0,
+          "extra_canonical_pairs": 0
+        },
+        "restraint_pair_recovery": null
+      },
+      "loop_closures": [
+        {
+          "a": 6,
+          "b": 10,
+          "n": 3,
+          "kind": "closure",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.02,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.004,
+          "clashes": 0,
+          "torsion_energy": 16.2,
+          "relaxed": false
+        },
+        {
+          "a": 13,
+          "b": 20,
+          "n": 6,
+          "kind": "hairpin",
+          "closure_point": "O3'-P",
+          "chainbreak_before_A": 0.024,
+          "closed": true,
+          "method": "ccd_from_search",
+          "gap_rmsd": 0.0094,
+          "clashes": 1,
+          "torsion_energy": 25.94,
+          "relaxed": false
+        }
+      ]
+    }
+  ],
+  "statistics": {
+    "trajectories": 24,
+    "valid": 24,
+    "rejected": 0,
+    "errors": 0,
+    "wall_time_s": 329.9
+  },
+  "warnings": [],
+  "notes": [
+    "Scores are dimensionless model scores (kT-like units), not free energies; ranks are not populations.",
+    "Secondary-structure energies are ViennaRNA nearest-neighbour free energies (kcal/mol).",
+    "Models are physics-inspired predictions without deep learning or tertiary templates; accuracy must be judged from the benchmark report."
+  ]
+}

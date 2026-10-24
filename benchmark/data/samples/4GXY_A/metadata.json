@@ -1,0 +1,54 @@
+{
+ "sample_id": "4GXY_A",
+ "pdb_id": "4GXY",
+ "chain": "A",
+ "family": "AdoCbl riboswitch",
+ "source": "RNA-Puzzles 6",
+ "split": "test",
+ "title": "RNA structure",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 3.05,
+ "length": 172,
+ "observed_residues": 163,
+ "missing_residues": [
+  20,
+  21,
+  22,
+  23,
+  24,
+  25,
+  114,
+  115,
+  116
+ ],
+ "c4_coverage": 0.942,
+ "modified_residues": [
+  [
+   1,
+   "GTP"
+  ],
+  [
+   172,
+   "CCC"
+  ]
+ ],
+ "stratum": "s150_200",
+ "source_file": "raw/4GXY.cif",
+ "source_sha256": "cf082ea916b9e858838403cb6193ac917cdcf9f2e416776da6b1dceb5c15876a",
+ "retrieved_from": "https://files.rcsb.org/download/4GXY.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 41,
+  "nested_pairs": 39,
+  "pseudoknot_pairs_removed": 2,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -95.5,
+  "pairs": 60,
+  "f1_vs_oracle_nested": 0.586,
+  "f1_vs_oracle_full": 0.574
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

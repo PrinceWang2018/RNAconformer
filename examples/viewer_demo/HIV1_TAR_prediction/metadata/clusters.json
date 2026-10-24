@@ -1,0 +1,91 @@
+{
+  "method": "greedy score-ordered selection; C4' Kabsch RMSD threshold",
+  "threshold_angstrom": 2.535,
+  "clusters": [
+    {
+      "id": 1,
+      "representative": "conf_001",
+      "members": [
+        5,
+        15
+      ]
+    },
+    {
+      "id": 2,
+      "representative": "conf_002",
+      "members": [
+        0,
+        8
+      ]
+    },
+    {
+      "id": 3,
+      "representative": "conf_003",
+      "members": [
+        11,
+        16
+      ]
+    },
+    {
+      "id": 4,
+      "representative": "conf_004",
+      "members": [
+        3,
+        4,
+        6
+      ]
+    },
+    {
+      "id": 5,
+      "representative": "conf_005",
+      "members": [
+        19,
+        20,
+        21,
+        22
+      ]
+    },
+    {
+      "id": 6,
+      "representative": "conf_006",
+      "members": [
+        2,
+        9
+      ]
+    },
+    {
+      "id": 7,
+      "representative": "conf_007",
+      "members": [
+        17,
+        18
+      ]
+    },
+    {
+      "id": 8,
+      "representative": "conf_008",
+      "members": [
+        10,
+        12
+      ]
+    },
+    {
+      "id": 9,
+      "representative": "conf_009",
+      "members": [
+        7,
+        13,
+        14,
+        23
+      ]
+    },
+    {
+      "id": 10,
+      "representative": "conf_010",
+      "members": [
+        1
+      ]
+    }
+  ],
+  "note": "Cluster sizes are sampling statistics, not thermodynamic populations."
+}

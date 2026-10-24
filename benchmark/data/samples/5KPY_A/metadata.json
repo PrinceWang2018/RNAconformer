@@ -1,0 +1,35 @@
+{
+ "sample_id": "5KPY_A",
+ "pdb_id": "5KPY",
+ "chain": "A",
+ "family": "5-hydroxytryptophan aptamer",
+ "source": "RNA-Puzzles 9",
+ "split": "test",
+ "title": "Structure of a 5-hydroxytryptophan aptamer",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.0,
+ "length": 71,
+ "observed_residues": 71,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s50_99",
+ "source_file": "raw/5KPY.cif",
+ "source_sha256": "69e18802164f7fa88aa6ef8c318674c35224e8660c9b6d3f1ce4994b66e22c50",
+ "retrieved_from": "https://files.rcsb.org/download/5KPY.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 20,
+  "nested_pairs": 18,
+  "pseudoknot_pairs_removed": 2,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -22.6,
+  "pairs": 20,
+  "f1_vs_oracle_nested": 0.842,
+  "f1_vs_oracle_full": 0.8
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

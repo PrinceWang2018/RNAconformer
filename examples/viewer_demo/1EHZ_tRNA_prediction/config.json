@@ -1,0 +1,31 @@
+{
+  "n_models": 5,
+  "trajectories": 8,
+  "seed": 42,
+  "max_structures": 3,
+  "mfe_share": 0.6,
+  "temperature": 37.0,
+  "closure_attempts": 24,
+  "cluster_rmsd": 0.0,
+  "short_loop_max": 4,
+  "pseudoknot_restraints": false,
+  "anneal_steps": 0,
+  "workers": 8,
+  "export_rejected": false,
+  "save_candidates": true,
+  "weights": {
+    "clash": 3.0,
+    "atom_clash": 3.0,
+    "feasibility": 3.0,
+    "chainbreak": 3.0,
+    "compaction": 0.3,
+    "rg_coefficient": 5.5,
+    "compaction_branched_only": true,
+    "stacking": 4.0,
+    "hairpin": 1.0,
+    "electro": 1.5,
+    "debye_length": 10.0,
+    "torsion": 1.0,
+    "restraint": 0.5
+  }
+}

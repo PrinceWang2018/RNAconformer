@@ -1,0 +1,35 @@
+{
+ "sample_id": "3V7E_C",
+ "pdb_id": "3V7E",
+ "chain": "C",
+ "family": "SAM-I riboswitch (YbxF-bound)",
+ "source": "RNA-Puzzles 4",
+ "split": "test",
+ "title": "Crystal structure of YbxF bound to the SAM-I riboswitch aptamer",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.8,
+ "length": 126,
+ "observed_residues": 126,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s100_149",
+ "source_file": "raw/3V7E.cif",
+ "source_sha256": "dd36d2715f0eba4bb72d60f795c183a85936c4d27c3a42f9867151a3691d7883",
+ "retrieved_from": "https://files.rcsb.org/download/3V7E.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 43,
+  "nested_pairs": 41,
+  "pseudoknot_pairs_removed": 2,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -69.3,
+  "pairs": 42,
+  "f1_vs_oracle_nested": 0.94,
+  "f1_vs_oracle_full": 0.918
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RCV · RNA Conformation Viewer</title>
+<link rel="icon" href="favicon.ico?v=0.6" sizes="16x16 32x32 48x48 256x256">
+<link rel="icon" type="image/png" sizes="256x256" href="img/icon-256.png?v=0.6">
+<link rel="icon" type="image/png" sizes="64x64" href="img/icon-64.png?v=0.6">
+<link rel="icon" type="image/png" sizes="32x32" href="img/icon-32.png?v=0.6">
+<link rel="icon" type="image/svg+xml" href="img/icon.svg?v=0.6">
+<link rel="apple-touch-icon" href="img/icon-192.png?v=0.6">
+<link rel="manifest" href="manifest.webmanifest?v=0.6">
+<meta name="theme-color" content="#2a78d6">
+<meta name="application-name" content="RCV">
+<link rel="stylesheet" href="css/app.css">
+<script type="module" src="js/app.js"></script>
+</head>
+<body>
+<div class="welcome" id="welcome" hidden></div>
+<div class="app" id="app" hidden>
+  <header class="menubar">
+    <div class="brand" title="RCV · RNA Conformation Viewer"><img class="logo" src="img/icon.svg?v=0.6" alt="" draggable="false"><span class="brand-name">RCV</span><span class="brand-sub">RNA Conformation Viewer</span></div>
+    <nav class="menus" id="menus" aria-label="Main menu"></nav>
+    <div class="spacer"></div>
+    <button class="btn ghost small lang-btn" id="btn-lang" title="Interface language" aria-label="Interface language"></button>
+    <button class="btn ghost icon-only" data-act="fullscreen" id="tg-fullscreen" title="Full screen (F11)" aria-label="Full screen"></button>
+    <button class="btn ghost icon-only" id="btn-theme" title="Light / dark interface" aria-label="Toggle light or dark interface"></button>
+  </header>
+
+  <div class="toolbar" id="toolbar" role="toolbar" aria-label="View controls">
+    <div class="tb-group">
+      <button class="btn ghost icon-only" data-act="home" title="Start page (Ctrl+H)" aria-label="Start page"></button>
+      <button class="btn ghost icon-only" data-act="open" title="Open structures (Ctrl+O)" aria-label="Open structures"></button>
+      <button class="btn ghost icon-only" data-act="predict" title="New prediction from sequence (Ctrl+N)" aria-label="New prediction"></button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="btn ghost icon-only" data-act="undo" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo"></button>
+      <button class="btn ghost icon-only" data-act="redo" id="btn-redo" title="Redo (Ctrl+Y)" aria-label="Redo"></button>
+      <button class="btn ghost icon-only" data-act="clear" id="btn-clear" title="Clear colours, labels, annotations, measurements…" aria-label="Clear"></button>
+    </div>
+    <div class="tb-sep"></div>
+    <div id="tool-host"></div>
+    <div class="tb-sep"></div>
+    <span class="tb-label">Show</span>
+    <select class="select small" id="sel-rep" aria-label="Representation" title="Representation (keys 1–5)">
+      <option value="cartoon">Cartoon</option>
+      <option value="cartoon+sticks">Cartoon + atoms</option>
+      <option value="sticks">Sticks</option>
+      <option value="ballstick">Ball &amp; stick</option>
+      <option value="spacefill">Spheres</option>
+    </select>
+    <div class="tb-sep"></div>
+    <span class="tb-label">Color</span>
+    <select class="select small" id="sel-color" aria-label="Color scheme"></select>
+    <span class="tb-label">Style</span>
+    <select class="select small" id="sel-style" aria-label="Rendering style"></select>
+    <button class="swatch-btn" id="btn-bg" title="Viewport background" aria-label="Viewport background"><span></span></button>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="btn small" id="tg-ghosts" title="Ensemble overlay: all conformations as a translucent bundle (E)">Overlay</button>
+      <button class="btn small" id="tg-putty" title="Flexibility putty: tube thickness follows per-residue flexibility (RMSF) (P)">Putty</button>
+      <button class="btn small" id="tg-surface" title="Molecular surface (U); transparency in View ▸ Surface and transparency">Surface</button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="btn ghost icon-only" data-act="reset-view" title="Reset view (R)" aria-label="Reset view"></button>
+      <button class="btn ghost icon-only" data-act="spin" title="Auto-rotate (A)" aria-label="Auto-rotate"></button>
+      <button class="btn ghost icon-only" data-act="export-image" title="Export image: PNG, TIFF, PDF (Ctrl+E)" aria-label="Export image"></button>
+      <button class="btn ghost icon-only" data-act="export-video" title="Record video: MP4 / WebM, or a transition A → B" aria-label="Record video"></button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="btn ghost icon-only" data-act="ss2d" id="tg-ss2d" title="2D structure window (D)" aria-label="2D structure window"></button>
+      <button class="btn ghost icon-only" data-act="console" id="tg-console" title="Command console (`)" aria-label="Command console"></button>
+    </div>
+  </div>
+
+  <aside class="sidebar left" id="left" aria-label="Ensembles and conformations">
+    <section class="panel">
+      <div class="panel-head" data-win-head>Ensembles<span class="grow"></span>
+        <button class="btn ghost icon-only small" data-act="open" title="Open structures" aria-label="Open structures"></button><span class="win-btns" data-win="left"></span></div>
+      <div class="list ensembles" id="ensemble-list"></div>
+    </section>
+    <section class="panel grow">
+      <div class="panel-head">Conformations<span class="grow"></span>
+        <select class="select small" id="sel-order" title="Order of conformations for browsing, playback and charts" aria-label="Conformation order">
+          <option value="rank">Rank</option>
+          <option value="metric">By energy</option>
+          <option value="path">Similarity path</option>
+          <option value="input">Input order</option>
+        </select>
+      </div>
+      <div class="list" id="conf-list" role="listbox" aria-label="Conformations"></div>
+    </section>
+  </aside>
+
+  <main class="stage">
+    <div class="viewport" id="viewport">
+      <canvas class="gl" id="gl" tabindex="0" aria-label="3D structure view. Drag to rotate, right-drag to pan, wheel to zoom."></canvas>
+      <svg class="overlay-svg" id="overlay"></svg>
+      <div class="hud hud-title" id="hud-title"></div>
+      <div class="hud hud-legend" id="hud-legend"></div>
+      <div class="hud hud-morph" id="hud-morph" hidden></div>
+      <div id="labels" translate="no"></div>
+      <div class="dropzone" id="dropzone" hidden>Drop PDB / mmCIF files or an ensemble folder</div>
+      <div class="empty-state" id="empty" hidden></div>
+      <div class="jobs-dock" id="jobs-dock" hidden></div>
+      <div class="busy" id="busy" hidden><div class="busy-card"><div class="spinner"></div><span id="busy-text">Loading…</span></div></div>
+    </div>
+    <div id="console-host" class="console-host"></div>
+    <div class="timeline" id="timeline">
+      <button class="btn ghost icon-only" data-act="prev" title="Previous conformation (←)" aria-label="Previous conformation"></button>
+      <button class="btn icon-only" data-act="play" title="Play conformation tour (Space)" aria-label="Play"></button>
+      <button class="btn ghost icon-only" data-act="next" title="Next conformation (→)" aria-label="Next conformation"></button>
+      <div class="pos" id="tl-pos">–</div>
+      <div class="track" id="tl-track" aria-label="Conformation scrubber" role="slider" tabindex="0"></div>
+      <div class="opts">
+        <span class="lbl">Morph</span><input type="range" id="tl-dur" min="0.2" max="4" step="0.1" value="1.2" title="Transition duration (s)" aria-label="Transition duration">
+        <span class="lbl">Hold</span><input type="range" id="tl-hold" min="0" max="4" step="0.1" value="0.8" title="Pause on each conformation during playback (s)" aria-label="Hold time">
+        <label class="check" title="Repeat the tour"><input type="checkbox" id="tl-loop" checked> Loop</label>
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar right" id="right" aria-label="Energy and details">
+    <div class="tabs-row" data-win-head><div class="tabs" id="tabs" role="tablist"></div><span class="win-btns" data-win="right"></span></div>
+    <div id="tab-bodies" class="panel grow"></div>
+  </aside>
+
+  <footer class="statusbar" id="statusbar"></footer>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="tooltip" id="tooltip" hidden></div>
+</body>
+</html>

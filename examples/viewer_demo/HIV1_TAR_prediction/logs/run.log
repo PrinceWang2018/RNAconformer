@@ -1,0 +1,29 @@
+[20:40:36] HIV1_TAR (sequence of PDB 1ANR): 29 nt; 2 secondary-structure hypotheses (ViennaRNA)
+[20:40:36]   ss1 ((((((...((((......)))))))))) -13.1 kcal/mol [vienna_mfe]
+[20:40:36]   ss2 ((((((...(((.((...))))))))))) -9.9 kcal/mol [vienna_suboptimal]
+[20:40:36] running 24 trajectories on 6 worker(s)
+[20:46:05]   traj   0 [ss1] valid    score3d=109.839  88.17s
+[20:46:05]   traj   1 [ss1] valid    score3d=90.09  78.64s
+[20:46:05]   traj   2 [ss1] valid    score3d=83.102  81.83s
+[20:46:05]   traj   3 [ss1] valid    score3d=77.098  80.28s
+[20:46:05]   traj   4 [ss1] valid    score3d=125.888  88.99s
+[20:46:05]   traj   5 [ss1] valid    score3d=46.271  79.48s
+[20:46:05]   traj   6 [ss1] valid    score3d=94.607  77.86s
+[20:46:05]   traj   7 [ss1] valid    score3d=97.816  73.88s
+[20:46:05]   traj   8 [ss1] valid    score3d=62.901  80.95s
+[20:46:05]   traj   9 [ss1] valid    score3d=106.315  77.89s
+[20:46:05]   traj  10 [ss1] valid    score3d=110.047  79.23s
+[20:46:05]   traj  11 [ss1] valid    score3d=72.489  75.17s
+[20:46:05]   traj  12 [ss1] valid    score3d=88.513  82.02s
+[20:46:05]   traj  13 [ss1] valid    score3d=89.326  83.29s
+[20:46:05]   traj  14 [ss2] valid    score3d=87.915  79.59s
+[20:46:05]   traj  15 [ss2] valid    score3d=88.369  80.19s
+[20:46:05]   traj  16 [ss2] valid    score3d=92.553  80.25s
+[20:46:05]   traj  17 [ss2] valid    score3d=89.709  81.54s
+[20:46:05]   traj  18 [ss2] valid    score3d=82.436  82.65s
+[20:46:05]   traj  19 [ss2] valid    score3d=98.153  83.85s
+[20:46:05]   traj  20 [ss2] valid    score3d=92.291  81.74s
+[20:46:05]   traj  21 [ss2] valid    score3d=111.626  78.54s
+[20:46:05]   traj  22 [ss2] valid    score3d=75.737  84.21s
+[20:46:05]   traj  23 [ss2] valid    score3d=112.134  79.39s
+[20:46:06] 24/24 valid models; exported 10 conformers to examples/viewer_demo/HIV1_TAR_prediction in 329.9s

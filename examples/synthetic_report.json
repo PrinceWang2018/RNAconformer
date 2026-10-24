@@ -1,0 +1,27 @@
+{
+  "schema_version": "m4.1",
+  "metric": "C4-prime aligned RMSD (Angstrom)",
+  "reference": "examples/synthetic_reference.pdb",
+  "reference_residues": 4,
+  "n_predictions": 1,
+  "n_evaluable": 1,
+  "best_of_k_rmsd": 6.23728986632994e-16,
+  "median_rmsd": 6.23728986632994e-16,
+  "success_threshold_angstrom": 5.0,
+  "success_at_k": true,
+  "per_conformer": [
+    {
+      "status": "ok",
+      "matched": 4,
+      "reference_nt": 4,
+      "coverage": 1.0,
+      "c4_rmsd": 6.23728986632994e-16,
+      "file": "examples/synthetic_candidate.pdb"
+    }
+  ],
+  "limitations": [
+    "C4-prime RMSD is not eRMSD, INF, TM-score, or stereochemical validity",
+    "Matching uses exact chain/residue IDs and matching bases; no sequence alignment",
+    "Best-of-K uses all evaluable predictions, not top-ranked accuracy"
+  ]
+}

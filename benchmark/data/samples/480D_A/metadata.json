@@ -1,0 +1,35 @@
+{
+ "sample_id": "480D_A",
+ "pdb_id": "480D",
+ "chain": "A",
+ "family": "sarcin-ricin domain",
+ "source": "RCSB",
+ "split": "dev",
+ "title": "CRYSTAL STRUCTURE OF THE SARCIN/RICIN DOMAIN FROM E. COLI 23 S RRNA",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 1.5,
+ "length": 27,
+ "observed_residues": 27,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "smoke_lt30",
+ "source_file": "raw/480D.cif",
+ "source_sha256": "20037deee2432f1b4da680a91c0b9fda9209e8dedb11feb6431e3cbf4f16aafe",
+ "retrieved_from": "https://files.rcsb.org/download/480D.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 6,
+  "nested_pairs": 6,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -5.5,
+  "pairs": 7,
+  "f1_vs_oracle_nested": 0.769,
+  "f1_vs_oracle_full": 0.769
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

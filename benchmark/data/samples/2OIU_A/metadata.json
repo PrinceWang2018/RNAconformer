@@ -1,0 +1,35 @@
+{
+ "sample_id": "2OIU_A",
+ "pdb_id": "2OIU",
+ "chain": "A",
+ "family": "L1 ligase ribozyme",
+ "source": "RCSB",
+ "split": "test",
+ "title": "L1 Ribozyme Ligase circular adduct",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.6,
+ "length": 71,
+ "observed_residues": 71,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s50_99",
+ "source_file": "raw/2OIU.cif",
+ "source_sha256": "aa73b4f0ed1334878fc1358f684c61f8fd373ac95cbf8f5a90fe283391debf2a",
+ "retrieved_from": "https://files.rcsb.org/download/2OIU.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 21,
+  "nested_pairs": 21,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -28.8,
+  "pairs": 25,
+  "f1_vs_oracle_nested": 0.87,
+  "f1_vs_oracle_full": 0.87
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

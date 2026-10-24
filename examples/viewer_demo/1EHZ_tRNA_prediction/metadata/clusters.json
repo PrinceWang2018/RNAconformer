@@ -1,0 +1,42 @@
+{
+  "method": "greedy score-ordered selection; C4' Kabsch RMSD threshold",
+  "threshold_angstrom": 3.495,
+  "clusters": [
+    {
+      "id": 1,
+      "representative": "conf_001",
+      "members": [
+        5
+      ]
+    },
+    {
+      "id": 2,
+      "representative": "conf_002",
+      "members": [
+        4
+      ]
+    },
+    {
+      "id": 3,
+      "representative": "conf_003",
+      "members": [
+        2
+      ]
+    },
+    {
+      "id": 4,
+      "representative": "conf_004",
+      "members": [
+        0
+      ]
+    },
+    {
+      "id": 5,
+      "representative": "conf_005",
+      "members": [
+        1
+      ]
+    }
+  ],
+  "note": "Cluster sizes are sampling statistics, not thermodynamic populations."
+}

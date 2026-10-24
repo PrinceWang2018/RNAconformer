@@ -1,0 +1,35 @@
+{
+ "sample_id": "5TPY_A",
+ "pdb_id": "5TPY",
+ "chain": "A",
+ "family": "Zika xrRNA",
+ "source": "RNA-Puzzles 18",
+ "split": "test",
+ "title": "Crystal structure of an exonuclease resistant RNA from Zika virus",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.805,
+ "length": 71,
+ "observed_residues": 71,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s50_99",
+ "source_file": "raw/5TPY.cif",
+ "source_sha256": "df4132cac2d20eb4114d6a5942a04ba10e4acad766d4b2363a3622db6d31eb1b",
+ "retrieved_from": "https://files.rcsb.org/download/5TPY.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 25,
+  "nested_pairs": 20,
+  "pseudoknot_pairs_removed": 5,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -33.1,
+  "pairs": 26,
+  "f1_vs_oracle_nested": 0.652,
+  "f1_vs_oracle_full": 0.588
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

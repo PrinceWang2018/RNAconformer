@@ -1,0 +1,37 @@
+{
+ "sample_id": "5NWQ_A",
+ "pdb_id": "5NWQ",
+ "chain": "A",
+ "family": "guanidine-III riboswitch",
+ "source": "RNA-Puzzles 21",
+ "split": "test",
+ "title": "The structure of the thermobifida fusca guanidine III riboswitch with guanidine.",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 1.91,
+ "length": 41,
+ "observed_residues": 40,
+ "missing_residues": [
+  39
+ ],
+ "c4_coverage": 0.976,
+ "modified_residues": [],
+ "stratum": "s30_49",
+ "source_file": "raw/5NWQ.cif",
+ "source_sha256": "d56ffee5c24166f83c8b67ccc64c1f41de1a4adb9cbaaf61b813174e60d96f96",
+ "retrieved_from": "https://files.rcsb.org/download/5NWQ.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 11,
+  "nested_pairs": 7,
+  "pseudoknot_pairs_removed": 4,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -14.0,
+  "pairs": 11,
+  "f1_vs_oracle_nested": 0.667,
+  "f1_vs_oracle_full": 0.545
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

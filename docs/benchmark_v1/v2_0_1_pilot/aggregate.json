@@ -1,0 +1,119 @@
+{
+ "config": {
+  "engine": "rnafold3d-v2-foldtree",
+  "engine_version": "2.0.1",
+  "weight_overrides": {},
+  "models": 5,
+  "trajectories": 8,
+  "seed": 42,
+  "steps": 0,
+  "workers": 8,
+  "modes": "independent,oracle",
+  "split": "all",
+  "vienna": "2.7.2",
+  "python": "3.13.13",
+  "thresholds": {
+   "c4_rmsd_5A": 5.0,
+   "c4_rmsd_10A": 10.0,
+   "ermsd_1": 1.0
+  },
+  "started": "2026-10-22T09:05:15"
+ },
+ "aggregate": {
+  "independent": {
+   "targets": 26,
+   "yield": 1.0,
+   "median_top1_c4_rmsd": 21.23,
+   "median_best_c4_rmsd": 17.48,
+   "median_top1_ermsd": 1.59,
+   "median_best_ermsd": 1.49,
+   "median_top1_inf_wc": 0.77,
+   "median_best_inf_wc": 0.8,
+   "success_best_c4_le_5A": 0.115,
+   "success_best_c4_le_10A": 0.154,
+   "success_top1_c4_le_10A": 0.154,
+   "success_best_ermsd_le_1": 0.038,
+   "median_wall_time_s": 125.4,
+   "by_stratum": {
+    "s100_149": {
+     "targets": 2,
+     "with_models": 2,
+     "median_best_c4_rmsd": 21.33,
+     "median_top1_c4_rmsd": 25.92
+    },
+    "s150_200": {
+     "targets": 6,
+     "with_models": 6,
+     "median_best_c4_rmsd": 23.99,
+     "median_top1_c4_rmsd": 28.62
+    },
+    "s30_49": {
+     "targets": 3,
+     "with_models": 3,
+     "median_best_c4_rmsd": 15.9,
+     "median_top1_c4_rmsd": 19.27
+    },
+    "s50_99": {
+     "targets": 12,
+     "with_models": 12,
+     "median_best_c4_rmsd": 14.28,
+     "median_top1_c4_rmsd": 19.05
+    },
+    "smoke_lt30": {
+     "targets": 3,
+     "with_models": 3,
+     "median_best_c4_rmsd": 3.41,
+     "median_top1_c4_rmsd": 4.1
+    }
+   }
+  },
+  "oracle": {
+   "targets": 26,
+   "yield": 0.962,
+   "median_top1_c4_rmsd": 17.96,
+   "median_best_c4_rmsd": 14.29,
+   "median_top1_ermsd": 1.42,
+   "median_best_ermsd": 1.36,
+   "median_top1_inf_wc": 0.97,
+   "median_best_inf_wc": 0.97,
+   "success_best_c4_le_5A": 0.115,
+   "success_best_c4_le_10A": 0.192,
+   "success_top1_c4_le_10A": 0.154,
+   "success_best_ermsd_le_1": 0.038,
+   "median_wall_time_s": 132.7,
+   "by_stratum": {
+    "s100_149": {
+     "targets": 2,
+     "with_models": 2,
+     "median_best_c4_rmsd": 17.71,
+     "median_top1_c4_rmsd": 22.85
+    },
+    "s150_200": {
+     "targets": 6,
+     "with_models": 5,
+     "median_best_c4_rmsd": 25.44,
+     "median_top1_c4_rmsd": 26.48
+    },
+    "s30_49": {
+     "targets": 3,
+     "with_models": 3,
+     "median_best_c4_rmsd": 14.28,
+     "median_top1_c4_rmsd": 17.62
+    },
+    "s50_99": {
+     "targets": 12,
+     "with_models": 12,
+     "median_best_c4_rmsd": 14.17,
+     "median_top1_c4_rmsd": 15.94
+    },
+    "smoke_lt30": {
+     "targets": 3,
+     "with_models": 3,
+     "median_best_c4_rmsd": 3.51,
+     "median_top1_c4_rmsd": 3.51
+    }
+   }
+  }
+ },
+ "finished": "2026-10-22T11:53:55"
+}

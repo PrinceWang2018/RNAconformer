@@ -1,0 +1,40 @@
+{
+ "sample_id": "3E5C_A",
+ "pdb_id": "3E5C",
+ "chain": "A",
+ "family": "SAM-III riboswitch",
+ "source": "RCSB",
+ "split": "test",
+ "title": "Crystal Structure of the SMK box (SAM-III) Riboswitch with SAM",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.25,
+ "length": 53,
+ "observed_residues": 53,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [
+  [
+   1,
+   "GTP"
+  ]
+ ],
+ "stratum": "s50_99",
+ "source_file": "raw/3E5C.cif",
+ "source_sha256": "858592c87704990e3f7fc7e7b8d25dfe98371c9ca4c06bcbdfd763d657614ed6",
+ "retrieved_from": "https://files.rcsb.org/download/3E5C.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 17,
+  "nested_pairs": 17,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -17.9,
+  "pairs": 15,
+  "f1_vs_oracle_nested": 0.688,
+  "f1_vs_oracle_full": 0.688
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

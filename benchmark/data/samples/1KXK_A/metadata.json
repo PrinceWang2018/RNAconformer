@@ -1,0 +1,35 @@
+{
+ "sample_id": "1KXK_A",
+ "pdb_id": "1KXK",
+ "chain": "A",
+ "family": "group II intron D5/D6",
+ "source": "RCSB",
+ "split": "dev",
+ "title": "Crystal Structure of a RNA Molecule Containing Domain 5 and 6 of the Yeast ai5g Group II Self-splicing Intron",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 3.0,
+ "length": 70,
+ "observed_residues": 70,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s50_99",
+ "source_file": "raw/1KXK.cif",
+ "source_sha256": "3d83162e740f1f997c20cfd65118209fe61cf5c925491ef8f5c28b4046992c7a",
+ "retrieved_from": "https://files.rcsb.org/download/1KXK.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 23,
+  "nested_pairs": 23,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -34.1,
+  "pairs": 24,
+  "f1_vs_oracle_nested": 0.809,
+  "f1_vs_oracle_full": 0.809
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

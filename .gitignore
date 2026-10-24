@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.egg-info/
+benchmark/data/raw/
+benchmark/runs/
+runs/
+viewer_smoketest/
+build/
+dist/
+.venv-build/
+.devwork/
+# old milestone archives (kept locally, not published)
+oldref/

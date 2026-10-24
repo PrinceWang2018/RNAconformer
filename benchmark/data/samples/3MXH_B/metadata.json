@@ -1,0 +1,40 @@
+{
+ "sample_id": "3MXH_B",
+ "pdb_id": "3MXH",
+ "chain": "B",
+ "family": "c-di-GMP-I riboswitch",
+ "source": "RCSB",
+ "split": "test",
+ "title": "Native structure of a c-di-GMP riboswitch from V. cholerae",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.3,
+ "length": 92,
+ "observed_residues": 92,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [
+  [
+   1,
+   "GTP"
+  ]
+ ],
+ "stratum": "s50_99",
+ "source_file": "raw/3MXH.cif",
+ "source_sha256": "87b15e3220c0d1cbaf972a810dd4878de5b521edc1809ef75243fd05320d7a58",
+ "retrieved_from": "https://files.rcsb.org/download/3MXH.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 25,
+  "nested_pairs": 24,
+  "pseudoknot_pairs_removed": 1,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -30.0,
+  "pairs": 24,
+  "f1_vs_oracle_nested": 0.333,
+  "f1_vs_oracle_full": 0.327
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

@@ -1,0 +1,128 @@
+{
+ "1": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "1",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 24
+ },
+ "2": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "2",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "3": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "3",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "4": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "4",
+  "ins_code": "",
+  "comp_id": "A",
+  "parent": "A",
+  "modified": false,
+  "n_atoms": 22
+ },
+ "5": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "5",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "6": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "6",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "7": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "7",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "8": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "8",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "9": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "9",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "10": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "10",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "11": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "11",
+  "ins_code": "",
+  "comp_id": "U",
+  "parent": "U",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "12": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "12",
+  "ins_code": "",
+  "comp_id": "G",
+  "parent": "G",
+  "modified": false,
+  "n_atoms": 23
+ },
+ "13": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "13",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ },
+ "14": {
+  "auth_asym_id": "A",
+  "auth_seq_id": "14",
+  "ins_code": "",
+  "comp_id": "C",
+  "parent": "C",
+  "modified": false,
+  "n_atoms": 20
+ }
+}

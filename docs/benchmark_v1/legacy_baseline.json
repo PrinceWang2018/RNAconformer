@@ -1,0 +1,300 @@
+[
+ {
+  "sample_id": "2KOC_A",
+  "length": 14,
+  "m1_m2_exit": 0,
+  "guide_candidates": 56,
+  "guide_selected": 3,
+  "complete_guide_chains": 8,
+  "m3_exit": 0,
+  "m3_candidates": 3,
+  "m3_exported": 0,
+  "m3_outcomes": {
+   "failed_checks": 3
+  },
+  "max_O3P_link_A": 10.4,
+  "v2_validator_pass": 0,
+  "time_s": 7.1
+ },
+ {
+  "sample_id": "480D_A",
+  "length": 27,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 13.5
+ },
+ {
+  "sample_id": "1ANR_A",
+  "length": 29,
+  "m1_m2_exit": 0,
+  "guide_candidates": 49,
+  "guide_selected": 0,
+  "complete_guide_chains": 7,
+  "m3_exit": 0,
+  "m3_candidates": 7,
+  "m3_exported": 0,
+  "m3_outcomes": {
+   "failed_checks": 7
+  },
+  "max_O3P_link_A": 10.78,
+  "v2_validator_pass": 0,
+  "time_s": 168.5
+ },
+ {
+  "sample_id": "1RNK_A",
+  "length": 34,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 54.3
+ },
+ {
+  "sample_id": "1F1T_A",
+  "length": 38,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 4.1
+ },
+ {
+  "sample_id": "5NWQ_A",
+  "length": 41,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 57.4
+ },
+ {
+  "sample_id": "4ENC_A",
+  "length": 52,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 116.5
+ },
+ {
+  "sample_id": "3E5C_A",
+  "length": 53,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 256.2
+ },
+ {
+  "sample_id": "4XW7_A",
+  "length": 64,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 6.5
+ },
+ {
+  "sample_id": "1KXK_A",
+  "length": 70,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 5.9
+ },
+ {
+  "sample_id": "1Y26_A",
+  "length": 71,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 4.4
+ },
+ {
+  "sample_id": "5KPY_A",
+  "length": 71,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 3.2
+ },
+ {
+  "sample_id": "5TPY_A",
+  "length": 71,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 3.8
+ },
+ {
+  "sample_id": "2OIU_A",
+  "length": 71,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 3.7
+ },
+ {
+  "sample_id": "1EHZ_A",
+  "length": 76,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 3.9
+ },
+ {
+  "sample_id": "2GDI_A",
+  "length": 80,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 4.5
+ },
+ {
+  "sample_id": "3MXH_B",
+  "length": 92,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 5.0
+ },
+ {
+  "sample_id": "4L81_A",
+  "length": 96,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 142.9
+ },
+ {
+  "sample_id": "4QLM_A",
+  "length": 125,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 31.5
+ },
+ {
+  "sample_id": "3V7E_C",
+  "length": 126,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 8.9
+ },
+ {
+  "sample_id": "1GID_A",
+  "length": 158,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 7.6
+ },
+ {
+  "sample_id": "1U9S_A",
+  "length": 161,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 8.8
+ },
+ {
+  "sample_id": "3D0U_A",
+  "length": 161,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 10.0
+ },
+ {
+  "sample_id": "2QBZ_A",
+  "length": 161,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 7.9
+ },
+ {
+  "sample_id": "4GXY_A",
+  "length": 172,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 6.6
+ },
+ {
+  "sample_id": "4P9R_A",
+  "length": 192,
+  "m1_m2_exit": 0,
+  "guide_candidates": 0,
+  "guide_selected": 0,
+  "complete_guide_chains": 0,
+  "m3_exit": 1,
+  "m3_error": "No complete guide conformations found",
+  "time_s": 10.1
+ }
+]

@@ -1,0 +1,1750 @@
+{
+ "0": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.424,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.033,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0049,
+    "clashes": 0,
+    "torsion_energy": 11.59,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.006,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0024,
+    "clashes": 8,
+    "torsion_energy": 34.5,
+    "relaxed": false
+   }
+  ]
+ },
+ "1": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.678,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.02,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.004,
+    "clashes": 0,
+    "torsion_energy": 16.2,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.024,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0094,
+    "clashes": 1,
+    "torsion_energy": 25.94,
+    "relaxed": false
+   }
+  ]
+ },
+ "2": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.546,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.006,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0012,
+    "clashes": 0,
+    "torsion_energy": 11.34,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.033,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0033,
+    "clashes": 2,
+    "torsion_energy": 25.26,
+    "relaxed": false
+   }
+  ]
+ },
+ "3": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.595,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 28,
+    "C2endo": 1,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.012,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0031,
+    "clashes": 0,
+    "torsion_energy": 12.36,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.029,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0233,
+    "clashes": 0,
+    "torsion_energy": 22.39,
+    "relaxed": false
+   }
+  ]
+ },
+ "4": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.54,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 28,
+    "C2endo": 1,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.045,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0018,
+    "clashes": 1,
+    "torsion_energy": 19.04,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.047,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0065,
+    "clashes": 3,
+    "torsion_energy": 38.57,
+    "relaxed": false
+   }
+  ]
+ },
+ "5": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.646,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 28,
+    "C2endo": 1,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.015,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0066,
+    "clashes": 0,
+    "torsion_energy": 3.78,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.018,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0133,
+    "clashes": 1,
+    "torsion_energy": 14.52,
+    "relaxed": false
+   }
+  ]
+ },
+ "6": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.518,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.032,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0076,
+    "clashes": 0,
+    "torsion_energy": 18.16,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.033,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0107,
+    "clashes": 1,
+    "torsion_energy": 24.9,
+    "relaxed": false
+   }
+  ]
+ },
+ "7": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.622,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 27,
+    "C2endo": 2,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.031,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.009,
+    "clashes": 0,
+    "torsion_energy": 11.53,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.035,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0018,
+    "clashes": 2,
+    "torsion_energy": 32.92,
+    "relaxed": false
+   }
+  ]
+ },
+ "8": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.547,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 27,
+    "C2endo": 2,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.034,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.006,
+    "clashes": 0,
+    "torsion_energy": 10.57,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.018,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0134,
+    "clashes": 3,
+    "torsion_energy": 16.7,
+    "relaxed": false
+   }
+  ]
+ },
+ "9": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.623,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 28,
+    "C2endo": 1,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.044,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0086,
+    "clashes": 1,
+    "torsion_energy": 11.27,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.022,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0074,
+    "clashes": 1,
+    "torsion_energy": 39.35,
+    "relaxed": false
+   }
+  ]
+ },
+ "10": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.664,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 27,
+    "C2endo": 2,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.014,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.002,
+    "clashes": 1,
+    "torsion_energy": 20.93,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.042,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.008,
+    "clashes": 5,
+    "torsion_energy": 32.09,
+    "relaxed": false
+   }
+  ]
+ },
+ "11": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.571,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 28,
+    "C2endo": 1,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.011,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0065,
+    "clashes": 0,
+    "torsion_energy": 11.41,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.034,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.006,
+    "clashes": 2,
+    "torsion_energy": 18.86,
+    "relaxed": false
+   }
+  ]
+ },
+ "12": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.678,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.015,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0065,
+    "clashes": 1,
+    "torsion_energy": 18.78,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.029,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0187,
+    "clashes": 2,
+    "torsion_energy": 21.54,
+    "relaxed": false
+   }
+  ]
+ },
+ "13": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.678,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 27,
+    "C2endo": 2,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 10,
+    "canonical_input_pairs": 10,
+    "recovered": 10,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.018,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.01,
+    "clashes": 1,
+    "torsion_energy": 12.81,
+    "relaxed": false
+   },
+   {
+    "a": 13,
+    "b": 20,
+    "n": 6,
+    "kind": "hairpin",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.023,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0009,
+    "clashes": 1,
+    "torsion_energy": 27.15,
+    "relaxed": false
+   }
+  ]
+ },
+ "14": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.569,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.031,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0069,
+    "clashes": 0,
+    "torsion_energy": 5.02,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.021,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0117,
+    "clashes": 0,
+    "torsion_energy": 13.28,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.018,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0054,
+    "clashes": 1,
+    "torsion_energy": 24.41,
+    "relaxed": false
+   }
+  ]
+ },
+ "15": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.549,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.019,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0024,
+    "clashes": 0,
+    "torsion_energy": 4.63,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.021,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0093,
+    "clashes": 2,
+    "torsion_energy": 15.36,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.018,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0123,
+    "clashes": 3,
+    "torsion_energy": 25.08,
+    "relaxed": false
+   }
+  ]
+ },
+ "16": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 3.25,
+   "min_nonbonded_distance": 2.363,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 28,
+    "C2endo": 1,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.028,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0061,
+    "clashes": 0,
+    "torsion_energy": 4.63,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.02,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.011,
+    "clashes": 0,
+    "torsion_energy": 12.0,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.02,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0144,
+    "clashes": 5,
+    "torsion_energy": 29.01,
+    "relaxed": false
+   }
+  ]
+ },
+ "17": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.532,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.047,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0137,
+    "clashes": 2,
+    "torsion_energy": 4.68,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.008,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0017,
+    "clashes": 0,
+    "torsion_energy": 12.96,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.052,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.028,
+    "clashes": 1,
+    "torsion_energy": 26.29,
+    "relaxed": false
+   }
+  ]
+ },
+ "18": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.62,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.021,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0046,
+    "clashes": 1,
+    "torsion_energy": 3.9,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.022,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0029,
+    "clashes": 0,
+    "torsion_energy": 10.87,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.032,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0195,
+    "clashes": 3,
+    "torsion_energy": 24.17,
+    "relaxed": false
+   }
+  ]
+ },
+ "19": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 1.63,
+   "min_nonbonded_distance": 2.453,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 29,
+    "C2endo": 0,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.013,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0079,
+    "clashes": 1,
+    "torsion_energy": 7.83,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.026,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0131,
+    "clashes": 0,
+    "torsion_energy": 12.27,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.042,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0241,
+    "clashes": 4,
+    "torsion_energy": 25.95,
+    "relaxed": false
+   }
+  ]
+ },
+ "20": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.506,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 28,
+    "C2endo": 1,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.021,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0098,
+    "clashes": 0,
+    "torsion_energy": 2.7,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.028,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0038,
+    "clashes": 0,
+    "torsion_energy": 16.12,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.035,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0115,
+    "clashes": 1,
+    "torsion_energy": 25.47,
+    "relaxed": false
+   }
+  ]
+ },
+ "21": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.502,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 26,
+    "C2endo": 3,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.044,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0129,
+    "clashes": 0,
+    "torsion_energy": 14.49,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.026,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0041,
+    "clashes": 0,
+    "torsion_energy": 18.72,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.022,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0025,
+    "clashes": 0,
+    "torsion_energy": 22.99,
+    "relaxed": false
+   }
+  ]
+ },
+ "22": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.644,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 26,
+    "C2endo": 3,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.032,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0055,
+    "clashes": 0,
+    "torsion_energy": 1.72,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.038,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0031,
+    "clashes": 2,
+    "torsion_energy": 8.78,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.029,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0078,
+    "clashes": 3,
+    "torsion_energy": 24.48,
+    "relaxed": false
+   }
+  ]
+ },
+ "23": {
+  "status": "valid",
+  "reasons": [],
+  "validation": {
+   "passed": true,
+   "issue_counts": {},
+   "issues": [],
+   "n_atoms": 615,
+   "severe_clashes": 0,
+   "heavy_atom_overlaps_per_1000_atoms": 0.0,
+   "min_nonbonded_distance": 2.554,
+   "bond_outliers_4sd": 0,
+   "angle_outliers_4sd": 0,
+   "n_bonds": 686,
+   "n_angles": 516,
+   "sugar_puckers": {
+    "C3endo": 28,
+    "C2endo": 1,
+    "other": 0
+   },
+   "pair_recovery": {
+    "input_pairs": 11,
+    "canonical_input_pairs": 11,
+    "recovered": 11,
+    "recovery": 1.0,
+    "extra_canonical_pairs": 0
+   },
+   "criteria": {
+    "bond": "max(6 sd, 0.08 A)",
+    "angle": "max(6 sd, 8 deg)",
+    "link": "O3'-P 1.50-1.72 A",
+    "severe_clash": "<2.2 A, >3 bonds apart",
+    "chirality": "D-ribose C1-C4 signs"
+   },
+   "note": "Heavy-atom checks only (no hydrogens); overlap proxy is not a MolProbity clashscore."
+  },
+  "closures": [
+   {
+    "a": 12,
+    "b": 14,
+    "n": 1,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.037,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0097,
+    "clashes": 0,
+    "torsion_energy": 4.55,
+    "relaxed": false
+   },
+   {
+    "a": 6,
+    "b": 10,
+    "n": 3,
+    "kind": "closure",
+    "closure_point": "O3'-P",
+    "chainbreak_before_A": 0.03,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0134,
+    "clashes": 1,
+    "torsion_energy": 19.82,
+    "relaxed": false
+   },
+   {
+    "a": 15,
+    "b": 19,
+    "n": 3,
+    "kind": "hairpin",
+    "closure_point": "O5'-C5'",
+    "chainbreak_before_A": 0.01,
+    "closed": true,
+    "method": "ccd_from_search",
+    "gap_rmsd": 0.0037,
+    "clashes": 1,
+    "torsion_energy": 32.82,
+    "relaxed": false
+   }
+  ]
+ }
+}

@@ -1,0 +1,35 @@
+{
+ "sample_id": "4L81_A",
+ "pdb_id": "4L81",
+ "chain": "A",
+ "family": "SAM-I/IV riboswitch",
+ "source": "RNA-Puzzles 8",
+ "split": "test",
+ "title": "Structure of the SAM-I/IV riboswitch (env87(deltaU92, deltaG93))",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.95,
+ "length": 96,
+ "observed_residues": 96,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s50_99",
+ "source_file": "raw/4L81.cif",
+ "source_sha256": "5e04a5e99f2a1006e7419cfb0bbd1ac35ba6461f728aa18d1d70b7a998ebbe3b",
+ "retrieved_from": "https://files.rcsb.org/download/4L81.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 31,
+  "nested_pairs": 27,
+  "pseudoknot_pairs_removed": 4,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -43.1,
+  "pairs": 31,
+  "f1_vs_oracle_nested": 0.931,
+  "f1_vs_oracle_full": 0.871
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

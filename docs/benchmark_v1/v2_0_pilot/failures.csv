@@ -1,0 +1,5 @@
+sample_id,mode,length,valid_trajectories,trajectories,error
+3MXH_B,independent,92,0,8,
+3MXH_B,oracle,92,0,8,
+3D0U_A,oracle,161,0,8,
+4GXY_A,oracle,172,0,8,

@@ -1,0 +1,18 @@
+{
+  "dataset_version": "0.1.0",
+  "status": "candidate_pdb_identifiers_not_yet_chain_curated",
+  "source_note": "PDB IDs listed by RNA-Puzzles; chain identity, RNA length, completeness and secondary structures must be validated after download.",
+  "entries": [
+    {"pdb_id":"3MEI","source":"RNA-Puzzles 1"},
+    {"pdb_id":"3OWZ","source":"RNA-Puzzles 3"},
+    {"pdb_id":"3V7E","source":"RNA-Puzzles 4"},
+    {"pdb_id":"4P9R","source":"RNA-Puzzles 5"},
+    {"pdb_id":"4GXY","source":"RNA-Puzzles 6"},
+    {"pdb_id":"4R4V","source":"RNA-Puzzles 7"},
+    {"pdb_id":"4L81","source":"RNA-Puzzles 8"},
+    {"pdb_id":"5KPY","source":"RNA-Puzzles 9"},
+    {"pdb_id":"4LCK","source":"RNA-Puzzles 10"},
+    {"pdb_id":"1EHZ","source":"RCSB tRNA example; independent candidate"},
+    {"pdb_id":"1Y26","source":"RCSB purine riboswitch example; independent candidate"}
+  ]
+}

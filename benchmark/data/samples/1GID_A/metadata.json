@@ -1,0 +1,35 @@
+{
+ "sample_id": "1GID_A",
+ "pdb_id": "1GID",
+ "chain": "A",
+ "family": "group I intron P4-P6 domain",
+ "source": "RCSB",
+ "split": "dev",
+ "title": "CRYSTAL STRUCTURE OF A GROUP I RIBOZYME DOMAIN: PRINCIPLES OF RNA PACKING",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.5,
+ "length": 158,
+ "observed_residues": 158,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s150_200",
+ "source_file": "raw/1GID.cif",
+ "source_sha256": "455e21122b9eff39266dca435a3a78ee622d3976e38050568f5ef8e80d28e1ce",
+ "retrieved_from": "https://files.rcsb.org/download/1GID.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 45,
+  "nested_pairs": 45,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -54.5,
+  "pairs": 54,
+  "f1_vs_oracle_nested": 0.828,
+  "f1_vs_oracle_full": 0.828
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

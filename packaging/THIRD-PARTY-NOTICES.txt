@@ -1,0 +1,54 @@
+RCV - RNA Conformation Viewer
+Copyright (C) 2026 Zixiang Wang. Free software under the GNU General Public License v3.0 (see LICENSE).
+
+THIRD-PARTY SOFTWARE IN THE RCV DESKTOP INSTALLERS
+==================================================
+
+The Windows and macOS installers bundle the following software. Each keeps its own licence; the full licence
+texts are available from the projects' websites and source distributions.
+
+ViennaRNA Package 2.7.2 (secondary-structure prediction)  https://www.tbi.univie.ac.at/RNA/
+  Credit: R. Lorenz, S.H. Bernhart, C. Hoener zu Siederdissen, H. Tafer, C. Flamm, P.F. Stadler and
+  I.L. Hofacker (2011), "ViennaRNA Package 2.0", Algorithms for Molecular Biology 6:26.
+  Authors: Ivo Hofacker, Peter Stadler, Walter Fontana, Stefan Wuchty, Stephan Bernhart, Ulli Mueckstein,
+  Ronny Lorenz and others; Institute for Theoretical Chemistry, University of Vienna.
+  RCV is distributed free of charge, as the licence below requires.
+
+  ------------------------------------------------------------------------------------------------------
+                         Disclaimer and Copyright
+
+  The programs, library and source code of the Vienna RNA Package are free
+  software. They are distributed in the hope that they will be useful
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+  Permission is granted for research, educational, and commercial use
+  and modification so long as 1) the package and any derived works are not
+  redistributed for any fee, other than media costs, 2) proper credit is
+  given to the authors and the Institute for Theoretical Chemistry of the
+  University of Vienna.
+
+  If you want to include this software in a commercial product, please contact
+  the authors.
+
+  Note that the file ./src/ViennaRNA/plotting/naview.c has its own copyright attached.
+  ------------------------------------------------------------------------------------------------------
+
+Python 3.12                     Python Software Foundation License        https://www.python.org/
+NumPy                           BSD-3-Clause (and 0BSD, MIT, Zlib, CC0-1.0 parts)   https://numpy.org/
+SciPy                           BSD-3-Clause                               https://scipy.org/
+OpenBLAS (inside NumPy, SciPy)  BSD-3-Clause                               https://www.openblas.net/
+three.js r160 (3D graphics)     MIT                                        https://threejs.org/
+Liberation Sans fonts           SIL Open Font License 1.1 (LICENSE-OFL.txt next to the fonts)
+fontTools                       MIT                                        https://github.com/fonttools/fonttools
+pywebview                       BSD-3-Clause                               https://pywebview.flowrl.com/
+pythonnet, clr_loader (Windows) MIT                                        https://github.com/pythonnet/pythonnet
+bottle, proxy_tools             MIT
+cffi                            MIT-0;  pycparser: BSD-3-Clause
+pyobjc (macOS)                  MIT                                        https://github.com/ronaldoussoren/pyobjc
+threadpoolctl                   BSD-3-Clause
+certifi                         MPL-2.0                                    https://github.com/certifi/python-certifi
+typing_extensions               PSF-2.0
+Microsoft Visual C++ runtime    redistributed under the Microsoft Visual Studio licence terms (Windows)
+PyInstaller bootloader          GPL-2.0-or-later with the PyInstaller exception (allows any licence for
+                                the bundled application)                   https://pyinstaller.org/

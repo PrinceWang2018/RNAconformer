@@ -1,0 +1,42 @@
+{
+ "sample_id": "1U9S_A",
+ "pdb_id": "1U9S",
+ "chain": "A",
+ "family": "RNase P specificity domain",
+ "source": "RCSB",
+ "split": "test",
+ "title": "Crystal structure of the specificity domain of Ribonuclease P of the A-type",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.9,
+ "length": 161,
+ "observed_residues": 155,
+ "missing_residues": [
+  1,
+  74,
+  75,
+  76,
+  77,
+  161
+ ],
+ "c4_coverage": 0.963,
+ "modified_residues": [],
+ "stratum": "s150_200",
+ "source_file": "raw/1U9S.cif",
+ "source_sha256": "0783756c4a5e1d9fc5db867fdb4c3bef21ec3b4ac29b914751d961c4e0d20350",
+ "retrieved_from": "https://files.rcsb.org/download/1U9S.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 48,
+  "nested_pairs": 48,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -81.0,
+  "pairs": 51,
+  "f1_vs_oracle_nested": 0.808,
+  "f1_vs_oracle_full": 0.808
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

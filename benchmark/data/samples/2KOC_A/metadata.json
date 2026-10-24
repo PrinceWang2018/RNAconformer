@@ -1,0 +1,35 @@
+{
+ "sample_id": "2KOC_A",
+ "pdb_id": "2KOC",
+ "chain": "A",
+ "family": "cUUCGg tetraloop hairpin",
+ "source": "RCSB",
+ "split": "dev",
+ "title": "NMR solution structure of a 14-mer hairpin RNA with cUUCGg tetraloop",
+ "method": "SOLUTION NMR",
+ "resolution": null,
+ "length": 14,
+ "observed_residues": 14,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "smoke_lt30",
+ "source_file": "raw/2KOC.cif",
+ "source_sha256": "8579f1cb4bbbc1c323427037a41248520a0c7a9561e736582f50c4268d7f4a1f",
+ "retrieved_from": "https://files.rcsb.org/download/2KOC.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 5,
+  "nested_pairs": 5,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -7.3,
+  "pairs": 5,
+  "f1_vs_oracle_nested": 1.0,
+  "f1_vs_oracle_full": 1.0
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

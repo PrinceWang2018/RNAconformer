@@ -1,0 +1,35 @@
+{
+ "sample_id": "4ENC_A",
+ "pdb_id": "4ENC",
+ "chain": "A",
+ "family": "fluoride riboswitch",
+ "source": "RCSB",
+ "split": "test",
+ "title": "Crystal structure of fluoride riboswitch",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.272,
+ "length": 52,
+ "observed_residues": 52,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s50_99",
+ "source_file": "raw/4ENC.cif",
+ "source_sha256": "c8aa4a649e5f8330c047727dd21cfca116e954fa80abb0e07410bf24406bbc19",
+ "retrieved_from": "https://files.rcsb.org/download/4ENC.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 15,
+  "nested_pairs": 11,
+  "pseudoknot_pairs_removed": 4,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -21.4,
+  "pairs": 12,
+  "f1_vs_oracle_nested": 0.435,
+  "f1_vs_oracle_full": 0.37
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

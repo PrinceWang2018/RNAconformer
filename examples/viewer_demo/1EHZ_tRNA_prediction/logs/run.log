@@ -1,0 +1,14 @@
+[09:48:05] 1EHZ_A: 76 nt; 3 secondary-structure hypotheses (ViennaRNA)
+[09:48:05]   ss1 (((((((..((((........)))).(((((.......))))).....(((((.......)))))))))))).... -22.4 kcal/mol [vienna_mfe]
+[09:48:05]   ss2 (((((((....((((((.((......)).)))))).((((....))))(((((.......)))))))))))).... -22.1 kcal/mol [vienna_suboptimal]
+[09:48:05]   ss3 ((((((.....((((((.((......)).))))))...((((..((((........))))..)))))))))).... -22.1 kcal/mol [vienna_suboptimal]
+[09:48:05] running 8 trajectories on 8 worker(s)
+[09:50:19]   traj   0 [ss1] valid    score3d=408.711  110.42s
+[09:50:19]   traj   1 [ss1] valid    score3d=414.45  121.88s
+[09:50:19]   traj   2 [ss1] valid    score3d=366.617  124.62s
+[09:50:19]   traj   3 [ss1] rejected score3d=1669.352 ['severe_clash'] 131.61s
+[09:50:19]   traj   4 [ss1] valid    score3d=327.987  119.57s
+[09:50:19]   traj   5 [ss2] valid    score3d=257.192  125.34s
+[09:50:19]   traj   6 [ss2] rejected score3d=390.935 ['severe_clash'] 133.82s
+[09:50:19]   traj   7 [ss3] rejected score3d=None ['loop_closure_failed'] 128.2s
+[09:50:20] 5/8 valid models; exported 5 conformers to benchmark/runs/v2_0_1_pilot/independent/1EHZ_A in 134.4s

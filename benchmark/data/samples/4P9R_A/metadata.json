@@ -1,0 +1,39 @@
+{
+ "sample_id": "4P9R_A",
+ "pdb_id": "4P9R",
+ "chain": "A",
+ "family": "lariat-capping ribozyme",
+ "source": "RNA-Puzzles 5",
+ "split": "test",
+ "title": "Speciation of a group I intron into a lariat capping ribozyme (Heavy atom derivative)",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.703,
+ "length": 192,
+ "observed_residues": 189,
+ "missing_residues": [
+  23,
+  156,
+  157
+ ],
+ "c4_coverage": 0.984,
+ "modified_residues": [],
+ "stratum": "s150_200",
+ "source_file": "raw/4P9R.cif",
+ "source_sha256": "e639d155fcde3b58499c8f17449b855a961fda06638f49c47f0743ac7d9990a4",
+ "retrieved_from": "https://files.rcsb.org/download/4P9R.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 59,
+  "nested_pairs": 50,
+  "pseudoknot_pairs_removed": 9,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -62.0,
+  "pairs": 61,
+  "f1_vs_oracle_nested": 0.468,
+  "f1_vs_oracle_full": 0.433
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

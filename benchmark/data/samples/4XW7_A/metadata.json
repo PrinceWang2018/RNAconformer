@@ -1,0 +1,35 @@
+{
+ "sample_id": "4XW7_A",
+ "pdb_id": "4XW7",
+ "chain": "A",
+ "family": "ZTP riboswitch",
+ "source": "RNA-Puzzles 13",
+ "split": "test",
+ "title": "Crystal structure of the ZMP riboswitch at 2.50 angstrom",
+ "method": "X-RAY DIFFRACTION",
+ "resolution": 2.5,
+ "length": 64,
+ "observed_residues": 64,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s50_99",
+ "source_file": "raw/4XW7.cif",
+ "source_sha256": "384d6f5155adc5afb45c563ad9273c3a7d4aebe2d217cf4344b43aa03cbb0797",
+ "retrieved_from": "https://files.rcsb.org/download/4XW7.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 19,
+  "nested_pairs": 19,
+  "pseudoknot_pairs_removed": 0,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -29.7,
+  "pairs": 18,
+  "f1_vs_oracle_nested": 0.757,
+  "f1_vs_oracle_full": 0.757
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

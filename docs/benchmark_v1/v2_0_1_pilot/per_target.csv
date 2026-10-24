@@ -1,0 +1,53 @@
+sample_id,split,mode,length,stratum,family,n_models,trajectories,valid_trajectories,top1_c4_rmsd,best_c4_rmsd,mean_c4_rmsd,top1_ermsd,best_ermsd,top1_inf_wc,best_inf_wc,top1_ss_id,wall_time_s,yield,best_candidate_c4_rmsd,median_candidate_c4_rmsd
+2KOC_A,dev,independent,14,smoke_lt30,cUUCGg tetraloop hairpin,1,8,8,1.776,1.776,1.776,1.009,1.009,1.0,1.0,ss1,17.1,True,1.762,1.905
+2KOC_A,dev,oracle,14,smoke_lt30,cUUCGg tetraloop hairpin,1,8,8,1.776,1.776,1.776,1.009,1.009,1.0,1.0,ss1,18.3,True,1.762,1.905
+480D_A,dev,independent,27,smoke_lt30,sarcin-ricin domain,5,8,5,6.239,4.374,5.672,1.436,1.4,0.772,0.772,ss1,57.1,True,4.374,5.792
+480D_A,dev,oracle,27,smoke_lt30,sarcin-ricin domain,4,8,7,3.512,3.512,4.557,1.399,1.355,1.0,1.0,ss1,48.4,True,3.512,4.429
+1ANR_A,test,independent,29,smoke_lt30,HIV-1 TAR,5,8,8,4.104,3.412,4.99,0.985,0.896,0.949,0.949,ss1,56.1,True,3.412,4.149
+1ANR_A,test,oracle,29,smoke_lt30,HIV-1 TAR,5,8,8,5.488,4.211,5.821,1.105,0.965,1.0,1.0,ss1,65.3,True,4.137,5.06
+1RNK_A,test,independent,34,s30_49,MMTV frameshift pseudoknot,5,8,8,23.871,15.898,23.272,1.601,1.514,0.57,0.615,ss1,58.4,True,15.898,23.532
+1RNK_A,test,oracle,34,s30_49,MMTV frameshift pseudoknot,5,8,8,17.616,14.277,16.71,1.539,1.446,0.739,0.739,ss1,71.6,True,14.277,16.849
+1F1T_A,test,independent,38,s30_49,malachite green aptamer,5,8,8,7.951,6.846,7.996,1.461,1.328,1.0,1.0,ss1,74.5,True,6.174,8.062
+1F1T_A,test,oracle,38,s30_49,malachite green aptamer,5,8,8,7.951,6.846,8.689,1.461,1.338,1.0,1.0,ss1,80.4,True,6.174,7.838
+5NWQ_A,test,independent,41,s30_49,guanidine-III riboswitch,5,8,8,19.27,17.389,21.275,1.921,1.893,0.572,0.572,ss3,69.5,True,17.389,18.583
+5NWQ_A,test,oracle,41,s30_49,guanidine-III riboswitch,5,8,8,22.947,21.585,23.368,1.739,1.708,0.798,0.798,ss1,85.2,True,21.363,22.693
+4ENC_A,test,independent,52,s50_99,fluoride riboswitch,5,8,7,18.901,15.297,16.868,1.895,1.82,0.373,0.373,ss1,94.6,True,15.297,17.616
+4ENC_A,test,oracle,52,s50_99,fluoride riboswitch,5,8,8,17.961,17.021,18.371,1.485,1.379,0.856,0.856,ss1,97.6,True,15.436,18.612
+3E5C_A,test,independent,53,s50_99,SAM-III riboswitch,5,8,7,17.814,12.246,15.366,1.606,1.193,0.689,1.0,ss1,98.9,True,12.246,14.551
+3E5C_A,test,oracle,53,s50_99,SAM-III riboswitch,5,8,8,13.083,12.246,13.027,1.228,1.193,1.0,1.0,ss1,110.5,True,12.189,13.128
+4XW7_A,test,independent,64,s50_99,ZTP riboswitch,5,8,7,15.668,10.544,12.571,1.444,1.39,0.757,0.757,ss1,107.8,True,10.544,12.801
+4XW7_A,test,oracle,64,s50_99,ZTP riboswitch,5,8,7,12.033,8.014,10.561,1.114,1.063,1.0,1.0,ss1,108.6,True,8.014,10.626
+1KXK_A,dev,independent,70,s50_99,group II intron D5/D6,5,8,8,10.729,10.523,11.441,1.332,1.327,0.783,0.934,ss1,115.0,True,9.844,11.355
+1KXK_A,dev,oracle,70,s50_99,group II intron D5/D6,5,8,7,12.469,10.874,12.471,1.168,1.165,0.978,0.978,ss1,117.7,True,10.227,11.869
+1Y26_A,dev,independent,71,s50_99,adenine riboswitch,5,8,7,13.043,13.043,16.319,1.507,1.451,0.81,0.917,ss2,117.9,True,13.0,14.898
+1Y26_A,dev,oracle,71,s50_99,adenine riboswitch,5,8,7,15.218,15.218,18.495,1.423,1.414,0.938,0.938,ss1,131.3,True,15.218,17.342
+5KPY_A,test,independent,71,s50_99,5-hydroxytryptophan aptamer,5,8,8,20.97,19.627,21.28,1.644,1.579,0.8,0.81,ss1,122.7,True,19.627,22.0
+5KPY_A,test,oracle,71,s50_99,5-hydroxytryptophan aptamer,5,8,8,24.535,14.292,20.771,1.523,1.42,0.949,0.949,ss1,134.1,True,14.292,20.538
+5TPY_A,test,independent,71,s50_99,Zika xrRNA,5,8,7,21.49,17.567,20.415,1.805,1.509,0.588,0.76,ss1,107.1,True,17.567,21.49
+5TPY_A,test,oracle,71,s50_99,Zika xrRNA,5,8,7,21.948,14.049,18.284,1.423,1.352,0.872,0.872,ss1,122.6,True,14.049,18.88
+2OIU_A,test,independent,71,s50_99,L1 ligase ribozyme,5,8,7,19.201,13.256,16.971,1.172,1.172,0.905,0.905,ss2,128.1,True,6.782,17.244
+2OIU_A,test,oracle,71,s50_99,L1 ligase ribozyme,5,8,6,15.743,13.359,15.518,1.275,1.179,0.976,0.976,ss1,140.6,True,10.059,14.916
+1EHZ_A,dev,independent,76,s50_99,tRNA-Phe,5,8,5,18.677,10.781,14.873,1.86,1.334,0.501,0.927,ss2,134.4,True,10.781,15.171
+1EHZ_A,dev,oracle,76,s50_99,tRNA-Phe,5,8,5,12.438,12.438,14.289,1.372,1.341,0.951,0.951,ss1,130.7,True,12.438,13.824
+2GDI_A,test,independent,80,s50_99,TPP riboswitch,5,8,7,21.609,18.901,21.95,1.659,1.643,0.793,0.793,ss1,178.7,True,18.362,20.282
+2GDI_A,test,oracle,80,s50_99,TPP riboswitch,4,8,4,16.138,16.138,18.46,1.49,1.477,1.0,1.0,ss1,167.7,True,16.138,18.552
+3MXH_B,test,independent,92,s50_99,c-di-GMP-I riboswitch,5,8,7,26.355,25.38,25.973,1.969,1.965,0.327,0.327,ss1,208.9,True,25.38,26.336
+3MXH_B,test,oracle,92,s50_99,c-di-GMP-I riboswitch,5,8,7,19.278,14.395,17.22,1.519,1.472,0.98,0.98,ss1,232.9,True,14.395,18.535
+4L81_A,test,independent,96,s50_99,SAM-I/IV riboswitch,5,8,7,26.17,21.859,23.854,1.502,1.455,0.82,0.882,ss3,198.0,True,17.323,23.645
+4L81_A,test,oracle,96,s50_99,SAM-I/IV riboswitch,5,8,5,31.392,19.28,25.061,1.325,1.325,0.933,0.933,ss1,216.6,True,19.28,25.734
+4QLM_A,test,independent,125,s100_149,ydaO (c-di-AMP) riboswitch,5,8,5,27.873,19.94,25.01,1.519,1.519,0.799,0.799,ss2,271.9,True,19.94,26.888
+4QLM_A,test,oracle,125,s100_149,ydaO (c-di-AMP) riboswitch,4,8,4,21.736,21.736,24.178,1.433,1.386,0.878,0.878,ss1,352.1,True,21.736,24.494
+3V7E_C,test,independent,126,s100_149,SAM-I riboswitch (YbxF-bound),5,8,6,23.974,22.729,23.989,1.582,1.227,0.651,0.892,ss2,214.6,True,22.505,23.359
+3V7E_C,test,oracle,126,s100_149,SAM-I riboswitch (YbxF-bound),3,8,3,23.962,13.692,19.323,1.28,1.28,0.964,0.964,ss1,306.7,True,13.692,20.316
+1GID_A,dev,independent,158,s150_200,group I intron P4-P6 domain,3,8,3,31.345,24.26,26.815,1.579,1.555,0.793,0.793,ss2,347.7,True,24.26,24.839
+1GID_A,dev,oracle,158,s150_200,group I intron P4-P6 domain,5,8,7,26.482,23.36,25.936,1.429,1.429,0.966,0.966,ss1,412.6,True,23.36,24.881
+1U9S_A,test,independent,161,s150_200,RNase P specificity domain,5,8,5,27.924,23.231,29.59,1.656,1.646,0.768,0.816,ss2,392.9,True,23.231,27.924
+1U9S_A,test,oracle,161,s150_200,RNase P specificity domain,2,8,2,28.35,28.35,28.518,1.578,1.512,1.0,1.0,ss1,441.9,True,28.35,28.518
+3D0U_A,test,independent,161,s150_200,lysine riboswitch,1,8,1,29.015,29.015,29.015,1.624,1.624,0.675,0.675,ss1,412.0,True,29.015,29.015
+3D0U_A,test,oracle,161,s150_200,lysine riboswitch,3,8,3,19.386,19.386,24.836,1.364,1.364,0.926,0.926,ss1,386.2,True,19.386,22.531
+2QBZ_A,test,independent,161,s150_200,M-box riboswitch,1,8,1,21.768,21.768,21.768,1.469,1.469,0.906,0.906,ss1,375.8,True,21.768,21.768
+2QBZ_A,test,oracle,161,s150_200,M-box riboswitch,2,8,2,25.44,25.44,25.756,1.405,1.405,0.978,0.978,ss1,367.1,True,25.44,25.756
+4GXY_A,test,independent,172,s150_200,AdoCbl riboswitch,5,8,5,32.614,23.713,30.446,1.656,1.631,0.59,0.59,ss1,390.5,True,23.713,31.699
+4GXY_A,test,oracle,172,s150_200,AdoCbl riboswitch,2,8,2,28.044,28.044,29.261,1.524,1.524,0.963,0.975,ss1,436.9,True,28.044,29.261
+4P9R_A,test,independent,192,s150_200,lariat-capping ribozyme,4,8,4,28.228,28.228,32.179,1.914,1.832,0.441,0.522,ss1,445.7,True,28.228,32.473
+4P9R_A,test,oracle,192,s150_200,lariat-capping ribozyme,0,8,0,,,,,,,,,506.5,False,,

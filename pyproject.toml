@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rna-conformation-viewer"
+version = "0.6.0"
+description = "RCV (RNA Conformation Viewer): predict, explore and present RNA conformational ensembles locally (physics-inspired engine, no deep learning)"
+requires-python = ">=3.10"
+authors = [{name = "Zixiang Wang", email = "princewang2018@gmail.com"}]
+dependencies = ["numpy>=1.23", "scipy>=1.9"]
+license = {file = "LICENSE"}
+
+[project.optional-dependencies]
+vienna = ["ViennaRNA>=2.6"]
+speed = ["threadpoolctl>=3"]
+desktop = ["pywebview>=5"]   # native window; without it the app opens in an Edge/Chrome app window
+pdf = ["fonttools>=4.40"]    # embed the figure font (Liberation Sans) in exported PDFs
+
+[project.scripts]
+rcv = "rcv.app:main"
+rnafold3d = "rnafold3d.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+rnafold3d = ["data/*.json"]
+rcv = ["static/*", "static/**/*", "templates/*"]

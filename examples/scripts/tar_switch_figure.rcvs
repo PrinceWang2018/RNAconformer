@@ -1,0 +1,18 @@
+# RCV command script: a reproducible figure of the HIV-1 TAR switch.
+# Open the demo (rcv --demo), choose the "HIV1_TAR (sequence of PDB 1ANR)" prediction, then in the console:
+#   run <path to this file>
+# (or paste these lines into the console). Lines starting with # are comments.
+
+color elements
+select bulge, resi 23-25
+select loop, resi 30-35
+show sticks, bulge
+label resi 23, bulge
+label resi 32, apical loop
+distance d1, 22/N1, 27/N3
+conf first
+view save main
+orient bulge or loop
+view save closeup
+morph first, last, 2
+echo Done: try "view main", "view closeup", "metric measure.d1", and Export > Figure panels.

@@ -1,0 +1,35 @@
+{
+ "sample_id": "1RNK_A",
+ "pdb_id": "1RNK",
+ "chain": "A",
+ "family": "MMTV frameshift pseudoknot",
+ "source": "RCSB",
+ "split": "test",
+ "title": "THE STRUCTURE OF AN RNA PSEUDOKNOT THAT CAUSES EFFICIENT FRAMESHIFTING IN MOUSE MAMMARY TUMOR VIRUS",
+ "method": "SOLUTION NMR",
+ "resolution": null,
+ "length": 34,
+ "observed_residues": 34,
+ "missing_residues": [],
+ "c4_coverage": 1.0,
+ "modified_residues": [],
+ "stratum": "s30_49",
+ "source_file": "raw/1RNK.cif",
+ "source_sha256": "dcd1db8b656dc259353c75129ae7f7e5a1f1b5a9b31ed2b3c7c57e35cc70f173",
+ "retrieved_from": "https://files.rcsb.org/download/1RNK.cif",
+ "prepared": "2026-10-21",
+ "oracle_2d": {
+  "pairs": 11,
+  "nested_pairs": 6,
+  "pseudoknot_pairs_removed": 5,
+  "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+ },
+ "independent_2d": {
+  "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+  "energy_kcal_mol": -10.1,
+  "pairs": 7,
+  "f1_vs_oracle_nested": 0.0,
+  "f1_vs_oracle_full": 0.556
+ },
+ "review_status": "automatic QC passed; manual review pending"
+}

@@ -1,0 +1,1080 @@
+{
+ "dataset_version": "1.0.0-pilot",
+ "created": "2026-10-21",
+ "dev_set": [
+  "1EHZ",
+  "1GID",
+  "1KXK",
+  "1Y26",
+  "2KOC",
+  "480D"
+ ],
+ "samples": [
+  {
+   "sample_id": "2KOC_A",
+   "pdb_id": "2KOC",
+   "chain": "A",
+   "family": "cUUCGg tetraloop hairpin",
+   "source": "RCSB",
+   "split": "dev",
+   "title": "NMR solution structure of a 14-mer hairpin RNA with cUUCGg tetraloop",
+   "method": "SOLUTION NMR",
+   "resolution": null,
+   "length": 14,
+   "observed_residues": 14,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "smoke_lt30",
+   "source_file": "raw/2KOC.cif",
+   "source_sha256": "8579f1cb4bbbc1c323427037a41248520a0c7a9561e736582f50c4268d7f4a1f",
+   "retrieved_from": "https://files.rcsb.org/download/2KOC.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 5,
+    "nested_pairs": 5,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -7.3,
+    "pairs": 5,
+    "f1_vs_oracle_nested": 1.0,
+    "f1_vs_oracle_full": 1.0
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "480D_A",
+   "pdb_id": "480D",
+   "chain": "A",
+   "family": "sarcin-ricin domain",
+   "source": "RCSB",
+   "split": "dev",
+   "title": "CRYSTAL STRUCTURE OF THE SARCIN/RICIN DOMAIN FROM E. COLI 23 S RRNA",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.5,
+   "length": 27,
+   "observed_residues": 27,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "smoke_lt30",
+   "source_file": "raw/480D.cif",
+   "source_sha256": "20037deee2432f1b4da680a91c0b9fda9209e8dedb11feb6431e3cbf4f16aafe",
+   "retrieved_from": "https://files.rcsb.org/download/480D.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 6,
+    "nested_pairs": 6,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -5.5,
+    "pairs": 7,
+    "f1_vs_oracle_nested": 0.769,
+    "f1_vs_oracle_full": 0.769
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "1ANR_A",
+   "pdb_id": "1ANR",
+   "chain": "A",
+   "family": "HIV-1 TAR",
+   "source": "RCSB",
+   "split": "test",
+   "title": "CIS-ACTING RNA REGULATORY ELEMENT (HIV-1 TAR), NMR, 20 STRUCTURES",
+   "method": "SOLUTION NMR",
+   "resolution": null,
+   "length": 29,
+   "observed_residues": 29,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "smoke_lt30",
+   "source_file": "raw/1ANR.cif",
+   "source_sha256": "2d11d9eafa3779ca00b78911dde4ea5c7ebe4d22c4f2de0c3c3cf5c9828014f3",
+   "retrieved_from": "https://files.rcsb.org/download/1ANR.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 9,
+    "nested_pairs": 9,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -13.1,
+    "pairs": 10,
+    "f1_vs_oracle_nested": 0.947,
+    "f1_vs_oracle_full": 0.947
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "1RNK_A",
+   "pdb_id": "1RNK",
+   "chain": "A",
+   "family": "MMTV frameshift pseudoknot",
+   "source": "RCSB",
+   "split": "test",
+   "title": "THE STRUCTURE OF AN RNA PSEUDOKNOT THAT CAUSES EFFICIENT FRAMESHIFTING IN MOUSE MAMMARY TUMOR VIRUS",
+   "method": "SOLUTION NMR",
+   "resolution": null,
+   "length": 34,
+   "observed_residues": 34,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s30_49",
+   "source_file": "raw/1RNK.cif",
+   "source_sha256": "dcd1db8b656dc259353c75129ae7f7e5a1f1b5a9b31ed2b3c7c57e35cc70f173",
+   "retrieved_from": "https://files.rcsb.org/download/1RNK.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 11,
+    "nested_pairs": 6,
+    "pseudoknot_pairs_removed": 5,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -10.1,
+    "pairs": 7,
+    "f1_vs_oracle_nested": 0.0,
+    "f1_vs_oracle_full": 0.556
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "1F1T_A",
+   "pdb_id": "1F1T",
+   "chain": "A",
+   "family": "malachite green aptamer",
+   "source": "RCSB",
+   "split": "test",
+   "title": "CRYSTAL STRUCTURE OF THE MALACHITE GREEN APTAMER COMPLEXED WITH TETRAMETHYL-ROSAMINE",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.8,
+   "length": 38,
+   "observed_residues": 38,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [
+    [
+     4,
+     "5BU"
+    ],
+    [
+     11,
+     "5BU"
+    ],
+    [
+     25,
+     "5BU"
+    ],
+    [
+     32,
+     "5BU"
+    ],
+    [
+     36,
+     "5BU"
+    ]
+   ],
+   "stratum": "s30_49",
+   "source_file": "raw/1F1T.cif",
+   "source_sha256": "a91c35aaf0ed8c21a301eaefdf208223c85f48a85b88b3cddf1866efb0a3abd9",
+   "retrieved_from": "https://files.rcsb.org/download/1F1T.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 13,
+    "nested_pairs": 13,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -15.5,
+    "pairs": 13,
+    "f1_vs_oracle_nested": 1.0,
+    "f1_vs_oracle_full": 1.0
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "5NWQ_A",
+   "pdb_id": "5NWQ",
+   "chain": "A",
+   "family": "guanidine-III riboswitch",
+   "source": "RNA-Puzzles 21",
+   "split": "test",
+   "title": "The structure of the thermobifida fusca guanidine III riboswitch with guanidine.",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.91,
+   "length": 41,
+   "observed_residues": 40,
+   "missing_residues": [
+    39
+   ],
+   "c4_coverage": 0.976,
+   "modified_residues": [],
+   "stratum": "s30_49",
+   "source_file": "raw/5NWQ.cif",
+   "source_sha256": "d56ffee5c24166f83c8b67ccc64c1f41de1a4adb9cbaaf61b813174e60d96f96",
+   "retrieved_from": "https://files.rcsb.org/download/5NWQ.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 11,
+    "nested_pairs": 7,
+    "pseudoknot_pairs_removed": 4,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -14.0,
+    "pairs": 11,
+    "f1_vs_oracle_nested": 0.667,
+    "f1_vs_oracle_full": 0.545
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "4ENC_A",
+   "pdb_id": "4ENC",
+   "chain": "A",
+   "family": "fluoride riboswitch",
+   "source": "RCSB",
+   "split": "test",
+   "title": "Crystal structure of fluoride riboswitch",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.272,
+   "length": 52,
+   "observed_residues": 52,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s50_99",
+   "source_file": "raw/4ENC.cif",
+   "source_sha256": "c8aa4a649e5f8330c047727dd21cfca116e954fa80abb0e07410bf24406bbc19",
+   "retrieved_from": "https://files.rcsb.org/download/4ENC.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 15,
+    "nested_pairs": 11,
+    "pseudoknot_pairs_removed": 4,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -21.4,
+    "pairs": 12,
+    "f1_vs_oracle_nested": 0.435,
+    "f1_vs_oracle_full": 0.37
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "3E5C_A",
+   "pdb_id": "3E5C",
+   "chain": "A",
+   "family": "SAM-III riboswitch",
+   "source": "RCSB",
+   "split": "test",
+   "title": "Crystal Structure of the SMK box (SAM-III) Riboswitch with SAM",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.25,
+   "length": 53,
+   "observed_residues": 53,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [
+    [
+     1,
+     "GTP"
+    ]
+   ],
+   "stratum": "s50_99",
+   "source_file": "raw/3E5C.cif",
+   "source_sha256": "858592c87704990e3f7fc7e7b8d25dfe98371c9ca4c06bcbdfd763d657614ed6",
+   "retrieved_from": "https://files.rcsb.org/download/3E5C.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 17,
+    "nested_pairs": 17,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -17.9,
+    "pairs": 15,
+    "f1_vs_oracle_nested": 0.688,
+    "f1_vs_oracle_full": 0.688
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "4XW7_A",
+   "pdb_id": "4XW7",
+   "chain": "A",
+   "family": "ZTP riboswitch",
+   "source": "RNA-Puzzles 13",
+   "split": "test",
+   "title": "Crystal structure of the ZMP riboswitch at 2.50 angstrom",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.5,
+   "length": 64,
+   "observed_residues": 64,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s50_99",
+   "source_file": "raw/4XW7.cif",
+   "source_sha256": "384d6f5155adc5afb45c563ad9273c3a7d4aebe2d217cf4344b43aa03cbb0797",
+   "retrieved_from": "https://files.rcsb.org/download/4XW7.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 19,
+    "nested_pairs": 19,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -29.7,
+    "pairs": 18,
+    "f1_vs_oracle_nested": 0.757,
+    "f1_vs_oracle_full": 0.757
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "1KXK_A",
+   "pdb_id": "1KXK",
+   "chain": "A",
+   "family": "group II intron D5/D6",
+   "source": "RCSB",
+   "split": "dev",
+   "title": "Crystal Structure of a RNA Molecule Containing Domain 5 and 6 of the Yeast ai5g Group II Self-splicing Intron",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 3.0,
+   "length": 70,
+   "observed_residues": 70,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s50_99",
+   "source_file": "raw/1KXK.cif",
+   "source_sha256": "3d83162e740f1f997c20cfd65118209fe61cf5c925491ef8f5c28b4046992c7a",
+   "retrieved_from": "https://files.rcsb.org/download/1KXK.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 23,
+    "nested_pairs": 23,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -34.1,
+    "pairs": 24,
+    "f1_vs_oracle_nested": 0.809,
+    "f1_vs_oracle_full": 0.809
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "1Y26_A",
+   "pdb_id": "1Y26",
+   "chain": "A",
+   "family": "adenine riboswitch",
+   "source": "RCSB",
+   "split": "dev",
+   "title": "A-riboswitch-adenine complex",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.1,
+   "length": 71,
+   "observed_residues": 71,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s50_99",
+   "source_file": "raw/1Y26.cif",
+   "source_sha256": "99b1118f0af4add047b9bc60760c8f0e5d0b288a1b25a63a6f4e1516aab7eb5b",
+   "retrieved_from": "https://files.rcsb.org/download/1Y26.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 25,
+    "nested_pairs": 22,
+    "pseudoknot_pairs_removed": 3,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -18.5,
+    "pairs": 21,
+    "f1_vs_oracle_nested": 0.977,
+    "f1_vs_oracle_full": 0.913
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "5KPY_A",
+   "pdb_id": "5KPY",
+   "chain": "A",
+   "family": "5-hydroxytryptophan aptamer",
+   "source": "RNA-Puzzles 9",
+   "split": "test",
+   "title": "Structure of a 5-hydroxytryptophan aptamer",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.0,
+   "length": 71,
+   "observed_residues": 71,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s50_99",
+   "source_file": "raw/5KPY.cif",
+   "source_sha256": "69e18802164f7fa88aa6ef8c318674c35224e8660c9b6d3f1ce4994b66e22c50",
+   "retrieved_from": "https://files.rcsb.org/download/5KPY.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 20,
+    "nested_pairs": 18,
+    "pseudoknot_pairs_removed": 2,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -22.6,
+    "pairs": 20,
+    "f1_vs_oracle_nested": 0.842,
+    "f1_vs_oracle_full": 0.8
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "5TPY_A",
+   "pdb_id": "5TPY",
+   "chain": "A",
+   "family": "Zika xrRNA",
+   "source": "RNA-Puzzles 18",
+   "split": "test",
+   "title": "Crystal structure of an exonuclease resistant RNA from Zika virus",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.805,
+   "length": 71,
+   "observed_residues": 71,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s50_99",
+   "source_file": "raw/5TPY.cif",
+   "source_sha256": "df4132cac2d20eb4114d6a5942a04ba10e4acad766d4b2363a3622db6d31eb1b",
+   "retrieved_from": "https://files.rcsb.org/download/5TPY.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 25,
+    "nested_pairs": 20,
+    "pseudoknot_pairs_removed": 5,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -33.1,
+    "pairs": 26,
+    "f1_vs_oracle_nested": 0.652,
+    "f1_vs_oracle_full": 0.588
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "2OIU_A",
+   "pdb_id": "2OIU",
+   "chain": "A",
+   "family": "L1 ligase ribozyme",
+   "source": "RCSB",
+   "split": "test",
+   "title": "L1 Ribozyme Ligase circular adduct",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.6,
+   "length": 71,
+   "observed_residues": 71,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s50_99",
+   "source_file": "raw/2OIU.cif",
+   "source_sha256": "aa73b4f0ed1334878fc1358f684c61f8fd373ac95cbf8f5a90fe283391debf2a",
+   "retrieved_from": "https://files.rcsb.org/download/2OIU.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 21,
+    "nested_pairs": 21,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -28.8,
+    "pairs": 25,
+    "f1_vs_oracle_nested": 0.87,
+    "f1_vs_oracle_full": 0.87
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "1EHZ_A",
+   "pdb_id": "1EHZ",
+   "chain": "A",
+   "family": "tRNA-Phe",
+   "source": "RCSB",
+   "split": "dev",
+   "title": "The crystal structure of yeast phenylalanine tRNA at 1.93 A resolution",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 1.93,
+   "length": 76,
+   "observed_residues": 76,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [
+    [
+     10,
+     "2MG"
+    ],
+    [
+     16,
+     "H2U"
+    ],
+    [
+     17,
+     "H2U"
+    ],
+    [
+     26,
+     "M2G"
+    ],
+    [
+     32,
+     "OMC"
+    ],
+    [
+     34,
+     "OMG"
+    ],
+    [
+     37,
+     "YYG"
+    ],
+    [
+     39,
+     "PSU"
+    ],
+    [
+     40,
+     "5MC"
+    ],
+    [
+     46,
+     "7MG"
+    ],
+    [
+     49,
+     "5MC"
+    ],
+    [
+     54,
+     "5MU"
+    ],
+    [
+     55,
+     "PSU"
+    ],
+    [
+     58,
+     "1MA"
+    ]
+   ],
+   "stratum": "s50_99",
+   "source_file": "raw/1EHZ.cif",
+   "source_sha256": "3021dd2b6461f850bb66d6748d3c22a5e1bb6cc891c625c15d793f38215b28ab",
+   "retrieved_from": "https://files.rcsb.org/download/1EHZ.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 21,
+    "nested_pairs": 20,
+    "pseudoknot_pairs_removed": 1,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -22.4,
+    "pairs": 21,
+    "f1_vs_oracle_nested": 0.976,
+    "f1_vs_oracle_full": 0.952
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "2GDI_A",
+   "pdb_id": "2GDI",
+   "chain": "A",
+   "family": "TPP riboswitch",
+   "source": "RCSB",
+   "split": "test",
+   "title": "Crystal structure of thiamine pyrophosphate-specific riboswitch in complex with thiamine pyrophosphate",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.05,
+   "length": 80,
+   "observed_residues": 80,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [
+    [
+     1,
+     "GTP"
+    ],
+    [
+     80,
+     "CCC"
+    ]
+   ],
+   "stratum": "s50_99",
+   "source_file": "raw/2GDI.cif",
+   "source_sha256": "6bb6454ce216b0343097d5fdda0ed006a03ce9bd5aa03ee820530ec7f05ff85c",
+   "retrieved_from": "https://files.rcsb.org/download/2GDI.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 23,
+    "nested_pairs": 23,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -21.6,
+    "pairs": 20,
+    "f1_vs_oracle_nested": 0.791,
+    "f1_vs_oracle_full": 0.791
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "3MXH_B",
+   "pdb_id": "3MXH",
+   "chain": "B",
+   "family": "c-di-GMP-I riboswitch",
+   "source": "RCSB",
+   "split": "test",
+   "title": "Native structure of a c-di-GMP riboswitch from V. cholerae",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.3,
+   "length": 92,
+   "observed_residues": 92,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [
+    [
+     1,
+     "GTP"
+    ]
+   ],
+   "stratum": "s50_99",
+   "source_file": "raw/3MXH.cif",
+   "source_sha256": "87b15e3220c0d1cbaf972a810dd4878de5b521edc1809ef75243fd05320d7a58",
+   "retrieved_from": "https://files.rcsb.org/download/3MXH.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 25,
+    "nested_pairs": 24,
+    "pseudoknot_pairs_removed": 1,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -30.0,
+    "pairs": 24,
+    "f1_vs_oracle_nested": 0.333,
+    "f1_vs_oracle_full": 0.327
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "4L81_A",
+   "pdb_id": "4L81",
+   "chain": "A",
+   "family": "SAM-I/IV riboswitch",
+   "source": "RNA-Puzzles 8",
+   "split": "test",
+   "title": "Structure of the SAM-I/IV riboswitch (env87(deltaU92, deltaG93))",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.95,
+   "length": 96,
+   "observed_residues": 96,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s50_99",
+   "source_file": "raw/4L81.cif",
+   "source_sha256": "5e04a5e99f2a1006e7419cfb0bbd1ac35ba6461f728aa18d1d70b7a998ebbe3b",
+   "retrieved_from": "https://files.rcsb.org/download/4L81.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 31,
+    "nested_pairs": 27,
+    "pseudoknot_pairs_removed": 4,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -43.1,
+    "pairs": 31,
+    "f1_vs_oracle_nested": 0.931,
+    "f1_vs_oracle_full": 0.871
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "3V7E_C",
+   "pdb_id": "3V7E",
+   "chain": "C",
+   "family": "SAM-I riboswitch (YbxF-bound)",
+   "source": "RNA-Puzzles 4",
+   "split": "test",
+   "title": "Crystal structure of YbxF bound to the SAM-I riboswitch aptamer",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.8,
+   "length": 126,
+   "observed_residues": 126,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s100_149",
+   "source_file": "raw/3V7E.cif",
+   "source_sha256": "dd36d2715f0eba4bb72d60f795c183a85936c4d27c3a42f9867151a3691d7883",
+   "retrieved_from": "https://files.rcsb.org/download/3V7E.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 43,
+    "nested_pairs": 41,
+    "pseudoknot_pairs_removed": 2,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -69.3,
+    "pairs": 42,
+    "f1_vs_oracle_nested": 0.94,
+    "f1_vs_oracle_full": 0.918
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "4QLM_A",
+   "pdb_id": "4QLM",
+   "chain": "A",
+   "family": "ydaO (c-di-AMP) riboswitch",
+   "source": "RNA-Puzzles 12",
+   "split": "test",
+   "title": "ydao riboswitch binding to c-di-AMP",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.721,
+   "length": 125,
+   "observed_residues": 108,
+   "missing_residues": [
+    1,
+    2,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    35,
+    36,
+    37,
+    38,
+    124,
+    125
+   ],
+   "c4_coverage": 0.864,
+   "modified_residues": [],
+   "stratum": "s100_149",
+   "source_file": "raw/4QLM.cif",
+   "source_sha256": "66e4f19c772bb74b42a2c4c55f81b79f6d277367f9ce8779c958302202b9b924",
+   "retrieved_from": "https://files.rcsb.org/download/4QLM.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 35,
+    "nested_pairs": 28,
+    "pseudoknot_pairs_removed": 7,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -48.0,
+    "pairs": 35,
+    "f1_vs_oracle_nested": 0.698,
+    "f1_vs_oracle_full": 0.629
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "1GID_A",
+   "pdb_id": "1GID",
+   "chain": "A",
+   "family": "group I intron P4-P6 domain",
+   "source": "RCSB",
+   "split": "dev",
+   "title": "CRYSTAL STRUCTURE OF A GROUP I RIBOZYME DOMAIN: PRINCIPLES OF RNA PACKING",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.5,
+   "length": 158,
+   "observed_residues": 158,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s150_200",
+   "source_file": "raw/1GID.cif",
+   "source_sha256": "455e21122b9eff39266dca435a3a78ee622d3976e38050568f5ef8e80d28e1ce",
+   "retrieved_from": "https://files.rcsb.org/download/1GID.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 45,
+    "nested_pairs": 45,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -54.5,
+    "pairs": 54,
+    "f1_vs_oracle_nested": 0.828,
+    "f1_vs_oracle_full": 0.828
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "1U9S_A",
+   "pdb_id": "1U9S",
+   "chain": "A",
+   "family": "RNase P specificity domain",
+   "source": "RCSB",
+   "split": "test",
+   "title": "Crystal structure of the specificity domain of Ribonuclease P of the A-type",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.9,
+   "length": 161,
+   "observed_residues": 155,
+   "missing_residues": [
+    1,
+    74,
+    75,
+    76,
+    77,
+    161
+   ],
+   "c4_coverage": 0.963,
+   "modified_residues": [],
+   "stratum": "s150_200",
+   "source_file": "raw/1U9S.cif",
+   "source_sha256": "0783756c4a5e1d9fc5db867fdb4c3bef21ec3b4ac29b914751d961c4e0d20350",
+   "retrieved_from": "https://files.rcsb.org/download/1U9S.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 48,
+    "nested_pairs": 48,
+    "pseudoknot_pairs_removed": 0,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -81.0,
+    "pairs": 51,
+    "f1_vs_oracle_nested": 0.808,
+    "f1_vs_oracle_full": 0.808
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "3D0U_A",
+   "pdb_id": "3D0U",
+   "chain": "A",
+   "family": "lysine riboswitch",
+   "source": "RCSB",
+   "split": "test",
+   "title": "Crystal Structure of Lysine Riboswitch Bound to Lysine",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.8,
+   "length": 161,
+   "observed_residues": 161,
+   "missing_residues": [],
+   "c4_coverage": 1.0,
+   "modified_residues": [],
+   "stratum": "s150_200",
+   "source_file": "raw/3D0U.cif",
+   "source_sha256": "98e12ac262b572ab61d53d96ccfd916aeff1e6d0ddff6b2104c3bec1cb5c0dd9",
+   "retrieved_from": "https://files.rcsb.org/download/3D0U.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 56,
+    "nested_pairs": 50,
+    "pseudoknot_pairs_removed": 6,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -76.9,
+    "pairs": 50,
+    "f1_vs_oracle_nested": 0.74,
+    "f1_vs_oracle_full": 0.698
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "2QBZ_A",
+   "pdb_id": "2QBZ",
+   "chain": "A",
+   "family": "M-box riboswitch",
+   "source": "RCSB",
+   "split": "test",
+   "title": "Structure of the M-Box Riboswitch Aptamer Domain",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.6,
+   "length": 161,
+   "observed_residues": 153,
+   "missing_residues": [
+    114,
+    115,
+    116,
+    117,
+    118,
+    119,
+    120,
+    121
+   ],
+   "c4_coverage": 0.95,
+   "modified_residues": [],
+   "stratum": "s150_200",
+   "source_file": "raw/2QBZ.cif",
+   "source_sha256": "77cfd456b8193510d0ac46d1fb558c73dffcc9d1e7fc2a324969be744952fc91",
+   "retrieved_from": "https://files.rcsb.org/download/2QBZ.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 46,
+    "nested_pairs": 45,
+    "pseudoknot_pairs_removed": 1,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -56.6,
+    "pairs": 51,
+    "f1_vs_oracle_nested": 0.896,
+    "f1_vs_oracle_full": 0.887
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "4GXY_A",
+   "pdb_id": "4GXY",
+   "chain": "A",
+   "family": "AdoCbl riboswitch",
+   "source": "RNA-Puzzles 6",
+   "split": "test",
+   "title": "RNA structure",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 3.05,
+   "length": 172,
+   "observed_residues": 163,
+   "missing_residues": [
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    114,
+    115,
+    116
+   ],
+   "c4_coverage": 0.942,
+   "modified_residues": [
+    [
+     1,
+     "GTP"
+    ],
+    [
+     172,
+     "CCC"
+    ]
+   ],
+   "stratum": "s150_200",
+   "source_file": "raw/4GXY.cif",
+   "source_sha256": "cf082ea916b9e858838403cb6193ac917cdcf9f2e416776da6b1dceb5c15876a",
+   "retrieved_from": "https://files.rcsb.org/download/4GXY.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 41,
+    "nested_pairs": 39,
+    "pseudoknot_pairs_removed": 2,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -95.5,
+    "pairs": 60,
+    "f1_vs_oracle_nested": 0.586,
+    "f1_vs_oracle_full": 0.574
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  },
+  {
+   "sample_id": "4P9R_A",
+   "pdb_id": "4P9R",
+   "chain": "A",
+   "family": "lariat-capping ribozyme",
+   "source": "RNA-Puzzles 5",
+   "split": "test",
+   "title": "Speciation of a group I intron into a lariat capping ribozyme (Heavy atom derivative)",
+   "method": "X-RAY DIFFRACTION",
+   "resolution": 2.703,
+   "length": 192,
+   "observed_residues": 189,
+   "missing_residues": [
+    23,
+    156,
+    157
+   ],
+   "c4_coverage": 0.984,
+   "modified_residues": [],
+   "stratum": "s150_200",
+   "source_file": "raw/4P9R.cif",
+   "source_sha256": "e639d155fcde3b58499c8f17449b855a961fda06638f49c47f0743ac7d9990a4",
+   "retrieved_from": "https://files.rcsb.org/download/4P9R.cif",
+   "prepared": "2026-10-21",
+   "oracle_2d": {
+    "pairs": 59,
+    "nested_pairs": 50,
+    "pseudoknot_pairs_removed": 9,
+    "method": "rnafold3d.annotate.canonical_pairs (cWW + GU wobble, H-bond geometry)"
+   },
+   "independent_2d": {
+    "method": "ViennaRNA 2.7.2 MFE, noLP, 37 C, Turner 2004",
+    "energy_kcal_mol": -62.0,
+    "pairs": 61,
+    "f1_vs_oracle_nested": 0.468,
+    "f1_vs_oracle_full": 0.433
+   },
+   "review_status": "automatic QC passed; manual review pending"
+  }
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "engine": "rnafold3d-v2-foldtree",
+ "engine_version": "2.0.0",
+ "models": 5,
+ "trajectories": 8,
+ "seed": 42,
+ "steps": 0,
+ "workers": 8,
+ "modes": "independent,oracle",
+ "split": "all",
+ "vienna": "2.7.2",
+ "python": "3.13.13",
+ "thresholds": {
+  "c4_rmsd_5A": 5.0,
+  "c4_rmsd_10A": 10.0,
+  "ermsd_1": 1.0
+ },
+ "started": "2026-10-21T23:02:21"
+}

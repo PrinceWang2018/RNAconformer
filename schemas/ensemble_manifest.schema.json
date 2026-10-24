@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/rnafold3d/ensemble_manifest.schema.json",
+  "title": "rnafold3d ensemble package manifest (rnafold3d.ensemble/1)",
+  "description": "Contract between ensemble producers (rnafold3d predict, external imports) and viewers. Conformer files live next to the manifest; residue numbering is 1..N along input.sequence, chain A, heavy atoms only.",
+  "type": "object",
+  "required": ["schema", "created", "software", "input", "chain", "conformers"],
+  "properties": {
+    "schema": {"const": "rnafold3d.ensemble/1"},
+    "created": {"type": "string"},
+    "software": {
+      "type": "object",
+      "required": ["name", "engine"],
+      "properties": {"name": {"type": "string"}, "engine": {"type": "string"}, "engine_version": {"type": "string"},
+                     "package_version": {"type": "string"}, "geometry_parameters": {"type": "string"}}
+    },
+    "input": {
+      "type": "object",
+      "required": ["name", "sequence", "length", "sha256"],
+      "properties": {
+        "name": {"type": "string"},
+        "sequence": {"type": "string", "pattern": "^[ACGU]+$"},
+        "length": {"type": "integer", "minimum": 1},
+        "sha256": {"type": "string"},
+        "secondary_structure_mode": {"enum": ["user", "predicted_from_sequence", "not_applicable"]},
+        "secondary_structures": {"type": "array", "items": {"type": "object",
+          "required": ["id", "dbn"], "properties": {"id": {"type": "string"}, "dbn": {"type": "string"},
+          "energy_kcal_mol": {"type": ["number", "null"]}, "source": {"type": "string"}}}}
+      }
+    },
+    "chain": {"type": "object", "required": ["id", "numbering"]},
+    "conformers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "rank", "files"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^conf_[0-9]{3,}$"},
+          "rank": {"type": "integer", "minimum": 1},
+          "files": {"type": "object", "required": ["pdb"], "properties": {"pdb": {"type": "string"}, "mmcif": {"type": "string"}}},
+          "secondary_structure_id": {"type": "string"},
+          "secondary_structure": {"type": "string"},
+          "ss_free_energy_kcal_mol": {"type": ["number", "null"]},
+          "total_score": {"type": "number", "description": "dimensionless model score; lower is better; not a free energy"},
+          "cluster_id": {"type": "integer"},
+          "cluster_size": {"type": "integer", "description": "sampling statistic, not a population"},
+          "validation": {"type": ["object", "null"], "properties": {"passed": {"type": "boolean"}}},
+          "source": {"type": "object", "description": "present for imported conformers"}
+        }
+      }
+    },
+    "pairwise_c4_rmsd": {"type": "object"},
+    "statistics": {"type": "object"},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  }
+}
