@@ -28,9 +28,16 @@ They include Python, the engine, ViennaRNA and the demo data (licences of the bu
   Start-menu entries: **RCV**, **RCV with demo ensembles**, **RCV User Guide**, **What is new in RCV** and the
   **Plugin Developer Guide**; a desktop shortcut and opening `.rcv` files with a double-click are options.
   The installer is not code-signed yet, so Windows SmartScreen may warn: choose *More info ▸ Run anyway*.
-* **macOS 11+** (Apple Silicon or Intel) — open the `.dmg` and drag RCV to *Applications*; the disk image also
-  holds the user guide. The app is not notarised yet: the first time, right-click RCV ▸ *Open* (or *System
-  Settings ▸ Privacy & Security ▸ Open Anyway*).
+* **macOS 14 (Sonoma) or later** (Apple Silicon or Intel) — open the `.dmg` and drag RCV to *Applications*; the
+  disk image also holds the user guide. The app is not notarised yet: the first time, right-click RCV ▸ *Open*
+  (or *System Settings ▸ Privacy & Security ▸ Open Anyway*).
+* **Linux (64-bit x86)** — `RCV-<version>-Linux-amd64.deb` for Debian, Ubuntu and Linux Mint
+  (`sudo apt install ./RCV-<version>-Linux-amd64.deb`) or `RCV-<version>-Linux-x86_64.rpm` for Fedora,
+  RHEL, Rocky, AlmaLinux and openSUSE (`sudo dnf install ./RCV-<version>-Linux-x86_64.rpm`); Ubuntu 20.04,
+  Debian 11, Fedora 32, RHEL 9 or newer. They add the `rcv` command and a menu entry (with *RCV with demo
+  ensembles* and *RCV User Guide*) and open `.rcv` files. RCV opens in a Chrome, Chromium or Edge app window
+  when one is installed, otherwise in your default browser, and quits when that window is closed.
+  Remove it with `sudo apt remove rcv` or `sudo dnf remove rcv`.
 
 To build the installers yourself, see `packaging/README.md`.
 

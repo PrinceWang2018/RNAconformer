@@ -39,7 +39,7 @@ source (GPL-3.0).
 * **Local and extensible** — engine on your CPU cores, rendering on your GPU; JavaScript and Python plugins
   with a template generator and a **[developer guide](docs/PLUGINS.md)**.
 
-**Download:** Windows and macOS installers (Python, engine, ViennaRNA, demo data and help included) at
+**Download:** installers for Windows, macOS and Linux (.deb, .rpm) — Python, engine, ViennaRNA, demo data and help included — at
 **[www.rnaconfviewer.com](https://www.rnaconfviewer.com/#download)**. From the source code:
 
 ```bash
@@ -157,7 +157,7 @@ src/rcv/
   dialogs), paths.py, templates/ (plugin templates),
   static/ (GUI: HTML/CSS/ES modules incl. console/, panels/, export/, viewer/; three.js r160 vendored under
   its MIT license; Liberation Sans under the SIL OFL 1.1; built-in plugins)
-packaging/  PyInstaller spec, Windows (Inno Setup) and macOS (.app/.dmg) build scripts, icons
+packaging/  PyInstaller spec, Windows (Inno Setup), macOS (.app/.dmg) and Linux (.deb/.rpm) build scripts, icons
   legacy M1-M4 guide-site modules (core, topology, assembly, closure, energy, sampling, atomistic, ...)
 tools/      calibrate_geometry.py, refine_aform.py, loop_reach.py (parameter derivation);
             viewer_smoketest.py + viewer_harness/ (GUI test scenarios)

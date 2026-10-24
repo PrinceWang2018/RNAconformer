@@ -1,5 +1,7 @@
-# Build the RCV installers on GitHub's machines: Windows (x64 setup) and macOS (Apple Silicon and Intel disk
-# images). macOS installers cannot be built on Windows, so this is the way to make them without a Mac.
+# Build the RCV installers on GitHub's machines: Windows (x64 setup), macOS (Apple Silicon and Intel disk
+# images) and Linux (.deb and .rpm, x86_64). macOS installers cannot be built on Windows, so this is the way to
+# make them without a Mac. The Linux packages are built on Debian 11 (old glibc: they run on Ubuntu 20.04+,
+# Debian 11+, Fedora, RHEL/Rocky/Alma 9+) and test-installed on several distributions.
 #
 #   Run it by hand:  Actions > Build installers > Run workflow      (installers appear as a download on the run)
 #   Or push a tag:   git tag v0.6.0 && git push origin v0.6.0
@@ -65,9 +67,56 @@ jobs:
           path: dist/installer/*
           if-no-files-found: error
 
+  linux:
+    runs-on: ubuntu-latest
+    container: python:3.12-bullseye
+    steps:
+      - uses: actions/checkout@v4
+      - name: rpmbuild
+        run: apt-get update && apt-get install -y --no-install-recommends rpm
+      - name: Linux packages
+        run: PYTHON=python3 bash packaging/linux/build_linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RCV-linux-x86_64
+          path: dist/installer/*
+          if-no-files-found: error
+
+  linux-install-test:
+    needs: linux
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:20.04', 'ubuntu:24.04', 'debian:12', 'fedora:latest', 'almalinux:9']
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: RCV-linux-x86_64
+          path: pkgs
+      - name: Install
+        run: |
+          if command -v apt-get >/dev/null; then
+            apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ./pkgs/*.deb
+          else
+            dnf install -y ./pkgs/*.rpm
+          fi
+      - name: Run
+        run: |
+          rcv --version
+          rcv engine ss --sequence GGCACUUCGGUGCC
+          rcv convert /opt/rcv/_internal/rcv/demo/HIV1_TAR_NMR_1ANR.pdb -o /tmp/t.rcv
+          rcv info /tmp/t.rcv
+          test -f /usr/share/applications/rcv.desktop && test -f /usr/share/doc/rcv/html/index.html
+      - name: Uninstall
+        run: |
+          if command -v apt-get >/dev/null; then apt-get remove -y rcv; else dnf remove -y rcv; fi
+          test ! -e /opt/rcv && test ! -e /usr/bin/rcv
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, linux, linux-install-test]
     runs-on: ubuntu-latest
     env:
       TOKEN: ${{ secrets.WEBSITE_RELEASE_TOKEN }}

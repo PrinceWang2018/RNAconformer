@@ -1,7 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 # PyInstaller recipe for RCV (one-folder build; a .app bundle on macOS).
 #   pyinstaller packaging/rcv.spec --noconfirm
-# Build on the target OS (Windows on Windows, macOS on macOS); PyInstaller does not cross-compile.
+# Build on the target OS (Windows on Windows, macOS on macOS, Linux on Linux); PyInstaller does not cross-compile.
+# Windows: packaging/build_windows.ps1, macOS: packaging/macos/build_macos.sh, Linux: packaging/linux/build_linux.sh.
 import sys
 from pathlib import Path
 
@@ -103,7 +104,7 @@ if sys.platform == 'darwin':
             'CFBundleName': 'RCV',
             'CFBundleShortVersionString': __version__,
             'NSHighResolutionCapable': True,
-            'LSMinimumSystemVersion': '11.0',
+            'LSMinimumSystemVersion': '14.0',          # the NumPy/SciPy wheels pip picks on macOS 15 need macOS 14
             'NSHumanReadableCopyright': 'Copyright © 2026 Zixiang Wang. GPL-3.0.',
             'CFBundleDocumentTypes': [
                 {'CFBundleTypeName': 'RCV conformational ensemble', 'CFBundleTypeRole': 'Editor',

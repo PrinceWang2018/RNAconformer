@@ -2,11 +2,11 @@
 
 RCV ships as a self-contained desktop application: Python, the prediction engine (numpy, scipy,
 ViennaRNA), the user interface and the demo data are bundled with PyInstaller, and the window is a native
-web view (WebView2 on Windows, WKWebView on macOS) through pywebview. All computation runs on the user's
-computer; nothing is sent anywhere.
+web view (WebView2 on Windows, WKWebView on macOS) through pywebview; on Linux it is a Chrome, Chromium or Edge
+app window (or the default browser). All computation runs on the user's computer; nothing is sent anywhere.
 
-PyInstaller does not cross-compile: build the Windows installer on Windows and the macOS app on a Mac
-(Apple Silicon and Intel need separate builds, or a CI runner of each kind).
+PyInstaller does not cross-compile: build the Windows installer on Windows, the macOS app on a Mac (Apple
+Silicon and Intel need separate builds, or a CI runner of each kind) and the Linux packages on Linux.
 
 | File | Purpose |
 |---|---|
@@ -16,9 +16,11 @@ PyInstaller does not cross-compile: build the Windows installer on Windows and t
 | `build_windows.ps1` | Windows: venv → PyInstaller → frozen-engine self-test → Inno Setup installer |
 | `windows/RCV.iss` | Inno Setup script (Start-menu entry, optional desktop shortcut, optional `.rcv` file association, uninstaller) |
 | `macos/build_macos.sh` | macOS: venv → PyInstaller `.app` → self-test → `.dmg` with an *Applications* link and the user guide (optional signing and notarisation) |
+| `linux/build_linux.sh` | Linux: venv → PyInstaller → self-test (engine, tools, server) → `.deb` (dpkg-deb) and `.rpm` (rpmbuild) |
+| `linux/rcv-rpm.spec`, `linux/rcv.desktop`, `linux/rcv-mime.xml`, `linux/icons/` | RPM recipe, menu entry (with *RCV with demo ensembles* and *RCV User Guide*), `.rcv` file type, icons 16–512 px |
 | `make_docs.py` | user guide, plugin guide and changelog as web pages (installers: Start menu / disk image; website: `--site`) |
 | `THIRD-PARTY-NOTICES.txt` | licences and credits of the bundled software (ViennaRNA, Python, NumPy, SciPy, …), installed next to RCV |
-| `../.github/workflows/installers.yml` | builds all three installers on GitHub (Windows x64, macOS Apple Silicon, macOS Intel) |
+| `../.github/workflows/installers.yml` | builds all installers on GitHub (Windows x64, macOS Apple Silicon, macOS Intel, Linux `.deb` and `.rpm`) and test-installs the Linux packages |
 | `icons/` | `rcv.ico`, `rcv.icns` and a 1024 px `rcv.png` rendered from `src/rcv/static/img/icon.svg` |
 
 ## Windows (10/11, x64)
@@ -37,7 +39,7 @@ pywebview/WebView2 the app falls back to an Edge app window.
 Unsigned installers trigger a SmartScreen warning; sign `RCV.exe` and the installer with a
 code-signing certificate (`signtool sign /fd sha256 /tr <timestamp-url> /td sha256 ...`) before distribution.
 
-## macOS (11+, Apple Silicon or Intel)
+## macOS (14+, Apple Silicon or Intel)
 
 ```bash
 brew install python@3.12        # or the python.org installer
@@ -49,11 +51,36 @@ outside your own Macs, set `CODESIGN_ID` (Developer ID Application certificate) 
 (`xcrun notarytool store-credentials`) before running the script; unsigned apps must be opened with
 right-click ▸ Open the first time.
 
+The app needs **macOS 14 (Sonoma) or later**: on a macOS 15 build machine pip installs the NumPy and SciPy wheels
+built for macOS 14 (`macosx_14_0`), and `rcv.spec` sets `LSMinimumSystemVersion` to match, so older systems show
+a clear message instead of failing at start. (Supporting macOS 11–13 would need a build machine with macOS 13 or
+the older OpenBLAS wheels.)
+
+## Linux (x86_64: .deb and .rpm)
+
+```bash
+sudo apt install python3.12-venv rpm      # Debian/Ubuntu; rpm only for the .rpm
+bash packaging/linux/build_linux.sh
+```
+
+Output: `dist/RCV/RCV` (portable folder), `dist/installer/RCV-<version>-Linux-amd64.deb` and
+`RCV-<version>-Linux-x86_64.rpm`. Both install RCV to `/opt/rcv`, the command `/usr/bin/rcv`, a menu entry
+(with the actions *RCV with demo ensembles* and *RCV User Guide*), icons, the `.rcv` file type and the user guide
+in `/usr/share/doc/rcv/html`. Install with `sudo apt install ./RCV-<version>-Linux-amd64.deb` or
+`sudo dnf install ./RCV-<version>-Linux-x86_64.rpm`.
+
+The bundle runs on systems whose glibc is at least as new as the build machine's, so build on an old
+distribution: GitHub builds in a Debian 11 container (glibc 2.31), which covers Ubuntu 20.04+, Debian 11+,
+Fedora 32+ and RHEL/Rocky/Alma 9+. pywebview is not bundled on Linux (its GTK/Qt web views are system
+libraries): RCV opens in a Chrome, Chromium or Edge app window when one is installed, else in the default
+browser, and quits when that window is closed.
+
 ## macOS without a Mac: GitHub Actions
 
-`.github/workflows/installers.yml` builds the Windows installer and the macOS disk images for Apple Silicon
-(`macos-15` runner) and Intel (`macos-15-intel`; GitHub keeps Intel Macs until autumn 2027) on GitHub's
-machines. *Actions ▸ Build installers ▸ Run workflow* puts the installers on the run page as downloads; pushing
+`.github/workflows/installers.yml` builds the Windows installer, the macOS disk images for Apple Silicon
+(`macos-15` runner) and Intel (`macos-15-intel`; GitHub keeps Intel Macs until autumn 2027) and the Linux
+packages (Debian 11 container; then installed, run and removed on Ubuntu 20.04 and 24.04, Debian 12, Fedora and
+AlmaLinux 9) on GitHub's machines. *Actions ▸ Build installers ▸ Run workflow* puts the installers on the run page as downloads; pushing
 a version tag (`git tag v0.6.0 && git push origin v0.6.0`) also attaches them to the release of the website
 repository when the secret `WEBSITE_RELEASE_TOKEN` (fine-grained token, *Contents: read and write* on
 `PrinceWang2018/RNAconfViewer_website`) is set.
@@ -103,5 +130,6 @@ the downloads, which feeds the website's *Statistics* tab.
   the engine's parameters are loaded with `importlib.resources` from `rnafold3d/data`.
 * Predictions started from the app run `RCV engine predict ...` as a child process
   (`rcv.paths.engine_command`), so the window stays responsive and cancelling kills the run.
-* User data: settings, logs and plugins in `%APPDATA%\RCV` / `~/Library/Application Support/RCV`;
+* User data: settings, logs and plugins in `%APPDATA%\RCV` / `~/Library/Application Support/RCV` /
+  `~/.local/share/rcv`;
   predictions in `Documents/RCV/projects` (changeable in the app).

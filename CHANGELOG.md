@@ -80,9 +80,12 @@
 - **Installers**: Windows setup in nine languages with Start-menu entries for RCV, *RCV with demo ensembles*, the
   user guide, *What is new* and the plugin guide (as web pages, `packaging/make_docs.py`), licence and
   `THIRD-PARTY-NOTICES.txt` (ViennaRNA credit and licence, and the other bundled software); macOS disk image
-  with an *Applications* link and the user guide. The GitHub workflow `.github/workflows/installers.yml` builds
-  the Windows x64, macOS Apple Silicon and macOS Intel installers (and, for a version tag, attaches them to the
-  release behind the download links of www.rnaconfviewer.com).
+  with an *Applications* link and the user guide (macOS 14 or later); **Linux packages** `.deb` (Debian, Ubuntu,
+  Mint) and `.rpm` (Fedora, RHEL, Rocky, AlmaLinux, openSUSE) with the `rcv` command, a menu entry (*RCV with demo
+  ensembles*, *RCV User Guide*), icons, the `.rcv` file type and the user guide (`packaging/linux/`). The GitHub
+  workflow `.github/workflows/installers.yml` builds the Windows x64, macOS Apple Silicon, macOS Intel and Linux
+  x86_64 installers, test-installs the Linux packages on Ubuntu, Debian, Fedora and AlmaLinux (and, for a version
+  tag, attaches everything to the release behind the download links of www.rnaconfviewer.com).
 - Tests: `tests/test_rcv06.py`, `tests/test_rcv06_lang.py`, `tests/js/rcv06_unit.mjs`, `tests/js/i18n_unit.mjs`
   (translation files and matcher, help documents); GUI smoke test extended to 42 scenarios (window layout, all
   languages, user guide).

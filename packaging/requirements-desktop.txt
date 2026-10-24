@@ -1,9 +1,9 @@
 # Build environment for the RCV desktop installers (Python 3.12, 64-bit).
 numpy>=1.26,<3
 scipy>=1.11
-ViennaRNA==2.7.2          # wheels: Windows x64, macOS arm64 / x86_64 (>= 10.14), Linux
+ViennaRNA==2.7.2          # wheels: Windows x64, macOS arm64 / x86_64, Linux x86_64
 threadpoolctl>=3.2
-pywebview>=5.1            # native window: WebView2 (Windows), WKWebView (macOS)
+pywebview>=5.1 ; sys_platform != "linux"   # native window: WebView2 (Windows), WKWebView (macOS); Linux uses a browser app window
 pyinstaller>=6.6
 certifi>=2024.2.2          # CA certificates for the console 'fetch' command (macOS builds)
 fonttools>=4.40           # embeds the bundled figure font (Liberation Sans, OFL) in PDF exports

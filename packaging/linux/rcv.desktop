@@ -1,0 +1,22 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=RCV
+GenericName=RNA Conformation Viewer
+Comment=Predict, view and compare RNA conformational ensembles
+Exec=rcv %F
+Icon=rcv
+Terminal=false
+Categories=Science;Biology;Chemistry;Education;
+MimeType=application/vnd.rcv+zip;
+Keywords=RNA;structure;conformation;ensemble;3D;molecule;PDB;
+StartupWMClass=RCV
+Actions=demo;guide;
+
+[Desktop Action demo]
+Name=RCV with demo ensembles
+Exec=rcv --demo
+
+[Desktop Action guide]
+Name=RCV User Guide
+Exec=xdg-open /usr/share/doc/rcv/html/index.html

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The .rcv file type (a ZIP archive whose first entry is "mimetype"), installed to /usr/share/mime/packages. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/vnd.rcv+zip">
+    <comment>RCV conformational ensemble</comment>
+    <sub-class-of type="application/zip"/>
+    <glob pattern="*.rcv"/>
+    <icon name="rcv"/>
+  </mime-type>
+</mime-info>
