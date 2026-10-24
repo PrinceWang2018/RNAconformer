@@ -69,9 +69,14 @@ EOF
 chmod -R u+rwX,go+rX,go-w "$STAGE"
 find "$STAGE/usr/share" -type f -exec chmod 644 {} +
 # Debugging information is not needed to run RCV (ViennaRNA's and Python's libraries shrink from ~85 to ~18 MB).
-# Only the libraries: the RCV program itself carries the app's archive at its end, which strip would remove.
-find "$STAGE/opt/rcv/_internal" -type f -name '*.so*' -exec sh -c 'for f; do strip --strip-debug "$f" 2>/dev/null || true; done' sh {} +
+# Only libraries that carry it, and not the ones vendored by wheels into *.libs folders (patchelf-modified: an
+# older strip breaks them), nor the RCV program itself (the app's archive sits at its end).
+find "$STAGE/opt/rcv/_internal" -type f -name '*.so*' -not -path '*.libs/*' -print0 |
+  while IFS= read -r -d '' f; do
+    if readelf -S "$f" 2>/dev/null | grep '\.debug_info' >/dev/null; then strip --strip-debug "$f"; fi
+  done
 "$STAGE/opt/rcv/RCV" engine ss --sequence GGCACUUCGGUGCC     # still works after stripping
+"$STAGE/opt/rcv/RCV" info build/selftest.rcv > /dev/null
 mkdir -p dist/installer
 
 # .deb
