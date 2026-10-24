@@ -79,8 +79,8 @@ browser, and quits when that window is closed.
 
 `.github/workflows/installers.yml` builds the Windows installer, the macOS disk images for Apple Silicon
 (`macos-15` runner) and Intel (`macos-15-intel`; GitHub keeps Intel Macs until autumn 2027) and the Linux
-packages (Debian 11 container; then installed, run and removed on Ubuntu 20.04 and 24.04, Debian 12, Fedora and
-AlmaLinux 9) on GitHub's machines. *Actions ▸ Build installers ▸ Run workflow* puts the installers on the run page as downloads; pushing
+packages (Debian 11 container; then installed, run and removed on Ubuntu 20.04 and 24.04, Debian 12, Fedora,
+AlmaLinux 9 and openSUSE Leap 15.6) on GitHub's machines. *Actions ▸ Build installers ▸ Run workflow* puts the installers on the run page as downloads; pushing
 a version tag (`git tag v0.6.0 && git push origin v0.6.0`) also attaches them to the release of the website
 repository when the secret `WEBSITE_RELEASE_TOKEN` (fine-grained token, *Contents: read and write* on
 `PrinceWang2018/RNAconfViewer_website`) is set.

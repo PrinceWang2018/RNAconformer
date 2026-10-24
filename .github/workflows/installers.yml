@@ -87,7 +87,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ['ubuntu:20.04', 'ubuntu:24.04', 'debian:12', 'fedora:latest', 'almalinux:9']
+        image: ['ubuntu:20.04', 'ubuntu:24.04', 'debian:12', 'fedora:latest', 'almalinux:9', 'opensuse/leap:15.6']
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     steps:
@@ -99,6 +99,8 @@ jobs:
         run: |
           if command -v apt-get >/dev/null; then
             apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ./pkgs/*.deb
+          elif command -v zypper >/dev/null; then
+            zypper --non-interactive install --allow-unsigned-rpm ./pkgs/*.rpm
           else
             dnf install -y ./pkgs/*.rpm
           fi
@@ -111,7 +113,9 @@ jobs:
           test -f /usr/share/applications/rcv.desktop && test -f /usr/share/doc/rcv/html/index.html
       - name: Uninstall
         run: |
-          if command -v apt-get >/dev/null; then apt-get remove -y rcv; else dnf remove -y rcv; fi
+          if command -v apt-get >/dev/null; then apt-get remove -y rcv
+          elif command -v zypper >/dev/null; then zypper --non-interactive remove rcv
+          else dnf remove -y rcv; fi
           test ! -e /opt/rcv && test ! -e /usr/bin/rcv
 
   release:
