@@ -73,7 +73,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: rpmbuild
-        run: apt-get update && apt-get install -y --no-install-recommends rpm
+        # Debian 11 is past its end of life and its security archive no longer has every file it lists; a
+        # packaging tool does not need it, so rpm comes from the main archive.
+        run: |
+          sed -i '/security/d' /etc/apt/sources.list
+          rm -f /etc/apt/sources.list.d/*security*
+          apt-get update && apt-get install -y --no-install-recommends rpm
       - name: Linux packages
         run: PYTHON=python3 bash packaging/linux/build_linux.sh
       - uses: actions/upload-artifact@v4
