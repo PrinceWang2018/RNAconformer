@@ -25,12 +25,14 @@ export function yAxis(g, y, x0, x1, { ticks = 4, unit = '', title = '', grid = t
   const ax = svg('g', { class: 'axis' });
   const lab = svg('g', { class: 'ticklab' });
   const yTop = y(y.domain[1]), yBot = y(y.domain[0]);
+  const step = t.length > 1 ? Math.abs(t[1] - t[0]) : 1;
+  const stepDigits = step > 0 && step < 1 ? Math.ceil(-Math.log10(step) - 1e-9) : 0;     // 0.05 apart -> 2 decimals
   ax.append(svg('line', { x1: x0 + 0.5, x2: x0 + 0.5, y1: Math.min(yTop, yBot), y2: Math.max(yTop, yBot) }));
   for (const v of t) {
     const yy = Math.round(y(v)) + 0.5;
     if (grid) gridG.append(svg('line', { x1: x0, x2: x1, y1: yy, y2: yy }));
     ax.append(svg('line', { x1: x0 - 4, x2: x0, y1: yy, y2: yy }));
-    lab.append(svg('text', { x: x0 - 6, y: y(v) + 3.5, 'text-anchor': 'end', text: fmt(v, Math.abs(v) < 10 ? 1 : 0) }));
+    lab.append(svg('text', { x: x0 - 6, y: y(v) + 3.5, 'text-anchor': 'end', text: fmt(v, Math.max(Math.abs(v) < 10 ? 1 : 0, stepDigits)) }));
   }
   g.append(gridG, ax, lab);
   const ttl = title || unit;

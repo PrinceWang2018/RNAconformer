@@ -10,7 +10,9 @@ import { kabsch } from './ensemble.js';
 import { SLOTS, NUCLEOTIDE } from './colors.js';
 import { exportChart, standaloneSVG } from './export/chartexport.js';
 
-export const API_VERSION = 2;          // 2 (RCV 0.6): commands, annotations, palette, surface, export; version 1 calls unchanged
+// 2 (RCV 0.6): commands, annotations, palette, surface, export. 3 (RCV 0.6.1): per-ensemble metrics,
+// metrics.unregister, session state (saved in .rcv files, undo/redo). Calls of earlier versions are unchanged.
+export const API_VERSION = 3;
 
 export class PluginHost {
   constructor(app) {
@@ -41,6 +43,14 @@ export class PluginHost {
       console.error('plugin failed', meta.url, err);
       toast(`${meta.file || meta.url}: ${rec.error}`, 'error', 'Plugin failed to load');
     }
+  }
+
+  // Plugins may name an ensemble by its object or its id.
+  ensembleOf(e) {
+    if (!e) return null;
+    const ens = typeof e === 'string' ? this.app.ensembles.get(e) : e;
+    if (!ens || !Array.isArray(ens.conformations)) throw new Error('unknown ensemble');
+    return ens;
   }
 
   setEnabled(url, on) {
@@ -80,7 +90,20 @@ export class PluginHost {
         project: (x, y, z) => { const v = app.viewer; const [w, h] = v.cssSize; return v.projector(v.camera, w, h)(x, y, z); },
       },
       colors: { registerScheme: def => { registerScheme({ ...def, id: `${rec.id}:${def.id}` }); app.refreshSchemes(); } },
-      metrics: { register: def => app.addClientMetric({ ...def, key: `plugin.${rec.id}.${def.key}`, plugin: rec.name }) },
+      // A metric with `ensemble` belongs to that ensemble only; without it, to every ensemble (also ones opened later).
+      metrics: {
+        register: ({ ensemble = null, ...def }) => app.addClientMetric({ ...def, key: `plugin.${rec.id}.${def.key}`, plugin: rec.name }, host.ensembleOf(ensemble)),
+        unregister: (key, ensemble = null) => app.removeClientMetric(`plugin.${rec.id}.${key}`, host.ensembleOf(ensemble)),
+      },
+      // Per-ensemble plugin state: save(ens) -> JSON-compatible value or null; load(ens, value) with value null
+      // meaning "nothing". Saved in .rcv files (and workspaces, for the shown ensemble), part of undo/redo; changed() records an edit.
+      session: {
+        register: ({ save, load }) => {
+          if (typeof save !== 'function' || typeof load !== 'function') throw new Error('session.register needs save(ens) and load(ens, value)');
+          app.registerSessionPart(`plugin.${rec.id}`, { save, load });
+        },
+        changed: () => app.emit('plugin-state', rec.id),
+      },
       // console commands: run(args, raw) returns a string, an array of strings, or nothing (may be async)
       commands: {
         register: ({ name, args = '', help = '', run }) => {

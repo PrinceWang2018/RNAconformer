@@ -92,6 +92,20 @@ class AppState:
         self.last_seen = time.time()
         self.closing_at = None
         self.py_plugins, self.plugin_errors = self._load_py_plugins()
+        self._cache = {}                   # analysis results (pathways, scans, maps), most recent last
+
+    def cache_get(self, key):
+        with self.lock:
+            v = self._cache.pop(key, None)
+            if v is not None:
+                self._cache[key] = v
+            return v
+
+    def cache_put(self, key, value, limit=64):
+        with self.lock:
+            self._cache[key] = value
+            while len(self._cache) > limit:
+                self._cache.pop(next(iter(self._cache)))
 
     # ---- plugins
     def _load_py_plugins(self):
@@ -437,6 +451,27 @@ class Handler(BaseHTTPRequestHandler):
         raw = self._raw_body()
         return json.loads(raw or b'{}')
 
+    def _doc_body(self):
+        """Request body and its ensemble document (an open document by id, or the document itself)."""
+        body = self._body()
+        entry = self.state.entries.get(body.get('document') or '')
+        doc = entry.doc if entry else body.get('doc')
+        if not doc or 'conformations' not in doc:
+            raise ValueError('unknown ensemble')
+        return body, doc
+
+    def _conditions(self, body, doc, probing=True):
+        """Solution conditions of a request (temperature, Na+, ligand, probing data); needs ViennaRNA."""
+        if vienna_version() is None:
+            raise ValueError('this analysis needs ViennaRNA (pip install ViennaRNA)')
+        from .conditions import Conditions
+        c = dict(body.get('conditions') or {})
+        if 'temperature' not in c and body.get('temperature') is not None:
+            c['temperature'] = body['temperature']
+        if not probing:
+            c.pop('probing', None)
+        return Conditions.from_json(c, len(doc['sequence']))
+
     def _static(self, rel):
         if rel in ('', '/'):
             rel = 'index.html'
@@ -685,7 +720,7 @@ class Handler(BaseHTTPRequestHandler):
             doc = entry.doc if entry else body.get('doc')
             if not doc:
                 raise ValueError('unknown ensemble')
-            page = build_html(doc, body.get('view'), body.get('title'), methods_text(doc, vienna_version()))
+            page = build_html(doc, body.get('view'), body.get('title'), methods_text(doc, vienna_version()), body.get('analysis'))
             return self._send(200, page, 'text/html')
         if method == 'POST' and parts == ['switch']:
             # 2D-level switch analysis (ViennaRNA): state populations and the single-mutation scan between two states
@@ -702,9 +737,93 @@ class Handler(BaseHTTPRequestHandler):
                 if isinstance(extra, str) and len(extra) == len(doc['sequence']) and extra not in [s['dbn'] for s in states]:
                     states.append({'dbn': extra, 'conformations': [], 'source': 'added'})
             a, b = body.get('a'), body.get('b')
-            res = analyse(doc['sequence'], states, float(body.get('temperature', 37.0)),
-                          int(a) if a is not None else None, int(b) if b is not None else None)
+            cond = self._conditions(body, doc)
+            res = analyse(doc['sequence'], states, cond.temperature,
+                          int(a) if a is not None else None, int(b) if b is not None else None, cond=cond)
             return self._json(res)
+        if method == 'POST' and parts == ['switch', 'dose']:
+            # ligand dose-response of the 2D states (aptamer motif soft constraint)
+            from .switch import dose_response, ensemble_states
+            body, doc = self._doc_body()
+            cond = self._conditions(body, doc)
+            conc = body.get('concentrations') or [0] + [10 ** (k / 4) for k in range(-12, 13)]
+            return self._json(dose_response(doc['sequence'], ensemble_states(doc), cond, [float(c) for c in conc][:80]))
+        if method == 'POST' and parts == ['transition']:
+            # Pathway tab: refolding paths, barriers, flux, cooperative unit, rigid modules between two conformations
+            from .transition import analyse as transition_analyse, K0_DEFAULT
+            body, doc = self._doc_body()
+            cond = self._conditions(body, doc, probing=False)
+            a, b = int(body['a']), int(body['b'])
+            k0 = float(body.get('k0') or K0_DEFAULT)
+            inter = bool(body.get('intermediates', True))
+            key = ('transition', doc['id'], a, b, cond.key(), k0, inter)
+            res = st.cache_get(key)
+            if res is None:
+                res = transition_analyse(doc, a, b, cond, k0=k0, intermediates=inter, coords=rcvfile.doc_coords(doc))
+                st.cache_put(key, res)
+            return self._json(res)
+        if method == 'POST' and parts == ['transition', 'scan']:
+            # in-silico phi-value scan along a route of 2D structures
+            from .transition import phi_scan
+            body, doc = self._doc_body()
+            cond = self._conditions(body, doc, probing=False)
+            route = [str(s) for s in body.get('route') or []]
+            if len(route) < 2 or any(len(s) != len(doc['sequence']) for s in route):
+                raise ValueError('the scan needs a route of at least two 2D structures')
+            key = ('phi', doc['id'], tuple(route), cond.key())
+            res = st.cache_get(key)
+            if res is None:
+                res = phi_scan(doc['sequence'], route, cond)
+                st.cache_put(key, res)
+            return self._json(res)
+        if method == 'POST' and parts == ['landscape']:
+            # topology-aware ensemble map (also built into new documents)
+            from .landscape import layout_doc
+            body, doc = self._doc_body()
+            key = ('landscape', doc['id'])
+            res = st.cache_get(key)
+            if res is None:
+                res = layout_doc(doc)
+                st.cache_put(key, res)
+            return self._json(res)
+        if method == 'POST' and parts == ['confidence']:
+            # optional confidence model: predicted per-nucleotide lDDT of every conformation (rnafold3d/qa.py)
+            from rnafold3d import qa
+            body, doc = self._doc_body()
+            if not qa.available():
+                return self._json({'available': False})
+            key = ('confidence', doc['id'], qa.FEATURE_VERSION)
+            res = st.cache_get(key)
+            if res is None:
+                res = confidence_of(doc)
+                st.cache_put(key, res)
+            return self._json(res)
+        if method == 'POST' and parts == ['probing', 'parse']:
+            from . import probing
+            body = self._body()
+            seq = str(body.get('sequence') or '')
+            if not seq:
+                raise ValueError('no sequence')
+            kind = str(body.get('kind') or 'SHAPE').upper()
+            vals, fmt, notes = probing.parse(str(body.get('text') or ''), len(seq))
+            out = {'values': vals, 'format': fmt, 'notes': notes, 'kind': kind,
+                   'n_values': sum(v is not None for v in vals)}
+            if body.get('normalise', True):
+                out['normalised'], out['factor'] = probing.normalise(vals, seq, kind)
+            return self._json(out)
+        if method == 'POST' and parts == ['probing', 'fit']:
+            # agreement of every conformation with the reactivities and maximum-entropy reweighting
+            from . import probing
+            body, doc = self._doc_body()
+            vals = body.get('values') or []
+            if len(vals) != len(doc['sequence']):
+                raise ValueError('one reactivity value (or null) per nucleotide is needed')
+            vals = [None if v is None else float(v) for v in vals]
+            kind = str(body.get('kind') or 'SHAPE').upper()
+            out = {'agreement': probing.agreement(doc, vals, kind)}
+            if len(doc['conformations']) > 1:
+                out['reweighting'] = probing.reweight(doc, vals, kind, theta=body.get('theta'), prior=body.get('prior'))
+            return self._json(out)
         if method == 'POST' and parts == ['plugins', 'new']:
             # Plugins > New plugin: write a commented template into the user plugin folder
             body = self._body()
@@ -755,6 +874,27 @@ class Handler(BaseHTTPRequestHandler):
             st.closing_at = time.time() + 4.0
             return self._json({'ok': True})
         return self._error(404, f'unknown endpoint {method} /api/{route}')
+
+
+def confidence_of(doc):
+    """Predicted per-nucleotide lDDT (confidence model) of every conformation of a document."""
+    import json as _json
+    from rnafold3d import qa
+    from rnafold3d.structure_io import Residue
+    coords = rcvfile.doc_coords(doc)
+    names = doc['atoms']['names']
+    w = qa.load_weights()
+    out = []
+    for k in range(len(doc['conformations'])):
+        X = coords[k]
+        residues = []
+        for ri, r in enumerate(doc['residues']):
+            atoms = {names[r['first_atom'] + q]: X[r['first_atom'] + q].astype(float) for q in range(r['n_atoms'])}
+            residues.append(Residue(ri + 1, doc['sequence'][ri], r.get('comp') or doc['sequence'][ri], atoms))
+        p = qa.predict(doc['sequence'], residues, w)
+        out.append({'global': round(p['global'], 4), 'per_residue': [round(float(v), 3) for v in p['per_residue']]})
+    info = _json.loads(str(w['info'])) if 'info' in w else {}
+    return {'available': True, 'version': qa.FEATURE_VERSION, 'conformations': out, 'info': info}
 
 
 class AppServer(ThreadingHTTPServer):

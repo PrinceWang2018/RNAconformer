@@ -8,6 +8,9 @@
     rcv extract FILE.rcv -o DIR              one PDB per conformation (or --multi for one multi-model PDB)
     rcv batch SEQS.fasta [-o DIR]            predict every sequence of a FASTA file (one .rcv each)
     rcv html INPUT -o page.html              interactive single-file web page (.rcv or structures as input)
+    rcv pathway INPUT --a A --b B [--scan]   transition A -> B: barriers, routes, bottleneck, rigid modules, phi values
+    rcv probing INPUT --data FILE [--dms]    agreement with SHAPE/DMS reactivities, maximum-entropy reweighting
+    rcv confidence INPUT                     predicted per-nucleotide accuracy (confidence model)
 
 Options: --shell auto|webview|window|browser|none, --port, --demo, --projects-dir, --chain, --verbose.
 """
@@ -172,6 +175,155 @@ def _html(argv):
     return 0
 
 
+def _load_any(paths):
+    """Document (and saved view) of an .rcv file or of structures / a prediction folder."""
+    from . import rcvfile
+    if len(paths) == 1 and paths[0].lower().endswith('.rcv'):
+        doc, session, _ = rcvfile.read(paths[0])
+        return doc, (session or {}).get('view')
+    from .data import load_document
+    return load_document(paths), None
+
+
+def _conf_index(doc, key):
+    """Conformation by id (conf_003), label or 1-based number."""
+    for k, c in enumerate(doc['conformations']):
+        if key in (c.get('id'), c.get('label')):
+            return k
+    if str(key).isdigit() and 1 <= int(key) <= len(doc['conformations']):
+        return int(key) - 1
+    raise SystemExit(f'unknown conformation {key!r} (use an id such as conf_001 or a number 1..{len(doc["conformations"])})')
+
+
+def _conditions_args(ap):
+    ap.add_argument('--temperature', type=float, default=37.0, help='°C (default 37)')
+    ap.add_argument('--sodium', type=float, default=1.021, help='Na+ in mol/L (default 1.021, Turner standard)')
+    ap.add_argument('--ligand', help='aptamer preset (theophylline) or MOTIF_SEQ:MOTIF_STRUCT')
+    ap.add_argument('--kd', type=float, help='ligand Kd in µM (presets have their own)')
+    ap.add_argument('--conc', type=float, default=0.0, help='ligand concentration in µM')
+
+
+def _conditions(a):
+    from .conditions import Conditions
+    lig = None
+    if a.ligand:
+        if ':' in a.ligand:
+            seq, struct = a.ligand.split(':', 1)
+            lig = {'name': 'custom aptamer', 'motif_seq': seq, 'motif_struct': struct, 'kd_uM': a.kd or 1.0, 'conc_uM': a.conc}
+        else:
+            lig = {'preset': a.ligand, 'conc_uM': a.conc, **({'kd_uM': a.kd} if a.kd else {})}
+    return Conditions.from_json({'temperature': a.temperature, 'sodium': a.sodium, 'ligand': lig})
+
+
+def _pathway(argv):
+    ap = argparse.ArgumentParser(prog='rcv pathway', description='Transition analysis from conformation A to B: '
+                                 'refolding paths and barriers (ViennaRNA findpath), routes through intermediates with '
+                                 'transition-path-theory flux, the cooperative unit of base pairs, rigid modules and, '
+                                 'with --scan, the in-silico phi-value scan of all point mutations.')
+    ap.add_argument('paths', nargs='+', help='an .rcv file, or structures / a prediction folder')
+    ap.add_argument('--a', required=True, help='conformation A (id such as conf_001, or number)')
+    ap.add_argument('--b', required=True, help='conformation B')
+    _conditions_args(ap)
+    ap.add_argument('--k0', type=float, default=1e6, help='Arrhenius prefactor in 1/s (default 1e6)')
+    ap.add_argument('--no-intermediates', action='store_true', help='direct path only')
+    ap.add_argument('--scan', action='store_true', help='also the phi-value scan (3 x length mutants)')
+    ap.add_argument('-o', '--out', help='write the full result as JSON')
+    a = ap.parse_args(argv)
+    from .rcvfile import doc_coords
+    from .transition import analyse, phi_scan
+    doc, _ = _load_any(a.paths)
+    ia, ib = _conf_index(doc, a.a), _conf_index(doc, a.b)
+    cond = _conditions(a)
+    r = analyse(doc, ia, ib, cond, k0=a.k0, intermediates=not a.no_intermediates, coords=doc_coords(doc))
+    if a.scan and r['A']['dbn'] != r['B']['dbn'] and not r['same_basin']:
+        r['phi_scan'] = phi_scan(doc['sequence'], [r['nodes'][k]['dbn'] for k in r['best']['route']], cond)
+    ids = [c.get('id') for c in doc['conformations']]
+    lines = [f"{doc.get('name')}: {ids[ia]} -> {ids[ib]} ({cond.describe()})",
+             f"  A {r['A']['dbn']}  {r['A']['energy']:.2f} kcal/mol", f"  B {r['B']['dbn']}  {r['B']['energy']:.2f} kcal/mol"]
+    lines.append(f"  basins: A {r['A']['above_basin']:+.2f} and B {r['B']['above_basin']:+.2f} kcal/mol above their minima; dG between basins {r['dG_basins']:+.2f} kcal/mol")
+    if r['A']['dbn'] == r['B']['dbn']:
+        lines.append('  same secondary structure: tertiary rearrangement without a 2D barrier')
+    elif r['same_basin']:
+        lines.append('  A and B relax into the same 2D basin: no barrier between them')
+    else:
+        lines.append(f"  barrier: direct {r['direct']['barrier']:.2f}, best route {r['best']['route_barrier']:.2f}, effective {r['effective_barrier']:.2f} kcal/mol;"
+                     f" dG(A->B) {r['dG']:+.2f} kcal/mol; half-life of A ~ {r['half_life_s']:.3g} s (k0 = {a.k0:.0e}/s)")
+        for i, p in enumerate((r['tpt'] or {}).get('pathways', [])[:5]):
+            lines.append(f"  route {i + 1}: {' -> '.join(str(k) for k in p['nodes'])}  flux {p['flux_share']:.1%}")
+        b = r['bottleneck']
+        if b:
+            lines.append(f"  cooperative unit: {len(b['unit'])} bp {[(i + 1, j + 1) for i, j in b['unit']]}; nucleus of B: {len(b['nucleus'])} bp")
+        if r.get('trap'):
+            where = {'a-side': 'on the A side', 'deep': 'on the way, deeper than B'}.get(r['trap']['kind'], 'on the way to B')
+            share = f"; {r['trap']['time_share']:.0%} of the switching time is spent there" if r['trap'].get('time_share') is not None else ''
+            lines.append(f"  trap: node {r['trap']['node']} lies {r['trap']['depth']:.2f} kcal/mol below the basin of A, {where}{share}")
+    mo = r.get('motion') or {}
+    for m in mo.get('modules', []):
+        lines.append(f"  module M{m['id'] + 1}: {m['size']} nt, turn {m['rotation']:.0f} deg, shift {m['translation']:.1f} A")
+    if r.get('phi_scan'):
+        sc = r['phi_scan']
+        def mutation(x):
+            return f"{x['from']}{x['pos'] + 1}{x['to']} ({x['ddg_ts']:+.1f})"
+        lines.append('  fastest: ' + ', '.join(mutation(x) for x in sc['faster'][:5]))
+        lines.append('  slowest: ' + ', '.join(mutation(x) for x in sc['slower'][:5]))
+    print('\n'.join(lines))
+    if a.out:
+        with open(a.out, 'w', encoding='utf-8') as f:
+            json.dump(r, f, indent=1)
+    return 0
+
+
+def _probing(argv):
+    ap = argparse.ArgumentParser(prog='rcv probing', description='Agreement of every conformation with a SHAPE or DMS '
+                                 'reactivity profile and maximum-entropy reweighting of the ensemble to fit it.')
+    ap.add_argument('paths', nargs='+', help='an .rcv file, or structures / a prediction folder')
+    ap.add_argument('--data', required=True, help='reactivity file (position and value, .shape, .map, CSV or one value per line)')
+    ap.add_argument('--dms', action='store_true', help='DMS data (A and C only); default SHAPE')
+    ap.add_argument('--raw', action='store_true', help='do not normalise (values are already normalised)')
+    ap.add_argument('--theta', type=float, help='reweighting strength (default 0.1 x number of data points)')
+    ap.add_argument('-o', '--out', help='write the result as JSON')
+    a = ap.parse_args(argv)
+    from pathlib import Path
+    from . import probing
+    doc, _ = _load_any(a.paths)
+    kind = 'DMS' if a.dms else 'SHAPE'
+    vals, fmt, notes = probing.parse(Path(a.data).read_text(encoding='utf-8', errors='replace'), len(doc['sequence']))
+    if not a.raw:
+        vals, _ = probing.normalise(vals, doc['sequence'], kind)
+    agr = probing.agreement(doc, vals, kind)
+    rw = probing.reweight(doc, vals, kind, theta=a.theta) if len(doc['conformations']) > 1 else None
+    ids = [c.get('id') for c in doc['conformations']]
+    print(f"{doc.get('name')}: {kind}, {sum(v is not None for v in vals)} of {len(vals)} nucleotides ({fmt}{'; ' + '; '.join(notes) if notes else ''})")
+    for k, cid in enumerate(ids):
+        print(f"  {cid:12s} AUC {agr[k] if agr[k] is not None else float('nan'):.3f}" + (f"   weight {rw['weights'][k]:.3f}" if rw else ''))
+    if rw:
+        print(f"  chi2/n {rw['chi2_prior']:.3f} -> {rw['chi2']:.3f}; effective conformations {rw['n_eff_conformations']:.1f} of {len(ids)}")
+    if a.out:
+        with open(a.out, 'w', encoding='utf-8') as f:
+            json.dump({'kind': kind, 'values': vals, 'agreement': dict(zip(ids, agr)), 'reweighting': rw}, f, indent=1)
+    return 0
+
+
+def _confidence(argv):
+    ap = argparse.ArgumentParser(prog='rcv confidence', description='Predicted per-nucleotide accuracy (lDDT) of every '
+                                 'conformation from the RCV confidence model (a small neural network; coordinates only).')
+    ap.add_argument('paths', nargs='+', help='an .rcv file, or structures / a prediction folder')
+    ap.add_argument('-o', '--out', help='write per-nucleotide values as JSON')
+    a = ap.parse_args(argv)
+    from rnafold3d import qa
+    from .server import confidence_of
+    if not qa.available():
+        raise SystemExit('the confidence model is not installed (rnafold3d/data/qa_v1.npz)')
+    doc, _ = _load_any(a.paths)
+    r = confidence_of(doc)
+    for c, v in zip(doc['conformations'], r['conformations']):
+        print(f"  {c.get('id'):12s} {v['global']:.3f}")
+    if a.out:
+        with open(a.out, 'w', encoding='utf-8') as f:
+            json.dump({c.get('id'): v for c, v in zip(doc['conformations'], r['conformations'])}, f, indent=1)
+    return 0
+
+
 def parser():
     ap = argparse.ArgumentParser(prog='rcv', description=f'RCV ({APP_NAME}): predict, explore and present RNA '
                                  'conformations on this computer (prediction engine + interactive viewer).',
@@ -182,6 +334,9 @@ def parser():
                                         '  rcv extract x.rcv -o DIR         PDB files again (--multi: one multi-model file)\n'
                                         '  rcv batch seqs.fasta [-o DIR]    predict every sequence of a FASTA file\n'
                                         '  rcv html x.rcv -o page.html      interactive single-file web page\n'
+                                        '  rcv pathway x.rcv --a 1 --b 5    barriers, routes, bottleneck, modules (--scan: phi values)\n'
+                                        '  rcv probing x.rcv --data r.shape agreement with SHAPE/DMS data, reweighting\n'
+                                        '  rcv confidence x.rcv             predicted per-nucleotide accuracy\n'
                                         '  rcv engine predict|ss|validate   the rnafold3d prediction engine\n'
                                         '  rcv export-document PATH --out doc.json')
     ap.add_argument('paths', nargs='*', help='rnafold3d run folders, PDB/mmCIF files (multi-model files give one '
@@ -275,7 +430,7 @@ def main(argv=None):
     if argv and argv[0] == 'engine':
         return _engine(argv[1:])
     sub = {'export-document': _export_document, 'convert': _convert, 'info': _info, 'extract': _extract,
-           'batch': _batch, 'html': _html}
+           'batch': _batch, 'html': _html, 'pathway': _pathway, 'probing': _probing, 'confidence': _confidence}
     if argv and argv[0] in sub:
         return sub[argv[0]](argv[1:])
     return run(parser().parse_args(argv))

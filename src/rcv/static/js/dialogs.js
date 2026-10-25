@@ -4,6 +4,8 @@ import { icon } from './icons.js';
 import { dialog, field, select, toast } from './ui.js';
 import { exportFigure, composeFigure } from './export/figure.js';
 import { recordVideo, videoFormats, framePlan, transitionPath } from './export/video.js';
+import { buildMechanism } from './mechmorph.js';
+import { analysisMethods } from './analysismethods.js';
 import { SCHEMES } from './colors.js';
 import { composePanels, exportPanels, defaultPanelConfs } from './export/panels.js';
 import { LANGUAGES, currentLanguage } from './i18n.js';
@@ -217,9 +219,16 @@ export function exportVideoDialog(app, preset = {}) {
   const defB = preset.to ?? (app.state.conf !== defA ? app.state.conf : app.order[1] ?? app.order[0]);
   const fromSel = select(confOpts, String(defA ?? 0));
   const toSel = select(confOpts, String(defB ?? 0));
-  let route = prefs.route || 'direct';
+  let route = preset.route || (prefs.route === 'mechanism' ? 'direct' : prefs.route) || 'direct';
+  // mechanism morph: needs the Pathway analysis of exactly this A and B
+  const mechFor = (a, b) => {
+    if (preset.mechanism && preset.from === a && preset.to === b) return preset.mechanism;
+    const r = ens?._pathway;
+    return r && r.a === a && r.b === b && r.motion ? { motion: r.motion, timing: r.timing } : null;
+  };
+  const mechBtn = el('button', { 'data-r': 'mechanism', text: 'Mechanism (Pathway)', title: 'Rigid modules move in the order of the base-pair events of the Pathway analysis' });
   const routeSeg = el('div', { class: 'seg' }, el('button', { 'data-r': 'direct', text: 'Direct morph', title: 'Linear interpolation from A to B' }),
-    el('button', { 'data-r': 'path', text: 'Through intermediates', title: 'Pass through the ensemble conformations on the lowest-RMSD route from A to B' }));
+    el('button', { 'data-r': 'path', text: 'Through intermediates', title: 'Pass through the ensemble conformations on the lowest-RMSD route from A to B' }), mechBtn);
   const boomerang = el('input', { type: 'checkbox', checked: prefs.boomerang ? true : null });
   const spin = el('input', { class: 'input', type: 'number', step: 5, min: 0, max: 360, value: prefs.spinDeg ?? 0 });
   const inset2d = el('input', { type: 'checkbox', checked: prefs.inset2d ?? true ? true : null });
@@ -259,9 +268,15 @@ export function exportVideoDialog(app, preset = {}) {
     secs.disabled = tour || tr;
     rock.disabled = content !== 'rock';
     const o = opts();
+    const mAvail = !!mechFor(o.from, o.to);
+    mechBtn.disabled = !mAvail;
+    mechBtn.title = mAvail ? 'Rigid modules move in the order of the base-pair events of the Pathway analysis' : 'Analyse this A and B in the Pathway tab first';
+    if (route === 'mechanism' && !mAvail) { route = 'direct'; for (const b of routeSeg.children) b.classList.toggle('on', b.dataset.r === route); }
     if (tr && app.ens) {
       const r = o.route === 'path' ? transitionPath(app.ens, o.from, o.to) : [o.from, o.to];
-      routeInfo.textContent = o.from === o.to ? 'Choose two different conformations.' : `${r.map(k => app.ens.shortId(k)).join(' → ')} · C4′ RMSD A–B ${fmt(app.ens.rmsd[o.from][o.to])} Å`;
+      routeInfo.textContent = o.from === o.to ? 'Choose two different conformations.' : route === 'mechanism'
+        ? `${app.ens.shortId(o.from)} → ${app.ens.shortId(o.to)} · mechanism morph: modules turn in the order of the 2D events (an illustration, not a simulation)`
+        : `${r.map(k => app.ens.shortId(k)).join(' → ')} · C4′ RMSD A–B ${fmt(app.ens.rmsd[o.from][o.to])} Å`;
     }
     const n = app.ens ? framePlan(app, o).length : 0;
     info.textContent = `${n} frames · ${(n / o.fps).toFixed(1)} s · recording takes about as long as the video plays (MP4/WebM).` + ((tour || tr) && app.ens && app.ens.n < 2 ? ' This ensemble has a single conformation.' : '');
@@ -286,6 +301,11 @@ export function exportVideoDialog(app, preset = {}) {
       if (abort) { abort.abort(); return; }
       const o = opts();
       if (content === 'transition' && o.from === o.to) { toast('Choose two different conformations for A and B.', 'error'); return; }
+      if (content === 'transition' && o.route === 'mechanism') {
+        const m = mechFor(o.from, o.to);
+        if (!m) { toast('Analyse this A and B in the Pathway tab first.', 'error'); return; }
+        o.mech = buildMechanism(app.ens.coords[o.from], app.ens.coords[o.to], app.ens.atomRes, m.motion, m.timing, { staged: true, names: app.ens.atomNames });
+      }
       app.prefs.videoExport = { content, res: res.value, fps: o.fps, transition: o.transition, hold: o.hold, seconds: o.seconds, rockDeg: o.rockDeg, loop: o.loop, overlay: o.overlay, legend: o.legend, format: o.format, route: o.route, boomerang: o.boomerang, spinDeg: o.spinDeg, inset2d: o.inset2d };
       app.savePrefs();
       abort = new AbortController();
@@ -317,6 +337,7 @@ export function preferencesDialog(app) {
   const uniform = el('input', { type: 'color', value: s.uniformColor, class: 'swatch-btn', style: { width: '60px' } });
   const elemCol = el('input', { type: 'checkbox', checked: app.viewer.settings.elementColors ? true : null });
   const devMode = el('input', { type: 'checkbox', checked: app.prefs.devMode ? true : null });
+  const confModel = el('input', { type: 'checkbox', checked: app.prefs.confidence !== false ? true : null });
   const projDir = el('input', { class: 'input', value: app.info?.system?.projects_dir || '', 'aria-label': 'Projects folder', disabled: app.api.online ? null : true });
   const browseDir = el('button', { class: 'btn', type: 'button', hidden: !app.native?.available(), onclick: async () => { const d = await app.native.chooseFolder(); if (d) projDir.value = d; } }, 'Choose…');
   dialog({
@@ -327,6 +348,7 @@ export function preferencesDialog(app) {
       el('div', { class: 'grid2' }, field('Projection', proj), field('Residue labels', labels)),
       el('div', { class: 'grid2' }, field('Outline colour', outline), field('Uniform colour scheme', uniform)),
       el('label', { class: 'check' }, elemCol, 'Colour N, O, P atoms by element in atom representations'),
+      el('label', { class: 'check' }, confModel, 'Confidence model: predict the local accuracy of every nucleotide (small neural network, computed on this computer)'),
       el('label', { class: 'check' }, devMode, 'Developer mode (for plugin authors): F12 / Ctrl+Shift+I open the browser developer tools, Shift+right-click shows the browser menu'),
       el('div', { class: 'field', style: { marginTop: '12px' } }, el('label', { text: 'Projects folder (new predictions are saved here)' }),
         el('div', { class: 'row', style: { gap: '8px' } }, projDir, browseDir))),
@@ -344,6 +366,8 @@ export function preferencesDialog(app) {
       app.viewer.settings.elementColors = elemCol.checked;
       app.state.uniformColor = uniform.value;
       app.prefs.devMode = devMode.checked;
+      const confOn = confModel.checked;
+      if (confOn !== (app.prefs.confidence !== false)) { app.prefs.confidence = confOn; if (confOn && app.ens) app.confidence.ensure(app.ens); }
       app.prefs.quality = quality.value; app.prefs.projection = proj.value; app.prefs.outlineColor = outline.value; app.prefs.elementColors = elemCol.checked; app.prefs.uniformColor = uniform.value;
       app.savePrefs();
       app.refreshColors();
@@ -427,6 +451,8 @@ export async function methodsDialog(app) {
   const metric = ens.metricByKey[st.metric];
   const schemeLabel = (SCHEMES.find(s => s.id === st.colorScheme)?.label || st.colorScheme).toLowerCase();
   extra.push(`Figures show ${ens.shortId(st.conf)}${st.prev !== null && st.prev !== st.conf ? ` and ${ens.shortId(st.prev)}` : ''} rendered with RCV (${app.viewer.settings.style} style); residues are coloured by ${schemeLabel}${metric ? `, and energies are reported as ${metric.label} (${metric.unit || 'dimensionless'})` : ''}.`);
+  const am = analysisMethods(app, ens);
+  if (am.text) extra.push(am.text);
   const log = ens.commandLog || [];
   const box = (label, text, rows) => {
     const ta = el('textarea', { class: 'input mono methods-ta', rows, readonly: true });
@@ -440,6 +466,7 @@ export async function methodsDialog(app) {
       el('div', { class: 'desc', text: 'Built from what this ensemble records (engine version, parameters, seeds, validation, superposition). Check it against your own protocol before use.' }),
       box('Methods', `${r.methods} ${extra.join(' ')}`, 9),
       box('Software citation', r.citation, 3),
+      am.references.length ? box('References for the analyses', am.references.join('\n'), Math.min(8, am.references.length + 1)) : null,
       log.length ? box('Commands used on this ensemble (reproducible figure recipe)', log.join('\n'), Math.min(8, log.length + 1)) : null),
     actions: [{ label: 'Close', primary: true, close: true }],
   });

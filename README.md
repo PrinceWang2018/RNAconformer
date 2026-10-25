@@ -3,8 +3,8 @@
 ![RCV](docs/images/rcv-wordmark.svg)
 
 **Predict, explore and present RNA conformations on your own computer.** RCV combines the rnafold3d
-prediction engine (physics-inspired, **no deep learning**) with an interactive desktop viewer. Free and open
-source (GPL-3.0).
+prediction engine (physics-inspired, **no deep learning in the prediction**) with an interactive desktop viewer
+and analyses of how an RNA switches between its conformations. Free and open source (GPL-3.0).
 
 **Author:** Zixiang Wang · princewang2018@gmail.com
 
@@ -23,6 +23,20 @@ source (GPL-3.0).
   with linked hover/selection, morphing in step with the 3D morph.
 * **Switch analysis** — Boltzmann populations of the ensemble's 2D states (any temperature) and a mutation scan
   that ranks the point mutations shifting the switch towards A or B, with one-click *Predict in 3D*.
+* **Pathways: how A turns into B** *(0.7)* — refolding paths and barriers between the basins of A and B (ViennaRNA
+  findpath), routes through intermediates ranked by **transition-path-theory flux**, the mean first-passage time
+  to switch, traps and a feasibility verdict; the **cooperative unit** of base pairs that must open together before
+  the saddle; **rigid modules** and hinges between the two 3D models with the **rate-limiting coordinated motion**;
+  an **in-silico φ-value scan** of every point mutation (which ones speed the switch up or slow it down); and a
+  **mechanism morph** that plays the motion in order. Validated on the benchmark ensembles:
+  [docs/V07_VALIDATION.md](docs/V07_VALIDATION.md).
+* **Topology-aware ensemble map** *(0.7)* — every secondary-structure topology in its own disk, conformations placed
+  by RMSD inside, routes drawn on top; quality reported against classical MDS.
+* **Conditions, ligands and probing data** *(0.7)* — temperature, Na⁺ and ligand binding to an aptamer (switch
+  dose–response); **SHAPE/DMS** profiles: agreement of every conformation and maximum-entropy **reweighting** of
+  the ensemble.
+* **Confidence model** *(0.7, optional)* — a small neural network (numpy, runs on any laptop) predicts the local
+  accuracy of every nucleotide (lDDT) and colours the structure by it.
 * **Command console** — an RNA-ensemble selection language (`helix H2`, `switching`, `rmsf > 3`, `within 5 of …`)
   and familiar molecular-viewer commands (select, show/hide, color, label, zoom/orient, distance/angle/dihedral,
   align/fit, scenes, png, fetch, scripts), plus a sequence bar, measurements and saved scenes.

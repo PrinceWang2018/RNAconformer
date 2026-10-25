@@ -21,6 +21,10 @@ import { ConsolePanel } from './console/panel.js';
 import { Measurements } from './measure.js';
 import { Scenes } from './scenes.js';
 import { SwitchPanel } from './panels/switch.js';
+import { PathwayPanel } from './panels/pathway.js';
+import { Probing } from './probing.js';
+import { conditionsDialog } from './conditions.js';
+import { Confidence } from './confidence.js';
 import { fetchDialog, toolsMenuItems } from './tools.js';
 import { setPdfFontProvider } from './export/encoders.js';
 import { installNativeFeel } from './nativefeel.js';
@@ -139,6 +143,7 @@ class App extends Emitter {
     this.energyPanel = new EnergyPanel(this, this.tabBody('energy'));
     this.details = new DetailsPanel(this, this.tabBody('details'));
     this.switchPanel = new SwitchPanel(this, this.tabBody('switch'));
+    this.pathway = new PathwayPanel(this, this.tabBody('pathway'));
     new EnsembleList(this, $('#ensemble-list'));
     new ConformationList(this, $('#conf-list'));
     this.timeline = new Timeline(this, $('#tl-track'), $('#tl-pos'));
@@ -158,6 +163,13 @@ class App extends Emitter {
     });
     this.measure = new Measurements(this);
     this.annotations = new Annotations(this);
+    this.probing = new Probing(this);
+    this.confidence = new Confidence(this);
+    // conditions of the 2D analyses (temperature, Na+, ligand) are kept per ensemble and saved in .rcv files
+    this.registerSessionPart('conditions', {
+      save: ens => ens?.conditions || null,
+      load: (ens, v) => { ens.conditions = v || null; this.emit('conditions', ens.conditions); },
+    });
     this.surface = new SurfaceController(this);
     this.scenes = new Scenes(this);
     this.ss2d = new SecondaryInset(this, $('#viewport'));
@@ -257,6 +269,11 @@ class App extends Emitter {
     ens.lastMetric = old?.lastMetric;
     // same RNA, more conformations: keep selections, colours, labels, measurements, scenes and the command log
     for (const key of ['display', 'measurements', 'scenes', 'commandLog']) if (old && old[key] !== undefined) ens[key] = old[key];
+    // plugin state too (e.g. tracked distances): same residues, more conformations
+    if (old) for (const [id, p] of this._sessionParts || []) {
+      if (!id.startsWith('plugin.')) continue;
+      try { const v = p.save(old); if (v !== undefined && v !== null) p.load(ens, v); } catch (err) { console.error(err); }
+    }
     const entries = [...this.ensembles.entries()].map(([id, e]) => (id === oldEnsId ? [ens.id, ens] : [id, e]));
     this.ensembles = new Map(entries);
     if (!this.ensembles.has(ens.id)) this.ensembles.set(ens.id, ens);
@@ -285,6 +302,7 @@ class App extends Emitter {
     tabs.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { tabs.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive: false });
     this.addTab('energy', 'Energy');
     this.addTab('switch', 'Switch');
+    this.addTab('pathway', 'Pathway');
     this.addTab('details', 'Details');
     this.showTab('energy');
     // toolbar icons
@@ -939,10 +957,11 @@ class App extends Emitter {
   }
 
   // Set the displayed state to an interpolation between two conformations (used by scrub and video).
-  applyFrame(a, b, t) {
+  applyFrame(a, b, t, mech = null) {
     const ens = this.ens;
     const A = ens.coords[a], B = ens.coords[b], d = this.display;
-    for (let i = 0; i < d.length; i++) d[i] = A[i] + (B[i] - A[i]) * t;
+    if (mech) mech.mech.at(mech.t, d);                   // mechanism morph (Pathway tab)
+    else for (let i = 0; i < d.length; i++) d[i] = A[i] + (B[i] - A[i]) * t;
     this.viewer.setCoords(d);
     if (this.capturing && this.surface?.enabled) this.surface.update(d, { spacing: 1.1 });
     const ca = this.colorsFor(a).lin, cb = this.colorsFor(b, a).lin;
@@ -1115,11 +1134,20 @@ class App extends Emitter {
   }
 
   // ---------------------------------------------------------------- client metrics (plugins)
-  addClientMetric(def) {
+  // With `ens`, the metric belongs to that ensemble only; without, to every ensemble (also ones opened later).
+  addClientMetric(def, ens = null) {
     if (typeof def.compute !== 'function') throw new Error('metric needs compute(ensemble, k)');
-    this._clientMetrics = this._clientMetrics || [];
-    this._clientMetrics.push(def);
-    for (const ens of this.ensembles.values()) this._computeClientMetric(ens, def);
+    if (ens) this._computeClientMetric(ens, def);
+    else {
+      this._clientMetrics = (this._clientMetrics || []).filter(m => m.key !== def.key);
+      this._clientMetrics.push(def);
+      for (const e of this.ensembles.values()) this._computeClientMetric(e, def);
+    }
+    this.emit('values');
+  }
+  removeClientMetric(key, ens = null) {
+    if (!ens) this._clientMetrics = (this._clientMetrics || []).filter(m => m.key !== key);
+    for (const e of ens ? [ens] : this.ensembles.values()) this.dropMetric(e, key);
     this.emit('values');
   }
   _computeClientMetric(ens, def) {
@@ -1128,11 +1156,18 @@ class App extends Emitter {
       try { v = def.compute(ens, k); } catch (err) { console.error(err); }
       ens.conformations[k].values[def.key] = typeof v === 'number' && Number.isFinite(v) ? v : null;
     }
-    if (!ens.metricByKey[def.key]) {
-      const m = { key: def.key, label: def.label || def.key, unit: def.unit || '', group: 'plugin', lower_is_better: def.lower_is_better ?? null, description: def.description || `From plugin ${def.plugin}` };
-      ens.metrics.push(m);
-      ens.metricByKey[def.key] = m;
-    }
+    const m = { key: def.key, label: def.label || def.key, unit: def.unit || '', group: 'plugin', lower_is_better: def.lower_is_better ?? null, description: def.description || `From plugin ${def.plugin}` };
+    if (ens.metricByKey[def.key]) Object.assign(ens.metricByKey[def.key], m);
+    else { ens.metrics.push(m); ens.metricByKey[def.key] = m; }
+  }
+  // Remove a metric (and its values) from an ensemble; the energy panel falls back to the default metric.
+  dropMetric(ens, key) {
+    if (!ens.metricByKey[key]) return;
+    ens.metrics = ens.metrics.filter(x => x.key !== key);
+    delete ens.metricByKey[key];
+    for (const c of ens.conformations) delete c.values[key];
+    if (ens.lastMetric === key) ens.lastMetric = null;
+    if (ens === this.ens && this.state.metric === key) this.setMetric(ens.doc.default_metric in ens.metricByKey ? ens.doc.default_metric : ens.metrics[0]?.key);
   }
 
   // ---------------------------------------------------------------- actions
@@ -1169,6 +1204,44 @@ class App extends Emitter {
   }
 
   exportTransition(a, b) { if (this.ens && this.ens.n > 1) exportVideoDialog(this, { content: 'transition', from: a, to: b }); }
+  transitionVideo(a, b, { mechanism = null } = {}) {
+    if (this.ens && this.ens.n > 1) exportVideoDialog(this, { content: 'transition', from: a, to: b, route: mechanism ? 'mechanism' : undefined, mechanism });
+  }
+
+  // Mechanism morph from a to b (Pathway tab): mech = buildMechanism(...) from mechmorph.js.
+  playMechanism(a, b, mech, { duration = 5 } = {}) {
+    const ens = this.ens;
+    if (!ens || a === b) return;
+    this.stop();
+    this.goTo(a, { animate: false, force: true });
+    const dur = duration * 1000;
+    const ca = this.colorsFor(a).lin, cb = this.colorsFor(b, a).lin;
+    const token = this._mechToken = {};
+    let t0 = null;
+    this.viewer._addAnimator(() => {
+      if (this._mechToken !== token || this.ens !== ens) return false;
+      if (t0 === null) t0 = performance.now();
+      const t = clamp((performance.now() - t0) / dur, 0, 1);
+      mech.at(t, this.display);
+      this.viewer.setCoords(this.display);
+      const cc = this.curColors = this.curColors && this.curColors.length === ca.length ? this.curColors : new Float32Array(ca.length);
+      for (let i = 0; i < cc.length; i++) cc[i] = ca[i] + (cb[i] - ca[i]) * t;
+      this.viewer.setResidueColorsLinear(cc);
+      this.emit('morph', { from: a, to: b, t });
+      $('#hud-morph').hidden = false;
+      $('#hud-morph').textContent = `${ens.shortId(a)} → ${ens.shortId(b)} · mechanism`;
+      if (t >= 1) {
+        this.state.prev = a;
+        this.state.conf = b;
+        this.display.set(ens.coords[b]);
+        this.viewer.setCoords(this.display);
+        this.emit('conformation', { from: a, to: b });
+        this._settled();
+        return false;
+      }
+      return true;
+    });
+  }
   openVideoDialog(preset = {}) { if (this.ens) exportVideoDialog(this, preset); }
   openPanels() { if (this.ens) panelsDialog(this); }
   openPalettes() { paletteDialog(this); }
@@ -1181,6 +1254,7 @@ class App extends Emitter {
   }
   openPlotStudio(type = null) { if (this.ens) plotStudio(this, type); }
   fetchDialog() { fetchDialog(this); }
+  conditionsDialog() { conditionsDialog(this); }
 
   // One self-contained web page with this ensemble (viewer, morphs, energies, 2D) — no install needed to open it.
   async exportHTML() {
@@ -1191,7 +1265,8 @@ class App extends Emitter {
     try {
       const view = this.viewState();
       delete view.parts;
-      const body = { view, title: ens.name, ...(ens.serverId ? { document: ens.serverId } : { doc: ens.doc }) };
+      const analysis = { pathway: ens._pathway || null, phi: ens._phiScan || null };   // shown on the page when computed
+      const body = { view, title: ens.name, analysis, ...(ens.serverId ? { document: ens.serverId } : { doc: ens.doc }) };
       const r = await this.api.raw('POST', '/api/export-html', JSON.stringify(body), { 'Content-Type': 'application/json' });
       blob = new Blob([await r.arrayBuffer()], { type: 'text/html' });
     } catch (err) { toast(err.message, 'error', 'HTML export'); return; } finally { done(); }
@@ -1270,7 +1345,11 @@ class App extends Emitter {
     if (v.colorScheme) this.state.colorScheme = v.colorScheme;
     if (v.uniformColor) this.state.uniformColor = v.uniformColor;
     // feature state first: measurements are metrics the view may refer to
-    for (const [id, p] of this._sessionParts || []) if (v.parts && id in v.parts) { try { p.load(this.ens, v.parts[id]); } catch (err) { console.error(err); } }
+    let pluginState = false;
+    for (const [id, p] of this._sessionParts || []) if (v.parts && id in v.parts) {
+      try { p.load(this.ens, v.parts[id]); pluginState ||= id.startsWith('plugin.'); } catch (err) { console.error(err); }
+    }
+    if (pluginState) this.emit('plugin-state');     // like a loaded measurement: recorded by undo/redo
     if (v.metric && this.ens.metricByKey[v.metric]) this.setMetric(v.metric);
     if (v.projection) this.viewer.setProjection(v.projection);
     if (v.labelMode) this.viewer.labelMode = v.labelMode;

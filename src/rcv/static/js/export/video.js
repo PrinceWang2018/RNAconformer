@@ -44,6 +44,7 @@ export function transitionPath(ens, a, b) {
 function transitionFrames(app, o) {
   const ens = app.ens, fps = o.fps;
   const a = o.from ?? app.state.prev ?? app.order[0], b = o.to ?? app.state.conf;
+  const mech = o.route === 'mechanism' ? (o.mech || 'pending') : null;      // mechanism morph (Pathway tab)
   const route = o.route === 'path' ? transitionPath(ens, a, b) : [a, b];
   const legs = [];
   for (let i = 0; i + 1 < route.length; i++) legs.push([route[i], route[i + 1], Math.max(0.3, ens.rmsd[route[i]][route[i + 1]] || 1)]);
@@ -57,7 +58,9 @@ function transitionFrames(app, o) {
       const nLeg = Math.max(1, Math.round(nTot * w / total));
       for (let f = 1; f <= nLeg; f++) {
         const s = f / nLeg;
-        frames.push({ from: x, to: y, t: easeInOut(s), phase: dir, progress: (acc + w * s) / total });
+        const fr = { from: x, to: y, t: easeInOut(s), phase: dir, progress: (acc + w * s) / total };
+        if (mech) { fr.mech = mech; fr.mechT = dir === 'back' ? 1 - easeInOut(s) : easeInOut(s); }
+        frames.push(fr);
       }
       acc += w;
     }
@@ -134,7 +137,7 @@ export async function recordVideo(app, o, { onProgress = () => {}, signal } = {}
     for (let i = 0; i < frames.length; i++) {
       if (signal?.aborted) throw new DOMException('cancelled', 'AbortError');
       const fr = frames[i];
-      app.applyFrame(fr.from, fr.to, fr.t);
+      app.applyFrame(fr.from, fr.to, fr.t, fr.mech && fr.mech !== 'pending' ? { mech: fr.mech, t: fr.mechT } : null);
       viewer.controls.quaternion.copy(baseQ);
       if (fr.angle) {
         const q = new baseQ.constructor().setFromAxisAngle({ x: 0, y: 1, z: 0 }, fr.angle);

@@ -1,11 +1,13 @@
 // Undo / redo of everything the user edits on an ensemble: custom colours (residues and atoms), hidden or highlighted
 // residues, labels, annotations, measurements, scenes, named selections, the selection, colour scheme,
-// representation, style, background, overlay, putty, surface and transparency. Viewing (camera, conformation) is not
-// undone. One history per ensemble; changes are grouped (a drag or a script is one step).
+// representation, style, background, overlay, putty, surface, transparency and plugin state (e.g. tracked distances).
+// Viewing (camera, conformation) is not undone. One history per ensemble; changes are grouped (a drag or a script is
+// one step).
 import { toast } from './ui.js';
 
 const MAX = 150;
-const EVENTS = ['display', 'selection', 'settings', 'measurements', 'annotations', 'scenes', 'named', 'surface'];
+const EVENTS = ['display', 'selection', 'settings', 'measurements', 'annotations', 'scenes', 'named', 'surface', 'plugin-state'];
+const NOT_UNDONE = new Set(['commands', 'conditions', 'probing']);   // settings and loaded data, not edits
 
 export class History {
   constructor(app) {
@@ -24,7 +26,7 @@ export class History {
     if (!ens) return null;
     const parts = {};
     for (const [id, p] of app._sessionParts || []) {
-      if (id === 'commands') continue;
+      if (NOT_UNDONE.has(id)) continue;
       try { parts[id] = p.save(ens); } catch { /* ignore */ }
     }
     const vs = app.viewer.settings;
@@ -79,7 +81,7 @@ export class History {
     this.restoring = true;
     try {
       for (const [id, p] of app._sessionParts || []) {
-        if (id === 'commands') continue;
+        if (NOT_UNDONE.has(id)) continue;
         try { p.load(ens, s.parts?.[id] ?? null); } catch (err) { console.error(err); }
       }
       if (s.rep !== app.viewer.settings.representation) app.setRepresentation(s.rep);

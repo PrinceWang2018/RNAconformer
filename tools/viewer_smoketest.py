@@ -25,8 +25,8 @@ sys.path.insert(0, str(ROOT / 'src'))
 from rcv.desktop import find_browser, _is_wsl  # noqa: E402
 
 SCREENSHOT = ['overview', 'morph', 'dark', 'overlay', 'welcome', 'welcomebatch', 'ss2d', 'console1', 'switchtab', 'panels', 'transitionframe',
-              'tools2', 'plots', 'plotsall', 'surface1', 'plugindev', 'panelsize', 'winmax', 'langzh', 'langde', 'langja', 'guide1']
-REALTIME = ['pull', 'plugins', 'exports', 'video', 'transition', 'rcvsave', 'htmlexport', 'ctxmenu', 'script1', 'tools1', 'pdffont', 'native1', 'perf',
+              'tools2', 'plots', 'plotsall', 'surface1', 'pathwayshot', 'pathwayshot2', 'landmap', 'plots07', 'confshot', 'pathwayzh', 'docpathway', 'plugindev', 'panelsize', 'winmax', 'langzh', 'langde', 'langja', 'guide1']
+REALTIME = ['pull', 'plugins', 'trackersave', 'pathway1', 'pathwaybasin', 'probing1', 'conditions1', 'htmlpage07', 'confidence1', 'i18n07', 'exports', 'video', 'transition', 'rcvsave', 'htmlexport', 'ctxmenu', 'script1', 'tools1', 'pdffont', 'native1', 'perf',
             'welcomedemo', 'batchui', 'windows1', 'lang1',
             'predict', 'explore']   # pull needs real time
 LAST = ['empty']            # closes every ensemble; must run last
@@ -149,6 +149,7 @@ def run(args):
                     time.sleep(0.5)
                 kill_browser(p, profile, browser)
             logs = server.logs(name)
+            (out / f'{name}.log').write_text('\n'.join(logs) + '\n', encoding='utf-8')
             ok = any(l.startswith('DONE') for l in logs) and not any(l.startswith('ERROR') for l in logs)
             detail = '; '.join(l for l in logs if not l.startswith('DONE'))[:300]
             results.append((name, ok, round(time.time() - t0, 1), detail))

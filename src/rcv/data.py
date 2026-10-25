@@ -576,6 +576,11 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
         'plugins': [p.id for p in plugins],
         'warnings': sorted(warnings),
     }
+    try:                                                # topology-aware ensemble map (Energy tab, Pathway tab)
+        from .landscape import layout_doc
+        doc['ensemble']['landscape'] = layout_doc(doc)
+    except Exception as exc:                            # the map is optional; never block opening
+        doc['warnings'].append(f'ensemble map not computed: {type(exc).__name__}: {exc}')
     return doc
 
 

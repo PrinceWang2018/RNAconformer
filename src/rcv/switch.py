@@ -65,19 +65,24 @@ def ensemble_states(doc):
     return sorted(states.values(), key=lambda s: (-len(s['conformations']), s['conformations'][0]))
 
 
-def analyse(seq, states, temperature=37.0, a=None, b=None, top=8):
-    """states: list of dicts with 'dbn'. Returns energies, populations and (for a != b) the mutation scan."""
+def analyse(seq, states, temperature=37.0, a=None, b=None, top=8, cond=None):
+    """states: list of dicts with 'dbn'. Returns energies, populations and (for a != b) the mutation scan.
+
+    cond (conditions.Conditions) sets temperature, Na+, ligand and probing data; without it only the temperature."""
     import RNA
-    md = RNA.md()
-    md.temperature = float(temperature)
-    kT = R_KCAL * (float(temperature) + 273.15)
-    fc = RNA.fold_compound(seq, md)
+    from .conditions import Conditions
+    cond = cond or Conditions(temperature=float(temperature))
+    temperature = cond.temperature
+    kT = cond.kT
+    use_probe = cond.probing is not None
+    fc = cond.fold_compound(seq, probing=use_probe)
+    sites = cond.motif_sites(seq)
     mfe_dbn, mfe = fc.mfe()
     fc.exp_params_rescale(mfe)
     _, G = fc.pf()
     out_states = []
     for st in states:
-        e = fc.eval_structure(st['dbn'])
+        e = cond.energy(fc, seq, st['dbn'], sites)
         out_states.append({**st, 'energy': round(e, 2), 'p_ensemble': math.exp(-(e - G) / kT)})
     emin = min(s['energy'] for s in out_states)
     w = [math.exp(-(s['energy'] - emin) / kT) for s in out_states]
@@ -85,7 +90,8 @@ def analyse(seq, states, temperature=37.0, a=None, b=None, top=8):
         s['relative'] = x / sum(w)
     result = {'temperature': temperature, 'kT': kT, 'mfe': {'dbn': mfe_dbn, 'energy': round(mfe, 2)},
               'ensemble_energy': round(G, 2), 'mfe_probability': math.exp(-(mfe - G) / kT), 'states': out_states,
-              'vienna': getattr(RNA, '__version__', '')}
+              'vienna': getattr(RNA, '__version__', ''), 'conditions': cond.to_json(), 'conditions_text': cond.describe(),
+              'probing_used': use_probe}
     if a is None or b is None or a == b or not (0 <= a < len(states)) or not (0 <= b < len(states)):
         return result
     A, B = states[a]['dbn'], states[b]['dbn']
@@ -99,9 +105,10 @@ def analyse(seq, states, temperature=37.0, a=None, b=None, top=8):
             if base == wt:
                 continue
             mseq = seq[:i] + base + seq[i + 1:]
-            mfc = RNA.fold_compound(mseq, md, RNA.OPTION_EVAL_ONLY)
+            mfc = cond.fold_compound(mseq, eval_only=True)
+            msites = cond.motif_sites(mseq)
             sa, sb = compatible(mseq, A), compatible(mseq, B)
-            ea, eb = mfc.eval_structure(sa), mfc.eval_structure(sb)
+            ea, eb = cond.energy(mfc, mseq, sa, msites), cond.energy(mfc, mseq, sb, msites)
             ddg = (ea - eb) - d0
             row[base] = {'ddg': round(ddg, 2), 'frac_a': round(frac(ea - eb), 4), 'breaks_a': sa != A, 'breaks_b': sb != B}
         scan.append(row)
@@ -111,12 +118,13 @@ def analyse(seq, states, temperature=37.0, a=None, b=None, top=8):
 
     def detail(i, base):
         mseq = seq[:i] + base + seq[i + 1:]
-        mfc = RNA.fold_compound(mseq, md)
+        mfc = cond.fold_compound(mseq)
+        msites = cond.motif_sites(mseq)
         ms, me = mfc.mfe()
         mfc.exp_params_rescale(me)
         _, mg = mfc.pf()
-        pa = math.exp(-(mfc.eval_structure(compatible(mseq, A)) - mg) / kT)
-        pb = math.exp(-(mfc.eval_structure(compatible(mseq, B)) - mg) / kT)
+        pa = math.exp(-(cond.energy(mfc, mseq, compatible(mseq, A), msites) - mg) / kT)
+        pb = math.exp(-(cond.energy(mfc, mseq, compatible(mseq, B), msites) - mg) / kT)
         return {'pos': i, 'from': seq[i], 'to': base, 'ddg': scan[i][base]['ddg'], 'frac_a': scan[i][base]['frac_a'],
                 'p_a': pa, 'p_b': pb, 'mfe_dbn': ms, 'mfe': round(me, 2), 'sequence': mseq}
     result['scan'] = {'a': a, 'b': b, 'dbn_a': A, 'dbn_b': B, 'ddg_wt': round(d0, 2), 'frac_a_wt': round(frac(d0), 4),
@@ -124,3 +132,25 @@ def analyse(seq, states, temperature=37.0, a=None, b=None, top=8):
                       'towards_a': [detail(i, base) for i, base, _ in to_a],
                       'towards_b': [detail(i, base) for i, base, _ in to_b]}
     return result
+
+
+def dose_response(seq, states, cond, concentrations):
+    """Populations of the states (share among them and in the full ensemble) over ligand concentrations (µM)."""
+    from .conditions import Conditions
+    if not cond.ligand:
+        raise ValueError('choose a ligand first')
+    rows = []
+    for c in concentrations:
+        cc = Conditions(temperature=cond.temperature, sodium=cond.sodium, ligand={**cond.ligand, 'conc_uM': float(c)})
+        fc = cc.fold_compound(seq)
+        sites = cc.motif_sites(seq)
+        _, mfe = fc.mfe()
+        fc.exp_params_rescale(mfe)
+        _, G = fc.pf()
+        e = [cc.energy(fc, seq, st['dbn'], sites) for st in states]
+        emin = min(e)
+        w = [math.exp(-(x - emin) / cc.kT) for x in e]
+        rows.append({'conc_uM': float(c), 'binding_energy': round(cc.binding_energy(), 3),
+                     'relative': [x / sum(w) for x in w], 'p_ensemble': [math.exp(-(x - G) / cc.kT) for x in e],
+                     'bound': [cc.motif_bonus(st['dbn'], sites) < 0 for st in states]})
+    return {'rows': rows, 'ligand': cond.ligand, 'sites': len(cond.motif_sites(seq))}

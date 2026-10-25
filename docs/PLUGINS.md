@@ -7,7 +7,8 @@ RCV (RNA Conformation Viewer) can be extended without changing its source code. 
 | **Interface plugin** | `name.js` (JavaScript module) | in the RCV window | panels, charts, colour schemes, console commands, menu items, 3D overlays, annotations, metrics computed from the shown data |
 | **Analysis plugin** | `name.py` (Python) | in the local RCV engine, when an ensemble is opened | metrics that need numpy/scipy or heavier computation per conformation |
 
-Plugin API version: **2** (RCV 0.6). Everything from version 1 (RCV 0.4–0.5) still works.
+Plugin API version: **3** (RCV 0.6.1). Everything from versions 1 (RCV 0.4–0.5) and 2 (RCV 0.6.0) still works.
+Version 3 adds per-ensemble metrics, `api.metrics.unregister` (section 2.7) and saved plugin state (section 2.9).
 
 ---
 
@@ -55,13 +56,13 @@ export default {
 ```
 
 `activate` runs once when RCV starts (it may be `async`). Keep it fast; do heavy work lazily (when a panel opens or a
-command runs). Check the API version if you rely on version-2 features: `if (api.version < 2) return;`.
+command runs). Check the API version if you rely on newer features: `if (api.version < 3) return;`.
 
 ### 2.1 Reading state
 
 | Property | Meaning |
 |---|---|
-| `api.version` | plugin API version (2) |
+| `api.version` | plugin API version (3) |
 | `api.ensemble` | the open ensemble (`null` when none) — see section 3 |
 | `api.conformation` | index of the shown conformation |
 | `api.previous` | index of the previous conformation (`null` at first) |
@@ -86,6 +87,9 @@ command runs). Check the API version if you rely on version-2 features: `if (api
 | `tool` | tool id | the mouse tool changed (`select`, `pull`, `paint`, `label`, `measure`) |
 | `annotations`, `measurements`, `display`, `surface` | — | the user edited them |
 | `tab` | tab id | a side-panel tab was shown |
+| `pathway` | the Pathway result (barriers, routes, bottleneck, rigid modules, timing) | a Pathway analysis finished (RCV 0.7) |
+| `conditions` | `{ temperature, sodium, ligand, useProbing }` | the conditions of the 2D analyses changed |
+| `probing` | the ensemble | probing data were loaded, refitted or removed |
 
 ### 2.3 Acting
 
@@ -153,7 +157,18 @@ api.metrics.register({
 ```
 
 Metrics appear in the energy panel (profile, funnel, map), the Details table, the plot studio and the CSV export.
-The key is stored as `plugin.<plugin id>.<key>`.
+The key is stored as `plugin.<plugin id>.<key>`. Registering the same key again replaces the metric.
+
+Version 3:
+
+| Call | Effect |
+|---|---|
+| `api.metrics.register({ ..., ensemble: ens })` | the metric belongs to that ensemble only (for metrics the user creates on one ensemble, such as a tracked distance); without `ensemble` it applies to every ensemble, also ones opened later |
+| `api.metrics.unregister(key)` | removes the metric (and its values) from every ensemble and stops computing it for new ones |
+| `api.metrics.unregister(key, ens)` | removes it from that ensemble only |
+
+When the removed metric is shown in the energy panel, RCV switches to the ensemble's default metric. `ensemble` may
+be the ensemble object or its `id`.
 
 ### 2.8 Console commands
 
@@ -167,6 +182,34 @@ api.commands.register({
 Commands are listed by `help`, take comma-separated arguments, can be used in scripts (`run file.rcvs`) and are
 recorded in the ensemble's command log (saved in `.rcv` files) like built-in commands. `api.commands.run(line)` runs
 any command, which gives plugins the whole console vocabulary (selection language included).
+
+### 2.9 Saved state (version 3)
+
+Things the user creates with your plugin (tracked distances, marked regions, settings per ensemble) can be saved
+with the ensemble, like RCV's own measurements and annotations:
+
+```js
+const notes = new WeakMap();                      // ensemble -> your state
+api.session.register({
+  save: ens => notes.get(ens) ?? null,            // a JSON-compatible value, or null for "nothing to save"
+  load: (ens, value) => { notes.set(ens, value ?? []); /* redraw, re-register metrics, ... */ },
+});
+// after every change the user makes:
+api.session.changed();
+```
+
+* The state is saved in `.rcv` files (File ▸ Save) and restored when they are opened; a workspace keeps it for the
+  shown ensemble, like measurements. It is kept when a pull exploration extends the ensemble with new conformations
+  (same residues, new ensemble object).
+* It is part of **undo / redo**: `api.session.changed()` records a step; undo and redo call `load` with an earlier
+  value. `load(ens, null)` means "no state" — clear everything for that ensemble.
+* `load` receives saved data that may come from an older version of your plugin or a damaged file: check it and
+  keep only what is valid. Residue indices refer to the same ensemble, so they can be stored as they are.
+* Keep the state per ensemble (a `WeakMap` keyed by the ensemble object works well) and keep it small: it is copied
+  for every undo step.
+* If `load` registers metrics, use the same keys that were saved, so a saved view that shows one of them in the
+  energy panel opens with it again. The built-in Distance tracker (`static/plugins/distance-tracker.js`) is a
+  complete example.
 
 ---
 

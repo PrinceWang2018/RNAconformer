@@ -63,6 +63,56 @@ export async function plugins(app, w, log, sleep) {
   log('distance metric', v.toFixed(2), 'Å; plugin metrics', app.ens.metrics.filter(m => m.group === 'plugin').map(m => m.key).join(','));
 }
 
+// Distance tracker (plugin API 3): removing a distance removes its metric; undo/redo; saved in .rcv files;
+// kept when the ensemble is replaced by its extended version (pull exploration).
+export async function trackersave(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /prediction|sequence/i));
+  await sleep(200);
+  app.showTab('distance-tracker:panel');
+  await sleep(100);
+  const panel = w.document.querySelector('.dt-list').parentElement;
+  const rows = () => panel.querySelectorAll('.dt-list .btn.ghost').length;
+  const key = k => `plugin.distance-tracker.${k}`;
+  const has = k => !!app.ens.metricByKey[key(k)];
+  app.select([5, 21], 'set');
+  panel.querySelector('.btn.primary').click();
+  await sleep(400);
+  panel.querySelector('select[name=atom]').value = 'P';
+  app.select([2, 26], 'set');
+  panel.querySelector('.btn.primary').click();
+  await sleep(400);
+  if (rows() !== 2 || !has('d1') || !has('d2')) throw new Error(`expected 2 tracked distances, got ${rows()}`);
+  app.setMetric(key('d2'));
+  panel.querySelectorAll('.dt-list .btn.ghost')[1].click();
+  await sleep(400);
+  if (rows() !== 1 || has('d2') || app.state.metric === key('d2')) throw new Error(`remove: rows ${rows()}, metric kept ${has('d2')}, shown ${app.state.metric}`);
+  app.history.undo();
+  await sleep(100);
+  if (rows() !== 2 || !has('d2')) throw new Error('undo did not bring the distance back');
+  app.history.redo();
+  await sleep(100);
+  if (rows() !== 1 || has('d2')) throw new Error('redo did not remove the distance again');
+
+  app.setMetric(key('d1'));
+  const before = app.ens.conformations.map(c => c.values[key('d1')]);
+  const { blob } = await app.packRcv();
+  await app.closeEnsemble(app.ens.id);
+  await app.openRcvFile(new w.File([blob], 'tracked.rcv'));
+  await sleep(1500);
+  const after = app.ens.conformations.map(c => c.values[key('d1')]);
+  const maxDiff = Math.max(...after.map((v, k) => Math.abs(v - before[k])));
+  const lines = () => app.viewer.overlays.get('distance-tracker:lines')({ coords: app.display, ens: app.ens }).length;
+  const checks = { row: rows() === 1, metric: has('d1') && !has('d2'), shown: app.state.metric === key('d1'), values: maxDiff < 0.01, line: lines() === 1 };
+  const bad = Object.entries(checks).filter(([, v]) => !v).map(([k]) => k);
+  if (bad.length) throw new Error('not restored from .rcv: ' + bad.join(', ') + ` (max diff ${maxDiff})`);
+
+  const old = app.ens;
+  const ext = await app.replaceDocument(old.id, old.serverId);
+  await sleep(300);
+  if (ext === old || !ext.metricByKey[key('d1')] || rows() !== 1 || lines() !== 1) throw new Error('distance lost when the ensemble was replaced');
+  log('tracked', app.ens.metricByKey[key('d1')].label, '| remove, undo, redo, .rcv round trip (max diff', maxDiff.toFixed(4), 'Å), replace: ok');
+}
+
 export async function exports(app, w, log, sleep) {
   const fig = await import('/js/export/figure.js');
   app.selectEnsemble(byName(app, /prediction|sequence/i));
@@ -948,4 +998,314 @@ export async function langperf(app, w, log, sleep) {
     times.push(`${code}: switch ${(t1 - t0).toFixed(0)} ms, menu ${(t3 - t1).toFixed(0)} ms, sleep(50) took ${(t5 - t4).toFixed(0)} ms`);
   }
   log(times.join(' | '));
+}
+
+// ---------------------------------------------------------------- RCV 0.7
+const waitFor = async (sleep, cond, ms = 20000) => { const t0 = Date.now(); while (!cond() && Date.now() - t0 < ms) await sleep(100); return cond(); };
+
+// Pathway tab: refolding paths, bottleneck, modules, phi scan, mechanism morph.
+export async function pathway1(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  await sleep(300);
+  app.showTab('pathway');
+  if (!await waitFor(sleep, () => app.pathway.result || app.pathway.error)) throw new Error('no pathway result');
+  if (app.pathway.error) throw new Error(app.pathway.error);
+  const r = app.pathway.result;
+  app.pathway.render();                       // surfaces any rendering error with its stack
+  const root = app.tabBody('pathway');
+  const need = ['.pw-verdict', '.pw-map', '.pw-bneck'];
+  const miss = need.filter(q => !root.querySelector(q));
+  if (miss.length) throw new Error('missing sections: ' + miss.join(', '));
+  await app.pathway.runScan();
+  if (!app.pathway.scan) throw new Error('no phi scan');
+  app.pathway.colorBy('role');
+  if (app.state.colorScheme !== 'pathway-role') throw new Error('mechanism colours not applied');
+  app.pathway.play(true);
+  if (!await waitFor(sleep, () => app.state.conf === r.b, 12000)) throw new Error('mechanism morph did not reach B');
+  log(app.ens.name, '| barrier', r.direct.barrier, '->', r.effective_barrier, 'kcal/mol | t1/2', r.half_life_s?.toExponential(1), 's | modules', r.motion.modules.length,
+    '| unit', r.bottleneck.unit.length, 'bp | scan faster', app.pathway.scan.faster.length, '| routes', r.tpt.pathways.length);
+}
+
+// Pathway between two NMR models of one fold: both relax into the same 2D basin -> no barrier, no scan, no routes.
+export async function pathwaybasin(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1ANR|NMR/i));
+  await sleep(300);
+  const P = app.pathway;
+  P.a = 0; P.b = 11; P.result = P.scan = null;
+  app.showTab('pathway');
+  await P.load();
+  if (P.error) throw new Error(P.error);
+  const r = P.result;
+  if (!r.same_basin) throw new Error('expected the same basin');
+  P.render();
+  const root = app.tabBody('pathway');
+  const verdict = root.querySelector('.pw-verdict')?.textContent || '';
+  if (!/same basin/.test(verdict) || !/shared basin/.test(verdict)) throw new Error('verdict: ' + verdict.slice(0, 200));
+  if (!root.querySelector('svg.chart:not(.pw-map) path')) throw new Error('no energy profile');
+  if (root.querySelector('.pw-bneck')) throw new Error('bottleneck shown for one basin');
+  if ([...root.querySelectorAll('.section-title')].some(t => /φ/.test(t.textContent))) throw new Error('scan section shown for one basin');
+  const labels = [...root.querySelectorAll('svg.chart text')].map(t => t.textContent);
+  if (!labels.includes('basin')) throw new Error('basin not marked: ' + labels.join(','));
+  await app.setLanguage('zh-CN');
+  P.render();
+  await sleep(400);
+  const zh = app.tabBody('pathway').querySelector('.pw-verdict')?.textContent || '';
+  await app.setLanguage('en');
+  if (!/盆地/.test(zh)) throw new Error('verdict not translated: ' + zh.slice(0, 200));
+  log(app.ens.name, '| A above basin', r.A.above_basin, '| B above basin', r.B.above_basin, '| direct', r.direct.barrier, '| zh ok');
+}
+
+// Probing data: synthetic SHAPE profile from conformation 0 -> agreement, reweighting, scheme, metric.
+export async function probing1(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /prediction|sequence/i));
+  await sleep(200);
+  const ens = app.ens, c = ens.conformations[0];
+  const paired = new Set(c.pairs.flatMap(p => [p[0], p[1]]));
+  const values = [...Array(ens.nRes).keys()].map(i => (paired.has(i) ? 0.1 : 1.1) + 0.05 * Math.sin(i));
+  await app.probing.set(ens, { name: 'synthetic', kind: 'SHAPE', values, raw: values, factor: null, format: 'test' });
+  if (!ens.probing?.fit) throw new Error('no fit');
+  const auc = ens.value(0, 'probe_auc');
+  if (!(auc > 0.9)) throw new Error('agreement of the source conformation too low: ' + auc);
+  app.setColorScheme('reactivity');
+  app.setMetric('probe_weight');
+  app.showTab('details');
+  await sleep(300);
+  if (!app.tabBody('details').textContent.includes('Probing data')) throw new Error('no probing section');
+  const { blob } = await app.packRcv();
+  await app.closeEnsemble(ens.id);
+  await app.openRcvFile(new w.File([blob], 'probe.rcv'));
+  await sleep(1200);
+  if (!app.ens.probing?.fit || app.ens.value(0, 'probe_auc') !== auc) throw new Error('probing data not restored from .rcv');
+  log('AUC conf_001', auc.toFixed(3), '| chi2', ens.probing.fit.reweighting.chi2_prior, '->', ens.probing.fit.reweighting.chi2, '| restored from .rcv');
+}
+
+// Conditions: salt and a ligand change the Switch tab energies; saved with the ensemble.
+export async function conditions1(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /prediction|sequence/i));
+  await sleep(200);
+  app.showTab('switch');
+  if (!await waitFor(sleep, () => app.switchPanel.result || app.switchPanel.error)) throw new Error('no switch result');
+  const e0 = app.switchPanel.result.states[0].energy;
+  const { setConditions } = await import('/js/conditions.js');
+  setConditions(app, { sodium: 0.1 });
+  await sleep(100);
+  if (!await waitFor(sleep, () => app.switchPanel.result && !app.switchPanel.loading)) throw new Error('no result after the change');
+  const e1 = app.switchPanel.result.states[0].energy;
+  if (!(e1 > e0)) throw new Error(`lower salt should destabilise: ${e0} -> ${e1}`);
+  setConditions(app, { ligand: { preset: 'theophylline', name: 'Theophylline aptamer', motif_seq: 'GAUACCAG&CCCUUGGCAGC', motif_struct: '(...((((&)...)))...)', kd_uM: 0.32, conc_uM: 10 } });
+  await sleep(100);
+  if (!await waitFor(sleep, () => app.switchPanel.result && !app.switchPanel.loading)) throw new Error('no result with ligand');
+  const txt = app.switchPanel.result.conditions_text;
+  if (!/Theophylline/.test(txt)) throw new Error('ligand not in the conditions: ' + txt);
+  setConditions(app, { sodium: 1.021, ligand: null });
+  log('ΔG S1', e0, '->', e1, 'kcal/mol at 0.1 M Na+ | ligand:', txt);
+}
+
+// Screenshot: Pathway tab of the tRNA prediction (map with routes, verdict, profile, bottleneck, modules, scan).
+export async function pathwayshot(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  app.wm?.maximize?.('right');
+  await sleep(200);
+  app.showTab('pathway');
+  if (!await waitFor(sleep, () => app.pathway.result || app.pathway.error)) throw new Error('no pathway result');
+  if (app.pathway.error) throw new Error(app.pathway.error);
+  await app.pathway.runScan();
+  app.pathway.colorBy('role');
+  log('pathway', app.pathway.result.effective_barrier, 'kcal/mol');
+}
+
+// Screenshot: topology-aware map in the Energy tab (TAR NMR ensemble: several 2D states).
+export async function landmap(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /NMR/i));
+  await sleep(200);
+  app.energyPanel.landMode = 'map';
+  app.showTab('energy');
+  app.energyPanel.render();
+  await sleep(300);
+  const L = app.ens.doc.ensemble.landscape;
+  if (!L) throw new Error('no landscape in the document');
+  log('classes', L.classes.map(c => `${c.label}:${c.shape}:${c.members.length}`).join(' '), '| quality', JSON.stringify(L.quality.map));
+}
+
+// Screenshot: lower part of the Pathway tab (bottleneck, modules, phi scan); the upper sections are hidden.
+export async function pathwayshot2(app, w, log, sleep) {
+  await pathwayshot(app, w, log, sleep);
+  app.pathway.render();
+  app.pathway.render = () => {};              // keep this rendering for the screenshot
+  const body = app.tabBody('pathway');
+  for (const s of body.querySelectorAll(':scope > .section')) { const t = s.querySelector('.section-title')?.textContent || ''; if (!/Routes ranked|Bottleneck|Coordinated|φ-value/.test(t)) s.style.display = 'none'; }
+  await sleep(300);
+}
+
+// Screenshot: the 0.7 publication plots (ensemble map with routes, refolding path, phi scan) at journal sizes.
+export async function plots07(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  await sleep(200);
+  app.showTab('pathway');
+  if (!await waitFor(sleep, () => app.pathway.result || app.pathway.error)) throw new Error('no pathway result');
+  await app.pathway.runScan();
+  app.showTab('energy');
+  const P = await import('/js/plots.js');
+  const doc = w.parent.document;
+  const box = doc.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;z-index:9;background:#888;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;align-content:start';
+  const base = { font: 8, grid: false, highlight: true, metric: app.state.metric, routes: true };
+  for (const [type, w0, h0] of [['landscape', 89, 80], ['pathway', 89, 70], ['phi', 183, 60]]) {
+    const s = P.drawPlot(app, { ...base, type, w: w0, h: h0 });
+    s.style.cssText = `display:block;width:100%;height:auto;aspect-ratio:${w0}/${h0};background:#fff;${type === 'phi' ? 'grid-column:1 / span 2' : ''}`;
+    box.append(doc.importNode(s, true));
+  }
+  doc.body.append(box);
+  log('plots', 3, '| barrier', app.pathway.result.effective_barrier);
+}
+
+// Interactive HTML page with the 0.7 analyses: the page starts, draws the map and the pathway, plays the mechanism.
+export async function htmlpage07(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  await sleep(200);
+  app.showTab('pathway');
+  if (!await waitFor(sleep, () => app.pathway.result || app.pathway.error)) throw new Error('no pathway result');
+  await app.pathway.runScan();
+  const ens = app.ens;
+  const body = { view: { conf: ens._pathway.a }, title: 'test', analysis: { pathway: ens._pathway, phi: ens._phiScan }, document: ens.serverId };
+  const r = await app.api.raw('POST', '/api/export-html', JSON.stringify(body), { 'Content-Type': 'application/json' });
+  const text = await r.text();
+  const doc = w.parent.document;
+  const frame = doc.createElement('iframe');
+  frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:20;background:#fff;border:0';
+  frame.srcdoc = text;
+  doc.body.append(frame);
+  if (!await waitFor(sleep, () => frame.contentDocument?.body?.dataset.ready === '1', 30000)) {
+    const err = frame.contentDocument?.getElementById('err');
+    throw new Error('page did not start' + (err && !err.hidden ? ': ' + err.textContent : ''));
+  }
+  const fd = frame.contentDocument;
+  const mapItems = fd.querySelectorAll('#map circle').length;
+  if (mapItems < ens.n) throw new Error('map not drawn: ' + mapItems);
+  if (fd.getElementById('pw-box').hidden) throw new Error('pathway section hidden');
+  fd.getElementById('pw-play').click();
+  await sleep(7000);
+  const err = fd.getElementById('err');
+  if (err && !err.hidden) throw new Error(err.textContent);
+  log('page', `${(text.length / 1e6).toFixed(2)} MB`, '| map points', mapItems, '|', fd.getElementById('pw-text').textContent.slice(0, 90));
+  frame.remove();
+}
+
+// Confidence model: per-nucleotide predicted lDDT appears as a metric and a colour scheme.
+export async function confidence1(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  if (!await waitFor(sleep, () => app.ens._confidence, 20000)) throw new Error('no confidence values');
+  const v = app.ens.value(app.state.conf, 'confidence');
+  if (!(v > 0 && v < 1)) throw new Error('confidence out of range: ' + v);
+  app.setColorScheme('confidence');
+  await sleep(200);
+  log('confidence', app.ens.conformations.map((c, k) => app.ens.value(k, 'confidence').toFixed(2)).join(' '), '| scheme', app.state.colorScheme);
+}
+// Screenshot: the confidence colour scheme on the tRNA prediction.
+export async function confshot(app, w, log, sleep) { await confidence1(app, w, log, sleep); app.setMetric('confidence'); }
+
+// Developer aid: interface text of the 0.7 views that has no translation yet: the views are built in English, their
+// strings collected, then German is loaded and every string the app's translator leaves unchanged is reported.
+export async function i18n07(app, w, log, sleep) {
+  const doc = w.document;
+  const views = {};
+  const collect = (name, root) => {
+    const out = new Set();
+    if (root) {
+      const wk = doc.createTreeWalker(root, w.NodeFilter.SHOW_TEXT);
+      for (let n = wk.nextNode(); n; n = wk.nextNode()) {
+        const v = n.data.trim();
+        if (v && /[A-Za-z]{3}/.test(v) && !n.parentElement?.closest('svg, code, pre, kbd, textarea, select, [translate="no"]')) out.add(v);
+      }
+      for (const n of root.querySelectorAll('[title], [placeholder], [aria-label]')) for (const a of ['title', 'placeholder', 'aria-label']) {
+        const v = n.getAttribute(a);
+        if (v && /[A-Za-z]{3}/.test(v) && !n.closest('svg')) out.add(v);
+      }
+      for (const o of root.querySelectorAll('option')) if (/[A-Za-z]{3}/.test(o.textContent)) out.add(o.textContent.trim());
+    }
+    views[name] = [...(views[name] || []), ...out];
+  };
+  await app.setLanguage('en');
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  await sleep(300);
+  app.showTab('pathway');
+  if (!await waitFor(sleep, () => app.pathway.result)) throw new Error('no pathway');
+  collect('pathway', app.tabBody('pathway'));
+  await app.pathway.runScan();
+  await sleep(300);
+  collect('pathway', app.tabBody('pathway'));
+  app.showTab('switch');
+  const { setConditions } = await import('/js/conditions.js');
+  setConditions(app, { ligand: { preset: 'theophylline', name: 'Theophylline aptamer', motif_seq: 'GAUACCAG&CCCUUGGCAGC', motif_struct: '(...((((&)...)))...)', kd_uM: 0.32, conc_uM: 10 } });
+  await sleep(200);
+  await waitFor(sleep, () => app.switchPanel.result && !app.switchPanel.loading);
+  await sleep(300);
+  collect('switch', app.tabBody('switch'));
+  setConditions(app, { ligand: null });
+  app.conditionsDialog();
+  await sleep(300);
+  collect('conditions', doc.querySelector('dialog[open]'));
+  doc.querySelector('dialog[open]')?.close();
+  const ens = app.ens, c = ens.conformations[0];
+  const paired = new Set(c.pairs.flatMap(p => [p[0], p[1]]));
+  await app.probing.set(ens, { name: 'synthetic', kind: 'SHAPE', values: [...Array(ens.nRes).keys()].map(i => (paired.has(i) ? 0.1 : 1.1)), raw: null, factor: 1.2, format: 'test' });
+  app.showTab('details');
+  await sleep(300);
+  collect('details', app.tabBody('details'));
+  app.probing.dialog();
+  await sleep(300);
+  collect('probingdialog', doc.querySelector('dialog[open]'));
+  doc.querySelector('dialog[open]')?.close();
+  app.showTab('energy');
+  app.energyPanel.landMode = 'map';
+  app.energyPanel.render();
+  await sleep(300);
+  collect('energy', app.tabBody('energy'));
+  app.openPlotStudio('landscape');
+  await sleep(400);
+  collect('plotstudio', doc.querySelector('dialog[open]'));
+  for (const t of ['pathway', 'phi']) { doc.querySelector(`.ps-item[data-type="${t}"]`)?.click(); await sleep(200); collect('plotstudio', doc.querySelector('dialog[open]')); }
+  doc.querySelector('dialog[open]')?.close();
+  app.transitionVideo(ens._pathway.a, ens._pathway.b, { mechanism: { motion: ens._pathway.motion, timing: ens._pathway.timing } });
+  await sleep(400);
+  collect('video', doc.querySelector('dialog[open]'));
+  doc.querySelector('dialog[open]')?.close();
+  const { preferencesDialog } = await import('/js/dialogs.js');
+  preferencesDialog(app);
+  await sleep(300);
+  collect('preferences', doc.querySelector('dialog[open]'));
+  doc.querySelector('dialog[open]')?.close();
+  const { toolsMenuItems } = await import('/js/tools.js');
+  views.menu = toolsMenuItems(app).filter(x => x.label).map(x => x.label);
+  await app.setLanguage('de');
+  await sleep(200);
+  for (const [name, list] of Object.entries(views)) {
+    const miss = [...new Set(list)].filter(s => app.i18n.t(s) === s);
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(miss))));
+    const parts = Math.ceil(b64.length / 1200) || 1;
+    for (let i = 0; i < parts; i++) log(`I18N ${name} ${i + 1}/${parts} ${b64.slice(i * 1200, (i + 1) * 1200)}`);
+  }
+  await app.setLanguage('en');
+}
+
+// Screenshot: the Pathway tab in Chinese.
+export async function pathwayzh(app, w, log, sleep) {
+  await app.setLanguage('zh-CN');
+  await pathwayshot(app, w, log, sleep);
+  await sleep(300);
+}
+
+// Documentation screenshot (docs/images/rcv_pathway.png): tRNA prediction, Pathway tab, coloured by mechanism.
+export async function docpathway(app, w, log, sleep) {
+  app.setTheme('light', false);
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  if (!app.ss2d.visible) app.ss2d.setVisible(true);
+  await sleep(200);
+  app.showTab('pathway');
+  if (!await waitFor(sleep, () => app.pathway.result || app.pathway.error)) throw new Error('no pathway result');
+  if (app.pathway.error) throw new Error(app.pathway.error);
+  app.pathway.colorBy('role');
+  app.goTo(app.pathway.result.a, { animate: false, force: true });
+  await sleep(400);
+  log('A', app.ens.shortId(app.pathway.result.a), 'B', app.ens.shortId(app.pathway.result.b), '| barrier', app.pathway.result.effective_barrier);
 }

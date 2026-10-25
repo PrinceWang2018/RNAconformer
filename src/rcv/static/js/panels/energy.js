@@ -8,8 +8,9 @@ import { chartMenuItems } from '../export/chartexport.js';
 import { tooltip, tipRow, select, popupMenu, toast } from '../ui.js';
 import { ArcDiagram } from './arcs.js';
 import { BLUE_RAMP, sampleRamp } from '../colors.js';
+import { drawMap, landscapeOf, loadLandscape, qualityText } from '../landscape.js';
 
-const GROUPS = [['engine', 'Prediction engine'], ['evaluator', 'Evaluator (any model)'], ['descriptor', 'Structure descriptors'], ['measurement', 'Measurements'], ['plugin', 'Plugins']];
+const GROUPS = [['engine', 'Prediction engine'], ['confidence', 'Confidence model'], ['evaluator', 'Evaluator (any model)'], ['descriptor', 'Structure descriptors'], ['data', 'Probing data'], ['measurement', 'Measurements'], ['plugin', 'Plugins']];
 
 export function direction(metric, delta) {
   if (delta === null || !metric || metric.lower_is_better === null || metric.lower_is_better === undefined || Math.abs(delta) < 1e-9) return 'neutral';
@@ -31,7 +32,8 @@ export class EnergyPanel {
     this.landCaption = el('div', { class: 'desc' });
     this.seg = el('div', { class: 'seg' },
       el('button', { 'data-m': 'funnel', text: 'Funnel', title: 'Energy versus C4′ RMSD to the best conformation' }),
-      el('button', { 'data-m': 'map', text: 'Map', title: 'Similarity map (classical MDS of pairwise RMSD), coloured by energy' }));
+      el('button', { 'data-m': 'map', text: 'Map', title: 'Topology-aware map: one disk per secondary-structure topology, distances by C4′ RMSD, coloured by energy' }),
+      el('button', { 'data-m': 'mds', text: 'MDS', title: 'Similarity map (classical MDS of pairwise RMSD), coloured by energy' }));
     this.seg.addEventListener('click', e => {
       const m = e.target.closest('button')?.dataset.m;
       if (m) { this.landMode = m; savePref('landMode', m); this.render(); }
@@ -47,7 +49,7 @@ export class EnergyPanel {
     this.charts.append(
       el('div', { class: 'section' }, el('div', { class: 'section-title' }, 'Energy profile', el('span', { class: 'grow' }),
         el('span', { class: 'note', id: 'profile-note' }), this._exportBtn(() => this.profile, 'Energy profile', 'profile')), this.profile),
-      el('div', { class: 'section' }, el('div', { class: 'section-title' }, 'Energy landscape', el('span', { class: 'grow' }), this.seg, this._exportBtn(() => this.land, 'Energy landscape', 'funnel')), this.land, this.landCaption),
+      el('div', { class: 'section' }, el('div', { class: 'section-title' }, 'Energy landscape', el('span', { class: 'grow' }), this.seg, this._exportBtn(() => this.land, 'Energy landscape', () => (this.landMode === 'map' ? 'landscape' : 'funnel'))), this.land, this.landCaption),
       this.termsSection,
       el('div', { class: 'section' }, el('div', { class: 'section-title' }, 'Base pairs', el('span', { class: 'grow' }),
         el('span', { class: 'note', text: 'current above · previous below' }), this._exportBtn(() => this.arcs.svg, 'Base pairs', 'ss2d')), arcHost),
@@ -63,7 +65,7 @@ export class EnergyPanel {
   _exportBtn(getSvg, name, studioType) {
     return el('button', { class: 'ss-btn chart-export', title: 'Export this chart (PDF, SVG, PNG, TIFF) or open it in the plot studio', 'aria-label': `Export ${name}`,
       onclick: e => popupMenu(e.currentTarget, [...chartMenuItems(getSvg(), `${this.app.ens?.name || 'rcv'} ${name}`, toast), { sep: true },
-        { label: 'Open in the plot studio (journal sizes)…', action: () => this.app.openPlotStudio(studioType) }]) }, icon('download'));
+        { label: 'Open in the plot studio (journal sizes)…', action: () => this.app.openPlotStudio(typeof studioType === 'function' ? studioType() : studioType) }]) }, icon('download'));
   }
 
   render() {
@@ -196,14 +198,12 @@ export class EnergyPanel {
     }
     const g = svg('g');
     let px, py;
-    if (this.landMode === 'map') {
-      const ex = extent(ens.embedding.map(p => p[0]), 0.12), ey = extent(ens.embedding.map(p => p[1]), 0.12);
-      // equal aspect so distances read as RMSD
-      const sx = (W - ml - mr) / (ex[1] - ex[0]), sy = (H - mt - mb) / (ey[1] - ey[0]);
-      const sc = Math.min(sx, sy);
-      const cx = (ml + W - mr) / 2, cy = (mt + H - mb) / 2, mx = (ex[0] + ex[1]) / 2, my = (ey[0] + ey[1]) / 2;
-      px = k => cx + (ens.embedding[k][0] - mx) * sc;
-      py = k => cy - (ens.embedding[k][1] - my) * sc;
+    const cur = app.state.conf, prev = app.state.prev;
+    if (this.landMode === 'map' || this.landMode === 'mds') {
+      const L = landscapeOf(ens);
+      if (!L && this.landMode === 'map') loadLandscape(app, ens).then(x => { if (x && app.ens === ens) this.render(); });
+      const data = L || { positions: ens.embedding, mds: ens.embedding, classes: [], edges: [] };
+      const mode = this.landMode === 'map' && L ? 'map' : 'mds';
       g.append(svg('rect', { x: ml - 6, y: mt - 2, width: W - ml - mr + 12, height: H - mt - mb + 4, rx: 6, fill: 'none', stroke: 'var(--grid)' }));
       const [lo, hi] = extent(finite, 0);
       const col = v => {
@@ -213,14 +213,13 @@ export class EnergyPanel {
         return sampleRamp(BLUE_RAMP.slice(2), t);
       };
       this._pointColor = k => col(vals[k]);
-      // scale bar: 5 Å
-      const bar = 5 * sc;
-      if (bar < W / 2) {
-        g.append(svg('line', { x1: W - mr - bar, x2: W - mr, y1: H - mb + 14, y2: H - mb + 14, stroke: 'var(--text-3)', 'stroke-width': 1.5 }));
-        g.append(svg('text', { x: W - mr - bar / 2, y: H - mb + 26, 'text-anchor': 'middle', text: '5 Å' }));
-      }
+      const weights = ens.probing?.fit?.reweighting?.weights;
+      const radius = weights && this.app.state.metric === 'probe_weight' ? k => 2.5 + 7 * Math.sqrt(weights[k] / Math.max(...weights)) : () => 4.5;
+      const r = drawMap(g, ens, data, { x0: ml - 2, y0: mt + 2, x1: W - mr - 2, y1: H - mb - 2 }, { mode, color: k => col(vals[k]), radius, current: cur, prev, fontSize: 9.5 });
+      px = r.px; py = r.py;
       g.append(svg('text', { x: ml - 4, y: H - mb + 26, text: m.lower_is_better === false ? 'darker = higher' : 'darker = lower (better)' }));
-      this.landCaption.textContent = 'Each point is a conformation; distances approximate pairwise C4′ RMSD (classical MDS). Click a point to morph to it.';
+      if (mode === 'map') this.landCaption.replaceChildren(el('span', { text: 'Topology-aware map: each disk is one secondary-structure topology (abstract shape, label T1, T2, …); inside a disk distances follow C4′ RMSD and 2D states stay together. Click a point to morph to it.' }), ' ', el('span', { text: `${qualityText(L)}.` }));
+      else this.landCaption.textContent = 'Each point is a conformation; distances approximate pairwise C4′ RMSD (classical MDS). Click a point to morph to it.';
     } else {
       const rm = idx.map(k => ens.rmsd[best][k]);
       const x = linear(0, Math.max(1, ...rm) * 1.08, ml + 4, W - mr);
@@ -233,18 +232,14 @@ export class EnergyPanel {
       py = k => (vals[k] === null ? H - mb : y(vals[k]));
       this._pointColor = () => 'var(--series-1)';
       this.landCaption.textContent = `Funnel plot: ${m.label || key} against structural distance from the best conformation by this metric (${ens.shortId(best)}).`;
+      if (prev !== null && prev !== cur) {
+        g.append(svg('path', { d: `M ${px(prev)} ${py(prev)} L ${px(cur)} ${py(cur)}`, fill: 'none', stroke: 'var(--text-3)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }));
+      }
+      for (const k of idx) g.append(svg('circle', { cx: px(k), cy: py(k), r: 4.5, fill: this._pointColor(k), stroke: 'var(--surface)', 'stroke-width': 2 }));
+      g.append(svg('path', { d: diamond(px(best), py(best), 6), fill: 'none', stroke: 'var(--text-2)', 'stroke-width': 1.5 }));
+      if (prev !== null && prev !== cur) g.append(svg('circle', { cx: px(prev), cy: py(prev), r: 8, fill: 'none', stroke: 'var(--text-3)', 'stroke-width': 1.5, 'stroke-dasharray': '2.5 2' }));
+      g.append(svg('circle', { cx: px(cur), cy: py(cur), r: 8, fill: 'none', stroke: 'var(--text)', 'stroke-width': 2 }));
     }
-    const cur = app.state.conf, prev = app.state.prev;
-    if (prev !== null && prev !== cur) {
-      g.append(svg('path', { d: `M ${px(prev)} ${py(prev)} L ${px(cur)} ${py(cur)}`, fill: 'none', stroke: 'var(--text-3)', 'stroke-width': 1.5, 'stroke-dasharray': '4 3' }));
-    }
-    for (const k of idx) {
-      const c = svg('circle', { cx: px(k), cy: py(k), r: 4.5, fill: this._pointColor(k), stroke: 'var(--surface)', 'stroke-width': 2 });
-      g.append(c);
-    }
-    if (this.landMode === 'funnel') g.append(svg('path', { d: diamond(px(best), py(best), 6), fill: 'none', stroke: 'var(--text-2)', 'stroke-width': 1.5 }));
-    if (prev !== null && prev !== cur) g.append(svg('circle', { cx: px(prev), cy: py(prev), r: 8, fill: 'none', stroke: 'var(--text-3)', 'stroke-width': 1.5, 'stroke-dasharray': '2.5 2' }));
-    g.append(svg('circle', { cx: px(cur), cy: py(cur), r: 8, fill: 'none', stroke: 'var(--text)', 'stroke-width': 2 }));
     this.lMarker = svg('circle', { r: 5.5, fill: 'var(--series-2)', stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' });
     g.append(this.lMarker);
     this.lScale = { px, py };

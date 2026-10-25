@@ -11,3 +11,6 @@ dist/
 .devwork/
 # old milestone archives (kept locally, not published)
 oldref/
+benchmark/data_qa/raw/
+benchmark/data_qa/samples/
+benchmark/data_qa/entry_info.json

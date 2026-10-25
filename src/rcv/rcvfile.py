@@ -10,7 +10,7 @@ An .rcv file is a ZIP archive (open it with any unzip tool) containing
     coords.bin       all coordinates, 0.001 Å integers (see encode_coords), SHA-256 checked on reading
     bonds.bin        covalent bonds as little-endian uint32 atom-index pairs
     session.json     optional viewer state: camera, colours, representation, selections, measurements,
-                     scenes, notes, command history
+                     scenes, notes, command history, plugin state (e.g. tracked distances)
     thumbnail.jpg    optional preview image (or thumbnail.png)
     methods.txt      optional methods paragraph describing how the ensemble was obtained
     provenance/      optional verbatim engine manifest (manifest.json)

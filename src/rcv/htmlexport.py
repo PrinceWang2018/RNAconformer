@@ -14,7 +14,8 @@ from . import __version__
 from . import paths as P
 
 MODULES = ['js/lite.js', 'js/viewer/viewer.js', 'js/viewer/controls.js', 'js/viewer/post.js', 'js/viewer/geometry.js',
-           'js/colors.js', 'js/util.js', 'js/ensemble.js', 'js/ss2dlayout.js', 'vendor/three/three.module.min.js']
+           'js/colors.js', 'js/util.js', 'js/ensemble.js', 'js/ss2dlayout.js', 'js/landscape.js', 'js/mechmorph.js',
+           'vendor/three/three.module.min.js']
 
 BOOT = r"""(function () {
   var mods = {};
@@ -35,10 +36,12 @@ BOOT = r"""(function () {
 
 STYLE = r"""
 :root { color-scheme: light; --page: #f3f2ee; --surface: #fcfcfb; --surface-2: #f6f5f1; --border: rgba(11,11,11,.11); --text: #0b0b0b;
-  --text-2: #52514e; --text-3: #898781; --accent: #2a78d6; --accent-weak: rgba(42,120,214,.12); --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --text-2: #52514e; --text-3: #898781; --accent: #2a78d6; --accent-weak: rgba(42,120,214,.12); --axis: #a8a69f; --border-strong: rgba(11,11,11,.22);
+  --series-1: #2a78d6; --series-2: #eb6834; --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace; }
 @media (prefers-color-scheme: dark) { :root { color-scheme: dark; --page: #0d0d0d; --surface: #1a1a19; --surface-2: #151514; --border: rgba(255,255,255,.1);
-  --text: #f0efec; --text-2: #c3c2b7; --text-3: #8f8d86; --accent: #3987e5; --accent-weak: rgba(57,135,229,.18); } }
+  --text: #f0efec; --text-2: #c3c2b7; --text-3: #8f8d86; --accent: #3987e5; --accent-weak: rgba(57,135,229,.18); --axis: #6b6a65;
+  --border-strong: rgba(255,255,255,.22); --series-1: #3987e5; --series-2: #f08456; } }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--page); color: var(--text); font: 13px/1.4 var(--font); }
 body { display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
@@ -75,6 +78,11 @@ label.check { display: inline-flex; gap: 5px; align-items: center; font-size: 12
 .cap { font-size: 11.5px; color: var(--text-3); margin-top: 4px; }
 #profile { width: 100%; height: 90px; display: block; }
 #methods { font-size: 12px; color: var(--text-2); }
+#map { width: 100%; height: 220px; display: block; cursor: pointer; }
+#pw-prof { width: 100%; height: 110px; display: block; }
+#pw-phi { width: 100%; display: block; }
+.pw-text { font-size: 12px; color: var(--text-2); display: flex; flex-direction: column; gap: 4px; }
+.pw-text b { color: var(--text); }
 #made { font-size: 11px; color: var(--text-3); margin-top: auto; }
 #err { position: fixed; inset: 40% 10% auto; background: #b42d2d; color: #fff; padding: 14px 18px; border-radius: 8px; z-index: 10; }
 [hidden] { display: none !important; }
@@ -93,6 +101,8 @@ BODY = """<header>{icon}<div style="min-width:0"><h1 id="title"></h1><div class=
 <div class="row" style="margin-top:6px"><select id="metric" aria-label="Energy" style="max-width:100%"></select></div>
 <div id="confs" style="margin-top:6px"></div></section>
 <section><svg id="profile"></svg><div class="cap" id="profile-cap"></div></section>
+<section id="map-box"><h2>Ensemble map</h2><svg id="map" role="img" aria-label="Topology-aware ensemble map"></svg><div class="cap" id="map-cap"></div></section>
+<section id="pw-box" hidden><h2>Pathway A → B</h2><div class="pw-text" id="pw-text"></div><svg id="pw-prof" role="img" aria-label="Energy along the refolding path"></svg><div class="row"><button id="pw-play">Play the mechanism</button></div><svg id="pw-phi" role="img" aria-label="phi-value scan"></svg><div class="cap" id="pw-cap"></div></section>
 <section><h2>Secondary structure</h2><canvas id="ss"></canvas><div class="cap" id="ss-cap"></div></section>
 <section><h2>Sequence</h2><div class="seq" id="sequence"></div></section>
 <section id="methods-box"><h2>Methods</h2><div id="methods"></div></section>
@@ -101,10 +111,16 @@ BODY = """<header>{icon}<div style="min-width:0"><h1 id="title"></h1><div class=
 <div id="tip" hidden></div><div id="err" hidden></div>"""
 
 
-def build_html(doc, view=None, title=None, methods=None):
+def build_html(doc, view=None, title=None, methods=None, analysis=None):
     static = P.static_dir()
+    if 'landscape' not in doc.get('ensemble', {}):          # documents from before RCV 0.7
+        try:
+            from .landscape import layout_doc
+            doc = {**doc, 'ensemble': {**doc['ensemble'], 'landscape': layout_doc(doc)}}
+        except Exception:
+            pass
     data = json.dumps({'doc': doc, 'view': view or {}, 'title': title or doc.get('name'), 'methods': methods,
-                       'version': __version__}, separators=(',', ':'), allow_nan=False).replace('</', '<\\/')
+                       'analysis': analysis or {}, 'version': __version__}, separators=(',', ':'), allow_nan=False).replace('</', '<\\/')
     icon = (static / 'img' / 'icon.svg').read_text(encoding='utf-8')
     mods = []
     for rel in MODULES:

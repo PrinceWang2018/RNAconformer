@@ -9,6 +9,8 @@ import { kabsch, applyTransform } from './ensemble.js';
 import { layoutFor, drawStructure2D, orientForBox } from './ss2dlayout.js';
 import { exportChart, copyChart } from './export/chartexport.js';
 import { upgma } from './cluster.js';
+import { drawMap, landscapeOf, PRINT_INK } from './landscape.js';
+import { divergingColor } from './panels/switch.js';
 export { upgma };
 
 const MM = 72 / 25.4;
@@ -22,6 +24,7 @@ const RAMPS = {
 export const PLOTS = [
   ['matrix', 'Pairwise RMSD matrix'], ['toref', 'RMSD to a reference'], ['rmsf', 'Per-residue flexibility (RMSF)'],
   ['funnel', 'Energy vs RMSD (funnel)'], ['profile', 'Energy profile'], ['ss2d', '2D structure (vector)'],
+  ['landscape', 'Ensemble map (topology-aware)'], ['pathway', 'Refolding path A → B'], ['phi', 'φ-value scan (switching rate)'],
 ];
 
 let _mctx = null;
@@ -285,6 +288,128 @@ export function drawPlot(app, o) {
     if (leg) drawLegend(g, leg, top);
     return root;
   }
+  if (o.type === 'landscape') return plotLandscape(app, o, root, g, { W, H, fs, top, key, m, mlab });
+  if (o.type === 'pathway') return plotPathway(app, o, root, g, { W, H, fs, top, left, right, bottom });
+  if (o.type === 'phi') return plotPhi(app, o, root, g, { W, H, fs, top });
+  return root;
+}
+
+const missing = (g, W, H, fs, text) => { g.append(T(W / 2, H / 2, text, fs, { anchor: 'middle', fill: SUB })); };
+
+// colour bar from rectangles (exports everywhere): ramp(t) for t in [0, 1], labels lo / hi, title
+function colorBar(g, x, y, w, h, ramp, lo, hi, title, fs) {
+  const n = 32;
+  for (let i = 0; i < n; i++) g.append(svg('rect', { x: x + i * w / n, y, width: w / n + 0.2, height: h, fill: ramp((i + 0.5) / n) }));
+  g.append(svg('rect', { x, y, width: w, height: h, fill: 'none', stroke: '#9a9a9a', 'stroke-width': 0.4 }));
+  g.append(T(x, y + h + fs * 1.05, lo, fs * 0.85, { fill: SUB }), T(x + w, y + h + fs * 1.05, hi, fs * 0.85, { anchor: 'end', fill: SUB }));
+  if (title) g.append(T(x + w + 6, y + h * 0.85, title, fs * 0.85, { fill: SUB }));
+}
+
+function routeConfs(r) {
+  const conf = k => (k === 0 ? r.a : k === 1 ? r.b : r.nodes[k]?.conformations?.[0] ?? null);
+  const merged = new Map();
+  for (const p of (r.same_basin ? [] : r.tpt?.pathways?.length ? r.tpt.pathways : [{ nodes: r.best.route, flux_share: 1 }])) {
+    const confs = p.nodes.map(conf).filter(k => k !== null);
+    const key = confs.join('>');
+    const m = merged.get(key) || { confs, share: 0 };
+    m.share += p.flux_share;
+    merged.set(key, m);
+  }
+  return [...merged.values()].sort((a, b) => b.share - a.share).slice(0, 3);
+}
+
+function plotLandscape(app, o, root, g, { W, H, fs, top, key, m, mlab }) {
+  const ens = app.ens, Ls = landscapeOf(ens);
+  if (!Ls) { missing(g, W, H, fs, 'The ensemble map is not available yet (open the Energy tab once).'); return root; }
+  const vals = [...Array(ens.n).keys()].map(k => ens.value(k, key));
+  const fin = vals.filter(v => v !== null);
+  const lo = Math.min(...fin), hi = Math.max(...fin);
+  const tOf = v => { const t = (v - lo) / ((hi - lo) || 1); return m.lower_is_better === false ? t : 1 - t; };
+  const ramp = t => sampleRamp(BLUE_RAMP.slice(2), t);
+  const r = o.routes ? ens._pathway : null;
+  const routeCols = ['#eb6834', '#6250d6', '#1baf7a'];
+  const routes = r ? routeConfs(r).map((x, i) => ({ nodes: x.confs, width: 0.6 + 1.6 * Math.min(1, x.share), color: routeCols[i] })) : [];
+  const barH = fs * 0.7;
+  const box = { x0: 6, y0: top + 2, x1: W - 6, y1: H - barH - fs * 2.6 };
+  drawMap(g, ens, Ls, box, { mode: 'map', ink: PRINT_INK, color: k => (vals[k] === null ? '#bdbdbd' : ramp(tOf(vals[k]))), radius: k => (r && (k === r.a || k === r.b) ? 2.8 : 2.1) * fs / 8,
+    current: o.highlight ? app.state.conf : null, ringR: 3.6 * fs / 8, ringW: 0.7, pointStroke: 0.4, fontSize: fs * 0.85, routes,
+    marks: r ? [{ k: r.a, text: 'A' }, { k: r.b, text: 'B' }] : [] });
+  colorBar(g, 8, H - barH - fs * 1.6, Math.min(90, W * 0.35), barH, t => ramp(m.lower_is_better === false ? t : 1 - t), fmt(lo, 1), fmt(hi, 1), mlab, fs);
+  return root;
+}
+
+function plotPathway(app, o, root, g, { W, H, fs, top, left, right, bottom }) {
+  const ens = app.ens, r = ens._pathway;
+  if (!r) { missing(g, W, H, fs, 'Run the Pathway analysis (Pathway tab) first.'); return root; }
+  if (r.A.dbn === r.B.dbn) { missing(g, W, H, fs, 'A and B share their secondary structure: no refolding path.'); return root; }
+  const best = r.best.profile, direct = r.direct.profile;
+  const nx = Math.max(best.length, direct.length) - 1 || 1;
+  const E = [...best, ...direct].map(p => p.E);
+  let lo = Math.min(...E), hi = Math.max(...E); const pad = (hi - lo) * 0.12 || 1; lo -= pad; hi += pad * 1.6;
+  const ra = best.filter(p => p.phase === 'relax_a').length, rb = best.filter(p => p.phase === 'relax_b').length;
+  const two = r.best.route.length > 2 || ra + rb > 0;
+  const RELAX = '#8a8a8a';
+  const leg = legendLayout([...(r.same_basin ? [] : [{ name: r.best.route.length > 2 ? 'best route through intermediates' : 'refolding path', color: '#eb6834' }]),
+    ...(two ? [{ name: 'direct path', color: '#2a78d6' }] : []), ...(ra + rb ? [{ name: 'relaxation into the basins', color: RELAX }] : [])], left + 4, right, fs);
+  const yt = ticksFor(lo, hi, 5), xt = ticksFor(0, nx, 5).filter(v => Number.isInteger(v));
+  const x0 = left, x1 = right, y0 = top + 4 + leg.height, y1 = bottom;
+  const xs = v => x0 + v / nx * (x1 - x0), ys = v => y1 - (v - lo) / (hi - lo) * (y1 - y0);
+  axes(g, { x0, x1, y0, y1, xs, ys, xticks: xt, yticks: yt, xlabel: o.xlabel || 'Base-pair moves along the path', ylabel: o.ylabel || 'ΔG (kcal/mol)', fs, grid: o.grid, xfmt: v => String(v) });
+  const path = (pts, i0, col, dash) => g.append(svg('path', { d: pts.map((p, i) => `${i ? 'L' : 'M'} ${xs(i0 + i).toFixed(2)} ${ys(p.E).toFixed(2)}`).join(' '), fill: 'none', stroke: col, 'stroke-width': 1.1, 'stroke-dasharray': dash || null, 'stroke-linejoin': 'round' }));
+  if (two) path(direct, 0, '#2a78d6', '3 2');
+  const core = best.slice(ra, best.length - rb);
+  if (ra) path(best.slice(0, ra + 1), 0, RELAX, '1.2 1.6');
+  path(core, ra, '#eb6834');
+  if (rb) path(best.slice(best.length - rb - 1), best.length - rb - 1, RELAX, '1.2 1.6');
+  const nameOf = k => { if (k === 0) return 'A'; if (k === 1) return 'B'; const n = r.nodes[k]; if (n.kind === 'ensemble') return n.label || `S${k}`; return `I${r.nodes.slice(0, k + 1).filter(x => x.kind === 'minimum').length}`; };
+  const mark = (j, label, filled) => g.append(svg('circle', { cx: xs(j), cy: ys(best[j].E), r: 1.8, fill: filled ? INK : '#ffffff', stroke: INK, 'stroke-width': 0.6 }), T(xs(j), ys(best[j].E) + fs * 1.15, label, fs * 0.85, { anchor: 'middle', fill: SUB }));
+  if (r.same_basin) mark(ra, 'basin');
+  else {
+    core.forEach((p, i) => { if (i === 0 || p.leg !== core[i - 1].leg) mark(ra + (i === 0 ? 0 : i - 1), i === 0 && ra ? 'basin A' : nameOf(r.best.route[p.leg])); });
+    mark(ra + core.length - 1, rb ? 'basin B' : 'B');
+  }
+  if (ra) mark(0, 'A', true);
+  if (rb) mark(best.length - 1, 'B', true);
+  const sd = r.bottleneck?.saddle_step;
+  if (sd !== undefined && sd !== null && best[sd]) {
+    const sx = xs(sd), sy = ys(best[sd].E);
+    g.append(svg('path', { d: `M ${sx} ${sy - 2} L ${sx + 2.6} ${sy - 6.5} L ${sx - 2.6} ${sy - 6.5} Z`, fill: INK }));
+    g.append(T(sx, sy - 8, `ΔG‡ ${fmt(best[sd].E - core[0].E, 1)} kcal/mol`, fs * 0.85, { anchor: 'middle' }));
+  }
+  drawLegend(g, leg, top);
+  return root;
+}
+
+function plotPhi(app, o, root, g, { W, H, fs, top }) {
+  const ens = app.ens, sc = ens._phiScan, n = ens.nRes;
+  if (!sc) { missing(g, W, H, fs, 'Run the φ-value scan (Pathway tab) first.'); return root; }
+  const lab = fs * 1.4, x0 = 6 + lab, x1 = W - 6;
+  const cw = (x1 - x0) / n;
+  const barH = fs * 0.7;
+  const avail = H - top - fs * 4.6 - barH;
+  const ch = Math.max(3, Math.min(cw * 2.5, avail / 5.6));
+  const y0 = top + 4, phiTop = y0 + 4 * ch + ch * 0.4, phiH = ch * 1.2;
+  'ACGU'.split('').forEach((b, row) => g.append(T(6, y0 + row * ch + ch * 0.75, b, fs * 0.85, { fill: SUB })));
+  g.append(T(6, phiTop + phiH * 0.8, 'φ', fs * 0.85, { fill: SUB }));
+  for (let i = 0; i < n; i++) {
+    'ACGU'.split('').forEach((b, row) => {
+      const x = x0 + i * cw, y = y0 + row * ch;
+      if (b === ens.sequence[i]) { g.append(svg('rect', { x, y, width: cw, height: ch, fill: '#ffffff', stroke: '#c8c8c8', 'stroke-width': 0.25 })); return; }
+      g.append(svg('rect', { x, y, width: cw + 0.05, height: ch + 0.05, fill: divergingColor(sc.matrix[i][b].ddg_ts, false) }));
+    });
+    const phi = sc.positions[i].phi;
+    if (phi !== null) {
+      const h = Math.max(0.3, Math.min(1.2, Math.abs(phi)) / 1.2 * phiH);
+      g.append(svg('rect', { x: x0 + i * cw + cw * 0.1, y: phiTop + phiH - h, width: cw * 0.8, height: h, fill: phi < 0 ? '#c0392b' : SUB }));
+    }
+    if (i === 0 || (i + 1) % 10 === 0) {
+      const x = x0 + (i + 0.5) * cw;
+      g.append(L(x, phiTop + phiH + 1, x, phiTop + phiH + 3), T(x, phiTop + phiH + 3 + fs * 1.05, ens.residues[i].num, fs * 0.85, { anchor: 'middle' }));
+    }
+  }
+  g.append(L(x0, phiTop + phiH + 0.5, x1, phiTop + phiH + 0.5, { width: 0.5 }));
+  g.append(T((x0 + x1) / 2, phiTop + phiH + 3 + fs * 2.3, o.xlabel || 'Nucleotide', fs, { anchor: 'middle' }));
+  colorBar(g, x0, Math.min(H - barH - fs * 1.4, phiTop + phiH + fs * 3.6), Math.min(100, W * 0.4), barH, t => divergingColor(-4 + 8 * t, false), 'faster (−4)', 'slower (+4)', 'ΔΔG‡ (kcal/mol)', fs);
   return root;
 }
 
@@ -308,7 +433,8 @@ export function plotStudio(app, initial = null) {
   const prefs = app.prefs.plots || {};
   const o = { type: initial || prefs.type || 'matrix', size: prefs.size || '89x70', w: prefs.w || 89, h: prefs.h || 70, font: prefs.font || 8, title: '', xlabel: '', ylabel: '',
     ramp: prefs.ramp || 'blues', cluster: prefs.cluster ?? true, values: prefs.values ?? true, grid: prefs.grid ?? false, highlight: prefs.highlight ?? true,
-    ref: prefs.ref || 'first', style: prefs.style || 'line', moved: prefs.moved ?? true, track: prefs.track ?? true, metric: app.state.metric, order: 'current' };
+    ref: prefs.ref || 'first', style: prefs.style || 'line', moved: prefs.moved ?? true, track: prefs.track ?? true, metric: app.state.metric, order: 'current',
+    routes: prefs.routes ?? true };
   const list = el('div', { class: 'ps-list' });
   const preview = el('div', { class: 'ps-preview' });
   const opts = el('div', { class: 'ps-opts' });
@@ -319,7 +445,7 @@ export function plotStudio(app, initial = null) {
     current = drawPlot(app, o);
     preview.replaceChildren(current);
     for (const b of list.children) b.classList.toggle('on', b.dataset.type === o.type);
-    app.prefs.plots = { type: o.type, size: o.size, w: o.w, h: o.h, font: o.font, ramp: o.ramp, cluster: o.cluster, values: o.values, grid: o.grid, highlight: o.highlight, ref: o.ref, style: o.style, moved: o.moved, track: o.track };
+    app.prefs.plots = { type: o.type, size: o.size, w: o.w, h: o.h, font: o.font, ramp: o.ramp, cluster: o.cluster, values: o.values, grid: o.grid, highlight: o.highlight, ref: o.ref, style: o.style, moved: o.moved, track: o.track, routes: o.routes };
     app.savePrefs();
   };
   for (const [id, label] of PLOTS) list.append(el('button', { class: 'ps-item', 'data-type': id, onclick: () => { o.type = id; o.title = ''; o.xlabel = ''; o.ylabel = ''; buildOpts(); redraw(); } }, label));
@@ -334,16 +460,18 @@ export function plotStudio(app, initial = null) {
       o.size === 'custom' ? el('div', { class: 'grid2' }, field('Width (mm)', inp('w', { type: 'number', min: 30, max: 400 })), field('Height (mm)', inp('h', { type: 'number', min: 20, max: 400 }))) : null,
       field('Font size (pt)', sel('font', [['6', '6 pt'], ['7', '7 pt'], ['8', '8 pt'], ['9', '9 pt'], ['10', '10 pt'], ['12', '12 pt']])),
       field('Title (optional)', inp('title', { placeholder: 'none' })),
-      t !== 'matrix' && t !== 'ss2d' ? el('div', { class: 'grid2' }, field('x-axis label', inp('xlabel', { placeholder: 'automatic' })), field('y-axis label', inp('ylabel', { placeholder: 'automatic' }))) : null,
+      t !== 'matrix' && t !== 'ss2d' && t !== 'landscape' ? el('div', { class: 'grid2' }, field('x-axis label', inp('xlabel', { placeholder: 'automatic' })), field('y-axis label', inp('ylabel', { placeholder: 'automatic' }))) : null,
       t === 'matrix' ? field('Colour ramp', sel('ramp', [['blues', 'Blues'], ['grays', 'Grays (print)'], ['purples', 'Purples'], ['greens', 'Greens'], ['oranges', 'Oranges']])) : null,
       t === 'matrix' ? chk('cluster', 'Cluster (average linkage) with dendrogram') : null,
       t === 'matrix' ? chk('values', 'Values in cells (up to 12 conformations)') : null,
       t === 'toref' ? field('Reference', sel('ref', [['first', 'First in the current order'], ['best', 'Best by the energy metric'], ['current', 'Shown conformation'], ['previous', 'Previous conformation'], ['mean', 'Ensemble mean structure']])) : null,
       t === 'profile' ? field('Style', sel('style', [['line', 'Line with markers'], ['bars', 'Bars']])) : null,
-      t === 'profile' || t === 'funnel' ? field('Energy / metric', sel('metric', metricOpts)) : null,
+      t === 'profile' || t === 'funnel' || t === 'landscape' ? field('Energy / metric', sel('metric', metricOpts)) : null,
+      t === 'landscape' ? chk('routes', 'Show the A → B routes of the Pathway tab') : null,
+      t === 'pathway' || t === 'phi' ? el('div', { class: 'desc', text: 'From the last Pathway analysis of this ensemble (Pathway tab).' }) : null,
       t === 'rmsf' ? chk('moved', 'Also: displacement since the previous conformation') : null,
       t === 'rmsf' ? chk('track', 'Pairing track under the axis') : null,
-      t !== 'matrix' && t !== 'ss2d' ? chk('grid', 'Light gridlines') : null,
+      t !== 'matrix' && t !== 'ss2d' && t !== 'landscape' && t !== 'phi' ? chk('grid', 'Light gridlines') : null,
       t !== 'ss2d' ? chk('highlight', 'Highlight the shown conformation') : chk('highlight', 'Mark pairs new since the previous conformation'),
       el('div', { class: 'desc', text: 'Text uses Liberation Sans (open licence, metric-compatible with Helvetica/Arial); PDF embeds it. Colours follow the active palette (Color ▸ Palettes).' })].filter(Boolean));
   }

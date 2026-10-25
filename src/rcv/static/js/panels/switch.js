@@ -4,7 +4,9 @@
 import { el, svg, fmt, fmtSigned, clamp } from '../util.js';
 import { icon } from '../icons.js';
 import { tooltip, tipRow, toast, select } from '../ui.js';
-import { registerScheme, sampleRamp, BLUE_RAMP, ORANGE_RAMP } from '../colors.js';
+import { registerScheme, sampleRamp, BLUE_RAMP, ORANGE_RAMP, SLOTS } from '../colors.js';
+import { conditionsDialog, conditionsOf, conditionsParts, requestConditions, setConditions } from '../conditions.js';
+import { linear, yAxis, xAxis } from './charts.js';
 
 const SAT = 4.0;            // kcal/mol at which the diverging colour saturates
 const NEUTRAL_LIGHT = '#e7e5de', NEUTRAL_DARK = '#3a3a37';
@@ -26,7 +28,8 @@ export class SwitchPanel {
     this.result = null;
     this.a = null; this.b = null;
     this.picked = null;
-    app.on('ensemble', () => { this.result = null; this.a = this.b = null; this.picked = null; if (this.visible()) this.load(); else this.render(); });
+    app.on('ensemble', () => { this.result = null; this.a = this.b = null; this.picked = null; this.dose = null; if (this.visible()) this.load(); else this.render(); });
+    app.on('conditions', () => { this.result = null; this.dose = null; if (this.visible()) this.load(); else this.render(); });
     app.on('conformation', () => this._markCurrent());
     app.on('tab', id => { if (id === 'switch' && !this.result && app.ens) this.load(); });
     new ResizeObserver(() => { const w = root.clientWidth; if (this.result && Math.abs(w - (this._w || 0)) > 8) { this._w = w; this.render(); } }).observe(root);
@@ -46,7 +49,7 @@ export class SwitchPanel {
     this.loading = true;
     this.render();
     try {
-      const body = { temperature: this.temperature, a: this.a, b: this.b };
+      const body = { conditions: requestConditions(app, ens), a: this.a, b: this.b };
       if (ens.serverId) body.document = ens.serverId; else body.doc = ens.doc;
       let r = await app.api.post('/api/switch', body);
       if ((this.a === null || this.b === null) && r.states.length > 1) {
@@ -59,6 +62,9 @@ export class SwitchPanel {
       }
       this.result = r;
       this.picked = null;
+      if (conditionsOf(app, ens).ligand && r.states.length > 1) {
+        try { this.dose = await app.api.post('/api/switch/dose', { ...body, a: undefined, b: undefined }); } catch { this.dose = null; }
+      } else this.dose = null;
     } catch (err) { this.error = err.message; } finally { this.loading = false; }
     this.render();
   }
@@ -70,8 +76,10 @@ export class SwitchPanel {
     const head = el('div', { class: 'section' },
       el('div', { class: 'section-title' }, 'Secondary-structure states', el('span', { class: 'grow' }),
         el('label', { class: 'sw-temp', title: 'Temperature for the Turner energies and populations' }, 'T',
-          (() => { const i = el('input', { class: 'input', type: 'number', min: 0, max: 95, step: 1, value: this.temperature, 'aria-label': 'Temperature in °C' });
-            i.addEventListener('change', () => { this.temperature = clamp(+i.value || 37, 0, 95); this.load(); }); return i; })(), '°C')),
+          (() => { const i = el('input', { class: 'input', type: 'number', min: 0, max: 95, step: 1, value: conditionsOf(app, ens).temperature, 'aria-label': 'Temperature in °C' });
+            i.addEventListener('change', () => setConditions(app, { temperature: clamp(+i.value || 37, 0, 95) })); return i; })(), '°C')),
+      el('div', { class: 'row sw-cond' }, el('span', { class: 'muted', text: 'Conditions:' }),
+        el('button', { class: 'linkbtn', title: 'Temperature, Na⁺, ligand and probing data used for the energies', onclick: () => conditionsDialog(app) }, ...conditionsParts(conditionsOf(app, ens), ens))),
       el('div', { class: 'desc', text: 'Distinct 2D structures of the ensemble’s conformations with ViennaRNA free energies and populations (Boltzmann). A 2D-level estimate: the 3D model scores are not used.' }));
     root.append(head);
     if (this.loading) { head.append(el('div', { class: 'row' }, el('span', { class: 'spinner small' }), ' computing…')); return; }
@@ -94,6 +102,8 @@ export class SwitchPanel {
     head.append(el('div', { class: 'wl-table sw-tablebox' }, el('table', { class: 'table sw-table' },
       el('thead', {}, el('tr', {}, el('th', { text: '' }), el('th', { text: '2D' }), el('th', { class: 'num', text: 'ΔG kcal/mol' }), el('th', { class: 'num', text: 'P ensemble' }), el('th', { text: 'Share' }), el('th', { class: 'num', text: 'Models', title: 'Conformations with this 2D structure (click to step through them)' }))), tb)),
       el('div', { class: 'desc', text: `MFE ${fmt(r.mfe.energy, 1)} kcal/mol (P ${pct(r.mfe_probability)})${r.states.some(s => s.dbn === r.mfe.dbn) ? ' — present in the ensemble' : ' — not among the ensemble’s states'} · ensemble free energy ${fmt(r.ensemble_energy, 1)} kcal/mol · ${r.temperature} °C · ViennaRNA ${r.vienna || ''}` }));
+    if (r.probing_used) head.append(el('div', { class: 'desc', text: 'Populations include the probing data as pseudo-energies (Deigan et al. 2009): data-informed estimates, not free energies.' }));
+    if (this.dose) root.append(this._doseSection(r, this.dose));
     // ---- mutation scan
     const scanSec = el('div', { class: 'section' }, el('div', { class: 'section-title' }, 'Mutations that shift the switch'));
     root.append(scanSec);
@@ -165,6 +175,54 @@ export class SwitchPanel {
     return el('div', {}, el('div', { class: 'sw-heatbox' }, s), legend);
   }
 
+  _doseSection(r, dose) {
+    const app = this.app, ens = app.ens;
+    const sec = el('div', { class: 'section' }, el('div', { class: 'section-title' }, el('span', { text: 'Ligand response' }), el('span', { text: ' · ' }), el('span', { text: dose.ligand?.name || 'ligand' })));
+    if (!dose.sites) {
+      sec.append(el('div', { class: 'desc', text: 'The aptamer motif does not occur in this sequence, so the ligand cannot bind any state.' }));
+      return sec;
+    }
+    const rows = dose.rows.filter(x => x.conc_uM > 0);
+    const W = Math.max(240, this.root.clientWidth - 28), H = 170, ml = 44, mr = 10, mt = 10, mb = 34;
+    const lx = rows.map(x => Math.log10(x.conc_uM));
+    const x = linear(Math.min(...lx), Math.max(...lx), ml, W - mr), y = linear(0, 1, H - mb, mt);
+    const s = svg('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, width: '100%', height: H, role: 'img', 'aria-label': 'Share of the states against ligand concentration' });
+    const g = svg('g');
+    yAxis(g, y, ml, W - mr, { ticks: 4, title: 'Share among the states', grid: true });
+    const ticks = [];
+    for (let e = Math.ceil(Math.min(...lx)); e <= Math.floor(Math.max(...lx)); e++) ticks.push([x(e), decade(e)]);
+    xAxis(g, ml, W - mr, H - mb, ticks, { title: 'Ligand (µM, log scale)' });
+    r.states.forEach((st, i) => {
+      const d = rows.map((row, k) => `${k ? 'L' : 'M'} ${x(lx[k]).toFixed(1)} ${y(row.relative[i]).toFixed(1)}`).join(' ');
+      g.append(svg('path', { d, fill: 'none', stroke: SLOTS[i % SLOTS.length], 'stroke-width': 2, 'stroke-dasharray': rows[0].bound[i] ? null : '4 3' }));
+    });
+    const c = conditionsOf(app, ens).ligand?.conc_uM;
+    if (c > 0) {
+      const cx = x(Math.log10(c));
+      g.append(svg('line', { x1: cx, x2: cx, y1: mt, y2: H - mb, stroke: 'var(--text-3)', 'stroke-width': 1, 'stroke-dasharray': '2 3' }));
+    }
+    s.append(g);
+    // EC50 of the state that binds: concentration where its share crosses the midpoint of its range
+    const notes = [];
+    r.states.forEach((st, i) => {
+      if (!rows[0].bound[i]) return;
+      const v = rows.map(row => row.relative[i]);
+      const lo = Math.min(...v), hi = Math.max(...v), mid = (lo + hi) / 2;
+      if (hi - lo < 0.05) return;
+      for (let k = 1; k < v.length; k++) {
+        if ((v[k - 1] - mid) * (v[k] - mid) <= 0) {
+          const f = (mid - v[k - 1]) / ((v[k] - v[k - 1]) || 1);
+          notes.push(`S${i + 1} (binds) rises from ${Math.round(lo * 100)} % to ${Math.round(hi * 100)} %, half-way at ≈ ${fmt(10 ** (lx[k - 1] + f * (lx[k] - lx[k - 1])), 2)} µM.`);
+          break;
+        }
+      }
+    });
+    sec.append(s, el('div', { class: 'pw-legend' }, ...r.states.map((st, i) => el('span', {}, el('i', { class: rows[0]?.bound[i] ? '' : 'dash', style: { background: SLOTS[i % SLOTS.length] } }), `S${i + 1}${rows[0]?.bound[i] ? ' (binds)' : ''}`))),
+      ...(notes.length ? notes : ['No state changes its share by more than 5 % over this range.']).map(t => el('div', { class: 'desc', text: t })),
+      el('div', { class: 'desc', text: 'Solid lines: states that form the aptamer motif. Two-state binding: ΔG = −RT ln(1 + c/Kd).' }));
+    return sec;
+  }
+
   pick(pos, to) {
     this.picked = { pos, to };
     this.app.select([pos], 'set');
@@ -224,3 +282,11 @@ function pct(x) {
   return x < 0.1 ? `${(x * 100).toFixed(1)}%` : `${Math.round(x * 100)}%`;
 }
 function slugName(s) { return String(s || 'rna').replace(/[^A-Za-z0-9_.-]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'rna'; }
+
+// 10^e as a short axis label: 0.01, 0.1, 1, 10, 100, then 10³, 10⁻³ …
+export function decade(e) {
+  if (e >= 0 && e <= 2) return String(10 ** e);
+  if (e < 0 && e >= -2) return (10 ** e).toFixed(-e);
+  const sup = String(e).replace('-', '⁻').replace(/[0-9]/g, d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[+d]);
+  return `10${sup}`;
+}

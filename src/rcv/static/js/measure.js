@@ -68,11 +68,7 @@ export class Measurements {
     const i = list.findIndex(m => m.name === name);
     if (i < 0) return false;
     const [m] = list.splice(i, 1);
-    const ens = this.app.ens;
-    ens.metrics = ens.metrics.filter(x => x.key !== m.key);
-    delete ens.metricByKey[m.key];
-    for (const c of ens.conformations) delete c.values[m.key];
-    if (this.app.state.metric === m.key) this.app.setMetric(ens.doc.default_metric in ens.metricByKey ? ens.doc.default_metric : ens.metrics[0].key);
+    this.app.dropMetric(this.app.ens, m.key);
     this.app.viewer.needsRender = true;
     this.app.emit('measurements');
     this.app.emit('values');

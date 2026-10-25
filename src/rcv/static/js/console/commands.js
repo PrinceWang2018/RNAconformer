@@ -6,6 +6,8 @@ import { evaluateSelection, resolveAtom, describeResidues, SelectionError, SELEC
 import { kabsch, applyTransform } from '../ensemble.js';
 import { SCHEMES } from '../colors.js';
 import { fmt, slug, saveBlob } from '../util.js';
+import { conditionsOf, conditionsText, setConditions, LIGANDS, STANDARD_SALT } from '../conditions.js';
+import { fmtTime } from '../panels/pathway.js';
 
 export const COLOR_NAMES = {
   red: '#e34948', green: '#1baf7a', darkgreen: '#008300', blue: '#2a78d6', navy: '#184f95', orange: '#eb6834', yellow: '#eda100',
@@ -477,6 +479,74 @@ export class CommandSet {
       }
       app.openVideoDialog({ content: kind.toLowerCase() });
       return say(`video: ${kind}`);
+    } });
+    // -------- analyses (RCV 0.7): pathways, conditions, probing data
+    this.def(['pathway', 'transition'], { args: 'A, B', help: 'Refolding paths, barrier, bottleneck and rigid modules from conformation A to B (Pathway tab).', run: async args => {
+      need(args, 2, 'pathway conf_001, conf_005');
+      const ens = this.ens();
+      const a = this.conf(args[0]), b = this.conf(args[1]);
+      if (a === b) throw new CommandError('A and B must be different conformations');
+      const P = app.pathway;
+      P.a = a; P.b = b; P.result = P.scan = null;
+      app.showTab('pathway');
+      await P.load();
+      if (P.error) throw new CommandError(P.error);
+      const r = P.result;
+      if (r.A.dbn === r.B.dbn) return say(`${ens.shortId(a)} → ${ens.shortId(b)}: same 2D structure (tertiary rearrangement), C4′ RMSD ${fmt(r.rmsd_ab, 1)} Å`);
+      if (r.same_basin) return say(`${ens.shortId(a)} → ${ens.shortId(b)}: same 2D basin (A ${fmt(r.A.above_basin, 1)}, B ${fmt(r.B.above_basin, 1)} kcal/mol above its minimum), no barrier between them; C4′ RMSD ${fmt(r.rmsd_ab, 1)} Å`);
+      return say(`${ens.shortId(a)} → ${ens.shortId(b)}: effective barrier ${fmt(r.effective_barrier, 1)} kcal/mol (direct path ${fmt(r.direct.barrier, 1)}), ΔG ${fmt(r.dG, 1)} kcal/mol, half-life ≈ ${fmtTime(r.half_life_s)}; cooperative unit ${r.bottleneck?.unit.length ?? 0} bp; ${r.motion?.modules.length ?? 0} rigid modules`);
+    } });
+    this.def(['phiscan'], { help: 'φ-value scan of every point mutation along the current pathway (run "pathway A, B" first).', run: async () => {
+      const P = app.pathway;
+      if (!P.result) throw new CommandError('run "pathway A, B" first');
+      if (P.result.same_basin || P.result.A.dbn === P.result.B.dbn) throw new CommandError('A and B are in the same 2D basin: there is no barrier to scan');
+      await P.runScan();
+      if (!P.scan) throw new CommandError('the scan failed');
+      const ens = this.ens(), name = x => `${x.from}${ens.residues[x.pos].num}${x.to}`;
+      return [say(`barrier ${fmt(P.scan.barrier_wt, 1)} kcal/mol; ${3 * ens.nRes} mutants`),
+        say(`fastest: ${P.scan.faster.slice(0, 5).map(x => `${name(x)} (${fmt(x.ddg_ts, 1)})`).join(', ') || '–'}`),
+        say(`slowest: ${P.scan.slower.slice(0, 5).map(x => `${name(x)} (+${fmt(x.ddg_ts, 1)})`).join(', ') || '–'}`)];
+    } });
+    this.def(['mechanism'], { args: '[staged | rigid]', help: 'Play the mechanism morph of the current pathway (rigid modules in the order of the base-pair events).', run: args => {
+      const P = app.pathway;
+      if (!P.result?.motion) throw new CommandError('run "pathway A, B" first');
+      const staged = (args[0] || 'staged').toLowerCase() !== 'rigid';
+      P.play(staged);
+      return say(staged ? 'playing the mechanism' : 'playing the rigid-module morph');
+    } });
+    this.def(['conditions', 'cond'], { args: '[°C][, Na mM][, ligand µM | no ligand]', help: 'Show or set the conditions of the 2D analyses, e.g. "conditions 25, 150 mM, theophylline 10 µM" or "conditions standard".', run: args => {
+      const ens = this.ens();
+      if (!args.length) return say(conditionsText(conditionsOf(app, ens), ens));
+      const patch = {};
+      for (const tok of args.map(t => t.trim()).filter(Boolean)) {
+        const t = tok.toLowerCase();
+        if (t === 'standard') { Object.assign(patch, { temperature: 37, sodium: STANDARD_SALT, ligand: null }); continue; }
+        if (t === 'no ligand' || t === 'none' || t === 'ligand none') { patch.ligand = null; continue; }
+        let m;
+        if ((m = t.match(/^(-?[\d.]+)\s*(°c|c)?$/))) { patch.temperature = Math.min(95, Math.max(0, parseFloat(m[1]))); continue; }
+        if ((m = t.match(/^(?:na\+?\s*)?([\d.]+)\s*(mm|m)$/))) { const v = parseFloat(m[1]) / (m[2] === 'mm' ? 1000 : 1); patch.sodium = Math.min(3, Math.max(0.005, v)); continue; }
+        if ((m = t.match(/^([a-z][a-z-]*)\s+([\d.]+)\s*(µm|um|nm|mm)?$/)) && LIGANDS[m[1]]) {
+          const f = { 'nm': 1e-3, 'mm': 1e3 }[m[3]] || 1;
+          patch.ligand = { ...LIGANDS[m[1]], preset: m[1], conc_uM: parseFloat(m[2]) * f };
+          continue;
+        }
+        throw new CommandError(`cannot read "${tok}": use a temperature (25), a salt concentration (150 mM) or a ligand (theophylline 10 µM)`);
+      }
+      setConditions(app, patch, ens);
+      return say(conditionsText(conditionsOf(app, ens), ens));
+    } });
+    this.def(['probing', 'shape'], { args: 'path[, SHAPE | DMS] | clear', help: 'Load a SHAPE or DMS reactivity file (normalised by the 2–8 % rule) and fit the ensemble to it; "probing clear" removes it.', run: async (args, raw) => {
+      need(args, 1, 'probing C:\\data\\tar.shape, SHAPE');
+      const ens = this.ens();
+      if (args[0].trim().toLowerCase() === 'clear') { app.probing.clear(ens); return say('probing data removed'); }
+      const kind = (args[1] || 'SHAPE').trim().toUpperCase();
+      if (!['SHAPE', 'DMS'].includes(kind)) throw new CommandError('the reagent is SHAPE or DMS');
+      const path = args[0].trim().replace(/^["']|["']$/g, '');
+      const r = await app.api.post('/api/read-text', { path });
+      const parsed = await app.api.post('/api/probing/parse', { text: r.text, sequence: ens.sequence, kind, normalise: true });
+      await app.probing.set(ens, { name: path.split(/[\\/]/).pop(), kind, values: parsed.normalised, raw: parsed.values, factor: parsed.factor, format: parsed.format });
+      const f = ens.probing?.fit;
+      return say(`${kind}: ${parsed.n_values} of ${ens.nRes} nucleotides${f ? `; agreement (AUC) of ${ens.shortId(app.state.conf)} ${fmt(f.agreement[app.state.conf], 2)}${f.reweighting ? `; reweighting χ² ${fmt(f.reweighting.chi2_prior, 2)} → ${fmt(f.reweighting.chi2, 2)}` : ''}` : ''}`);
     } });
     this.def(['load', 'open'], { args: 'path', help: 'Open an .rcv file, structure files or a prediction folder on this computer.', run: async (args, raw) => {
       need(args, 1, 'load C:\\data\\tar.rcv');

@@ -1,5 +1,97 @@
 # Changelog
 
+## Package 0.7.0 — 2026-10-26 — RCV · RNA Conformation Viewer
+
+From pictures of conformations to the mechanism between them: how A turns into B, how fast, through which
+intermediates, which base pairs and which coordinated 3D motions limit the switch, and which mutations, salt or
+ligand change it. The new analyses run on the user's computer in under a second and are validated on the
+benchmark ensembles (`docs/V07_VALIDATION.md`).
+
+### Added
+- **Pathway tab: transition from conformation A to B** (`rcv/transition.py`, `js/panels/pathway.js`; user guide
+  8.1).
+  - *Basins:* A and B first relax into their local minima of the 2D landscape (steepest descent), and kinetics are
+    measured between the basins. A and B in one basin are reported as fluctuations of one fold.
+  - *Routes:* the direct path between the basins (ViennaRNA findpath), plus a network of intermediates: the basins
+    of the ensemble's other 2D states and local minima from Boltzmann samples (fixed seed, reproducible).
+  - *Kinetics:* transition path theory gives committors and the routes ranked by reactive flux. The **mean
+    first-passage time** gives the switching time, the half-life of A and the effective barrier; k₀ is adjustable.
+  - *Traps:* wells deeper than A that hold the RNA for most of the switching time, found from the expected time
+    spent in each node.
+  - *Display:* a plain-language verdict, the routes on the ensemble map, and the energy profile (relaxation, route,
+    direct path, saddle) with hover showing the base pairs that open or form.
+- **Bottleneck and coordinated motions:** the **cooperative unit** (base pairs that open together on the climb to
+  the highest saddle) and the **nucleus** of B. In 3D, **rigid modules** (helix-seeded, merged within 2 Å), with
+  their turn, shift, screw axis and time window, plus **hinges**. The module that carries the unit is named the
+  **rate-limiting coordinated motion**. Colour by mechanism, event order or module.
+- **Mechanism morph** (`js/mechmorph.js`): A turns into B with the rigid modules moving in the order of their
+  base-pair events. Each module keeps its shape, and a distance-geometry refinement keeps the chain connected.
+  Chain distortion is 0.20 vs 0.81 for linear interpolation. *Mechanism video…* records it.
+- **φ-value scan:** all 3 × length point mutations along the route, with ΔΔG‡, ΔΔG and φ. Mutations that speed up
+  or slow down the switch, colour by kinetic sensitivity, copy as a table.
+- **Topology-aware ensemble map** (`rcv/landscape.py`, `js/landscape.js`; Energy tab ▸ *Map*, also in the Pathway
+  tab, the plot studio and the HTML page):
+  - One disk per secondary-structure topology (abstract shape), labelled with a small 2D drawing; inside each disk,
+    distances follow C4′ RMSD and 2D states stay together.
+  - The caption gives trustworthiness, continuity and topology purity, compared with MDS.
+- **Conditions** (`rcv/conditions.py`, `js/conditions.js`; Tools menu): temperature, Na⁺ (ViennaRNA salt
+  correction) and a ligand that binds an aptamer motif (theophylline preset, or your own motif and Kd).
+  - Kept per ensemble and saved in `.rcv` files.
+  - Used by the Switch and Pathway tabs; the Switch tab adds a *Ligand response* section (2D-state populations
+    over ligand concentration).
+- **Probing data** (`rcv/probing.py`, `js/probing.js`; Tools ▸ *Load probing data*):
+  - Reads SHAPE and DMS reactivities (`.shape`, ShapeMapper `.map`, CSV, plain lists) with 2–8 % normalisation.
+  - Adds the colour scheme *Reactivity* and the metric *SHAPE agreement (AUC)*.
+  - **Maximum-entropy reweighting** of the ensemble (metric *SHAPE data weight*, χ², effective number of
+    conformations); optional pseudo-energies for the 2D-state populations.
+  - Saved in `.rcv` files.
+- **Optional confidence model** (`rnafold3d/qa.py`, weights `data/qa_v1.npz`, training in `tools/qa_model/`):
+  - Predicts the per-nucleotide lDDT of every conformation in the background: a small neural network with 3,217
+    parameters, numpy only, no GPU, never part of structure prediction.
+  - Adds the metric *Confidence (predicted lDDT)* and the colour scheme *Confidence (per nucleotide)*; switch it
+    off in Preferences.
+  - Per-nucleotide r = 0.75–0.84 on benchmark families it never saw. The engine's ranking is kept, because the
+    model does not reliably pick a better top model.
+- **Publication output:**
+  - The plot studio adds *Ensemble map*, *Refolding path* and *φ-value scan*.
+  - The interactive HTML page shows the map, the pathway and the mechanism morph.
+  - Methods text covers the new analyses with exact settings and a list of **references** to cite.
+- Console: `pathway A, B`, `phiscan`, `mechanism [staged|rigid]`, `conditions …`, `probing …`. Command line:
+  `rcv pathway`, `rcv probing`, `rcv confidence`; conditions options `--temperature --sodium --ligand --kd --conc`.
+- Local API: `/api/transition`, `/api/transition/scan`, `/api/landscape`, `/api/probing/parse`,
+  `/api/probing/fit`, `/api/confidence`, `/api/switch/dose`; `/api/switch` takes conditions. Plugin events
+  `pathway`, `conditions`, `probing` (`docs/PLUGINS.md`).
+- All new interface text in the 10 interface languages.
+- Validation: `docs/V07_VALIDATION.md`, `tools/validate07.py` (map vs MDS, basins and kinetics, φ hot spots vs the
+  cooperative unit, morph strain, probing recovery, confidence model on the benchmark).
+- Tests: `tests/test_rcv07.py` (MFPT and time occupancy against hand-solved and simulated networks, basins, traps,
+  φ-values, rigid modules, conditions, probing, confidence), `tests/js/rcv07_unit.mjs`, and new GUI scenarios
+  (`pathway1`, `pathwaybasin`, `probing1`, `conditions1`, `confidence1`, `htmlpage07`, `i18n07`, `plots07`, …).
+
+### Changed
+- The Energy tab's map views are *Funnel*, *Map* (topology-aware) and *MDS*.
+- `js/ui.js` can be imported outside a browser (the console commands' unit tests load it in Node).
+
+## Package 0.6.1 — 2026-10-25 — RCV · RNA Conformation Viewer
+
+### Fixed
+- **Distance tracker: tracked distances are saved.** They are stored in `.rcv` files (and in workspaces, for the
+  shown ensemble) and come back when the file is opened, also the distance shown in the energy panel; before, they
+  were lost on closing the ensemble or reloading the window. They are also kept when a pull exploration extends the
+  ensemble.
+- **Distance tracker: removing a distance (✕) removes its metric** from the energy panel, the Details table, the
+  plot studio and the CSV export; if the energy panel showed it, it returns to the default metric.
+- Distance tracker: adding and removing distances can be undone and redone (`Ctrl+Z` / `Ctrl+Y`), like measurements.
+- A tracked distance now belongs only to the ensemble it was made on; it no longer adds an empty metric to the
+  other open ensembles.
+
+### Added
+- **Plugin API version 3** (`js/plugins.js`, `docs/PLUGINS.md` sections 2.7 and 2.9; versions 1 and 2 unchanged):
+  `api.metrics.register({ ..., ensemble })` for metrics of one ensemble, `api.metrics.unregister(key[, ensemble])`,
+  and `api.session.register({ save, load })` / `api.session.changed()` for plugin state that is saved in `.rcv`
+  files and workspaces (like measurements) and is part of undo/redo.
+- GUI smoke test `trackersave` (remove, undo/redo, `.rcv` round trip, extended ensemble).
+
 ## Package 0.6.0 — 2026-10-24 — RCV · RNA Conformation Viewer
 
 ### Fixed

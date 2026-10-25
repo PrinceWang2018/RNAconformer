@@ -39,10 +39,12 @@ let openMenu = null;
 export function closeMenus() {
   if (openMenu) { openMenu.pop.remove(); openMenu.btn.classList?.remove('open'); openMenu = null; }
 }
-document.addEventListener('pointerdown', e => {
-  if (openMenu && !openMenu.pop.contains(e.target) && !(openMenu.btn.contains && openMenu.btn.contains(e.target))) closeMenus();
-});
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
+if (typeof document !== 'undefined') {             // the module also loads in Node (unit tests of the console)
+  document.addEventListener('pointerdown', e => {
+    if (openMenu && !openMenu.pop.contains(e.target) && !(openMenu.btn.contains && openMenu.btn.contains(e.target))) closeMenus();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenus(); });
+}
 
 // items: [{label, action, kbd, checked, disabled, sep, head}] or a function returning such a list
 export function popupMenu(anchorBtn, items) {
