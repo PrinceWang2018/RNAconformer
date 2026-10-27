@@ -1,4 +1,4 @@
-// Start page: predict an ensemble from sequence, or open structures; progress of local predictions.
+// Start page: the two ways to use RCV (1 predict from sequence(s), 2 view structures of one RNA); progress of local predictions.
 import { el, slug, loadPref, savePref, readFileText, fmt } from './util.js';
 import { icon } from './icons.js';
 import { toast } from './ui.js';
@@ -58,7 +58,7 @@ export class Welcome {
   }
 
   // ---------------------------------------------------------------- layout
-  // A compact start page: one box for a sequence (or FASTA), four buttons, settings folded away.
+  // A compact start page: two cards side by side, prediction settings folded away.
   _build() {
     const app = this.app;
     this.viewerBtn = el('button', { class: 'btn', onclick: () => app.showPage('viewer') }, 'Open viewer', icon('next'));
@@ -70,7 +70,7 @@ export class Welcome {
       el('button', { class: 'btn ghost', title: 'User guide (F1)', onclick: () => import('./dialogs.js').then(m => m.userGuideDialog(app)) }, icon('book'), el('span', { text: 'User guide' })),
       el('button', { class: 'btn ghost small lang-btn', title: 'Interface language', 'aria-label': 'Interface language', onclick: e => app.languageMenu(e.currentTarget) }),
       this.themeBtn);
-    this.cards = el('div', { class: 'wl-cards' }, this._mainCard());
+    this.cards = el('div', { class: 'wl-cards' }, this._mainCard(), this._viewCard());
     this.progress = el('section', { class: 'wl-progress', hidden: true });
     this.batchBox = el('section', { class: 'wl-batch', hidden: true });
     this.recent = el('section', { class: 'wl-recent' });
@@ -81,6 +81,12 @@ export class Welcome {
       this.batchBox, this.cards, this.progress, this.recent);
     this.root.replaceChildren(top, main, el('footer', { class: 'wl-foot' }, this.sys));
     app._syncLanguage?.();
+  }
+
+  // The two ways to use RCV, side by side: 1 predict from sequence(s), 2 view structures of one RNA.
+  _cardHead(n, title, sub, alt = false) {
+    return el('div', { class: 'wl-card-head' }, el('span', { class: `wl-badge${alt ? ' alt' : ''}`, translate: 'no', text: n }),
+      el('div', {}, el('h2', { text: title }), el('p', { text: sub })));
   }
 
   _mainCard() {
@@ -112,14 +118,6 @@ export class Welcome {
     });
     for (const c of [this.seqIn, this.modelsIn, this.coresIn, this.ssIn]) c.addEventListener('input', () => this._estimate());
     this.seqIn.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) this.startPrediction(); });
-    // opening structures
-    this.fileIn = el('input', { type: 'file', multiple: true, accept: '.rcv,.pdb,.ent,.cif,.mmcif,.json', hidden: true });
-    this.fileIn.addEventListener('change', () => this.fileIn.files.length && app.openLocalFiles([...this.fileIn.files]));
-    const chooseFiles = async () => {
-      if (app.native?.available()) { const paths = await app.native.chooseFiles(); if (paths.length) await app.openNativePaths(paths); }
-      else this.fileIn.click();
-    };
-    this.demoBtn = el('button', { class: 'btn ghost', onclick: () => app.openDemo(), title: 'HIV-1 TAR NMR ensemble and two predictions' }, icon('cube'), 'Demo ensembles');
     this.adv = el('details', { class: 'wl-adv' }, el('summary', { text: 'Advanced settings' }),
       el('div', { class: 'grid2' },
         el('div', { class: 'field' }, el('label', { text: 'Name' }), this.nameIn),
@@ -131,19 +129,41 @@ export class Welcome {
         el('div', { class: 'field' }, el('label', { text: 'Known secondary structure (dot-bracket)' }), this.ssIn),
         el('div', { class: 'field' }, el('label', { text: 'Random seed' }), this.seedIn)),
       el('div', { class: 'wl-adv-links' },
-        el('button', { class: 'linkbtn', type: 'button', onclick: () => this.chooseFasta() }, 'Load a FASTA file…'),
-        el('button', { class: 'linkbtn', type: 'button', onclick: () => this.useDemo() }, `Fill in the demo sequence (${DEMO.label})`),
-        el('button', { class: 'linkbtn', type: 'button', onclick: () => app.openDialog('server') }, 'Browse folders…'),
-        el('button', { class: 'linkbtn', type: 'button', onclick: () => app.openDialog('library') }, 'All prediction runs…')));
+        el('button', { class: 'linkbtn', type: 'button', onclick: () => this.useDemo() }, `Fill in the demo sequence (${DEMO.label})`)));
     return el('section', { class: 'wl-card wl-main-card' },
-      this.seqIn, el('div', { class: 'wl-statusrow' }, this.seqStatus, el('span', { class: 'grow' }), this.estimate), this.batchList, this.fastaIn, this.fileIn,
+      this._cardHead('1', 'Predict RNA conformations from sequence(s)', 'Paste one sequence, or several in FASTA format. Runs on this computer.'),
+      this.seqIn, el('div', { class: 'wl-statusrow' }, this.seqStatus, el('span', { class: 'grow' }), this.estimate), this.batchList, this.fastaIn,
       el('div', { class: 'wl-actions' },
         this.predictBtn,
-        el('button', { class: 'btn', onclick: chooseFiles, title: 'Open an .rcv file, PDB/mmCIF files or a prediction folder' }, icon('open'), 'Open files…'),
+        el('button', { class: 'btn', onclick: () => this.chooseFasta() }, icon('open'), 'Load a FASTA file…')),
+      this.adv);
+  }
+
+  _viewCard() {
+    const app = this.app;
+    this.fileIn = el('input', { type: 'file', multiple: true, accept: '.rcv,.pdb,.ent,.cif,.mmcif,.json', hidden: true });
+    this.fileIn.addEventListener('change', () => this.fileIn.files.length && app.openLocalFiles([...this.fileIn.files]));
+    const chooseFiles = async () => {
+      if (app.native?.available()) { const paths = await app.native.chooseFiles(); if (paths.length) await app.openNativePaths(paths); }
+      else this.fileIn.click();
+    };
+    // a big target for files; a drop on it reaches the window's drop handler, which opens the files
+    const drop = el('button', { class: 'wl-drop', type: 'button', onclick: chooseFiles, title: 'Open an .rcv file, PDB/mmCIF files or a prediction folder' },
+      icon('open'), el('b', { text: 'Open files…' }),
+      el('span', { text: 'PDB/mmCIF, multi-model NMR or .rcv files, or a prediction folder. You can also drop them here.' }));
+    drop.addEventListener('dragover', () => drop.classList.add('over'));
+    drop.addEventListener('dragleave', e => { if (!drop.contains(e.relatedTarget)) drop.classList.remove('over'); });
+    drop.addEventListener('drop', () => drop.classList.remove('over'));
+    this.demoBtn = el('button', { class: 'btn ghost', onclick: () => app.openDemo(), title: 'HIV-1 TAR NMR ensemble and two predictions' }, icon('cube'), 'Demo ensembles');
+    return el('section', { class: 'wl-card wl-view-card' },
+      this._cardHead('2', 'View experimental or predicted structures of one RNA', 'Several files or a multi-model file open together as one ensemble.', true),
+      drop, this.fileIn,
+      el('div', { class: 'wl-actions' },
         el('button', { class: 'btn', onclick: () => app.fetchDialog(), title: 'Download a structure from the Protein Data Bank' }, icon('download'), 'Fetch PDB…'),
         this.demoBtn),
-      this.adv,
-      el('div', { class: 'wl-hint', text: 'Tip: drop .rcv, PDB/mmCIF or FASTA files anywhere in this window.' }));
+      el('div', { class: 'wl-adv-links' },
+        el('button', { class: 'linkbtn', type: 'button', onclick: () => app.openDialog('server') }, 'Browse folders…'),
+        el('button', { class: 'linkbtn', type: 'button', onclick: () => app.openDialog('library') }, 'All prediction runs…')));
   }
 
   // ---------------------------------------------------------------- state

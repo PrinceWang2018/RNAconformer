@@ -177,11 +177,26 @@ export async function closeup(app, w, log, sleep) {
 export async function welcome(app, w, log, sleep) {
   app.showPage('welcome');
   const W = app.welcome;
+  // 0.7.1: the two ways to use RCV, side by side (1 predict from sequence(s), 2 view structures of one RNA)
+  const cards = [...w.document.querySelectorAll('.wl-cards > .wl-card')];
+  const heads = cards.map(c => c.querySelector('.wl-card-head h2')?.textContent);
+  if (cards.length !== 2 || !/^Predict/.test(heads[0]) || !/^View/.test(heads[1])) throw new Error('ways to start: ' + heads.join(' | '));
+  if (!cards[0].contains(W.seqIn) || !cards[1].querySelector('.wl-drop')) throw new Error('card contents');
+  const [a, b] = cards.map(c => c.getBoundingClientRect());
+  if (Math.abs(a.top - b.top) > 1) throw new Error('cards are not side by side');
   W.seqIn.value = '>HIV1_TAR\nGGCAGAUCUGAGCCUGGGAGCUCUCUGCC';
   W.seqIn.dispatchEvent(new w.Event('input'));
   await sleep(600);
   if (W.predictBtn.disabled) throw new Error('predict button disabled for a valid sequence');
-  log('status', W.seqStatus.textContent, '|', W.estimate.textContent, '| gpu', app.viewer.gpuName());
+  log('ways', heads.join(' | '), '| status', W.seqStatus.textContent, '|', W.estimate.textContent, '| gpu', app.viewer.gpuName());
+}
+
+// Start page in the dark theme (screenshot).
+export async function welcomedark(app, w, log, sleep) {
+  app.setTheme('dark', false);
+  app.showPage('welcome');
+  await sleep(600);
+  log('theme', w.document.documentElement.dataset.theme);
 }
 
 // Drag a residue toward where it sits in another conformation, release, and check the switch.

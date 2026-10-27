@@ -8,10 +8,11 @@ and analyses of how an RNA switches between its conformations. Free and open sou
 
 **Author:** Zixiang Wang · princewang2018@gmail.com
 
-* **Start page** — one box: paste a sequence (empty = demo sequence) or a **multi-sequence FASTA for batch
-  prediction** (live stages, time left, notes; choose which result to open), open your own structures (NMR
-  ensembles, MD snapshots, any predictor, earlier runs, `.rcv` files) or **fetch a PDB entry**; everything else
-  is under *Advanced settings*.
+* **Start page: the two ways to use RCV** *(0.7.1)* — **1 · predict RNA conformations from sequence(s)**: paste a
+  sequence (empty = demo sequence) or a **multi-sequence FASTA for batch prediction** (live stages, time left,
+  notes; choose which result to open), settings under *Advanced settings*; **2 · view experimental or predicted
+  structures of one RNA**: open NMR ensembles, MD snapshots, models of any predictor, earlier runs or `.rcv` files
+  (several files open together as one ensemble), or **fetch a PDB entry**.
 * **A desktop program, not a web page** — mouse tools (select, pull, paint, label, measure), **undo / redo /
   clear**, RCV's own right-click menus, no accidental text selection; the command-line tools are in the
   **Tools** menu.
@@ -116,7 +117,7 @@ python -m rnafold3d ss --fasta my_rna.fa
 
 # RCV app with a run folder, an .rcv file, an NMR/multi-model file, or several models of one RNA
 rcv runs/my_rna
-rcv models/*.pdb --chain A
+rcv models/*.pdb --chain A                     # several files of one RNA = one ensemble (wildcards work on Windows too)
 rcv convert runs/my_rna -o my_rna.rcv          # one compact file with every conformation
 rcv info my_rna.rcv --methods                   # what it contains (+ methods paragraph)
 rcv extract my_rna.rcv -o pdb/                  # back to PDB files

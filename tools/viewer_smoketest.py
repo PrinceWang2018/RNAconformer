@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from rcv.desktop import find_browser, _is_wsl  # noqa: E402
 
-SCREENSHOT = ['overview', 'morph', 'dark', 'overlay', 'welcome', 'welcomebatch', 'ss2d', 'console1', 'switchtab', 'panels', 'transitionframe',
+SCREENSHOT = ['overview', 'morph', 'dark', 'overlay', 'welcome', 'welcomedark', 'welcomebatch', 'ss2d', 'console1', 'switchtab', 'panels', 'transitionframe',
               'tools2', 'plots', 'plotsall', 'surface1', 'pathwayshot', 'pathwayshot2', 'landmap', 'plots07', 'confshot', 'pathwayzh', 'docpathway', 'plugindev', 'panelsize', 'winmax', 'langzh', 'langde', 'langja', 'guide1']
 REALTIME = ['pull', 'plugins', 'trackersave', 'pathway1', 'pathwaybasin', 'probing1', 'conditions1', 'htmlpage07', 'confidence1', 'i18n07', 'exports', 'video', 'transition', 'rcvsave', 'htmlexport', 'ctxmenu', 'script1', 'tools1', 'pdffont', 'native1', 'perf',
             'welcomedemo', 'batchui', 'windows1', 'lang1',

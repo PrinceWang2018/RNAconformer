@@ -4,7 +4,7 @@
 # Debian 11+, Fedora, RHEL/Rocky/Alma 9+) and test-installed on several distributions.
 #
 #   Run it by hand:  Actions > Build installers > Run workflow      (installers appear as a download on the run)
-#   Or push a tag:   git tag v0.7.0 && git push origin v0.7.0
+#   Or push a tag:   git tag v0.7.1 && git push origin v0.7.1
 #
 # For a tag, the installers are also attached to a release of the website repository (where the download
 # links of www.rnaconfviewer.com point) when the secret WEBSITE_RELEASE_TOKEN is set: a fine-grained token with

@@ -1,7 +1,7 @@
 ; Inno Setup script for the RCV Windows installer (built by packaging\build_windows.ps1).
 ;   Inputs: dist\RCV (PyInstaller one-folder build) and build\docs_html (python packaging\make_docs.py build\docs_html).
 #ifndef AppVersion
-  #define AppVersion "0.7.0"
+  #define AppVersion "0.7.1"
 #endif
 
 [Setup]

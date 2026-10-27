@@ -13,7 +13,7 @@ data**, and read a per-nucleotide **confidence** from a small optional neural ne
 cores, the 3D view uses your GPU; no data leave the machine (except *Fetch from the PDB*, which downloads an entry
 only when you ask for it).
 
-Version 0.7.0, 2026-10-25. Earlier names: RNAconfSwitch (0.4), RNAconformer Viewer (0.3). Free and open-source
+Version 0.7.1, 2026-10-27. Earlier names: RNAconfSwitch (0.4), RNAconformer Viewer (0.3). Free and open-source
 software (GPL-3.0). **Author:** Zixiang Wang (princewang2018@gmail.com).
 
 ![Viewer: TAR ensemble with the sequence bar, the 2D window and the Switch tab](images/rcv_viewer.png)
@@ -53,14 +53,21 @@ pip install -e .                 # or: export PYTHONPATH=src
 rcv                              # start page
 rcv tar.rcv                      # open an .rcv file (with its saved view)
 rcv runs/my_rna                  # open an rnafold3d run (keeps engine scores)
-rcv models/*.pdb                 # several files of the same RNA, one conformation each
+rcv models/*.pdb                 # several files of one RNA: one ensemble, one conformation per file
+rcv models/                      # the same from a folder
 rcv 1ANR.cif                     # multi-model file: one conformation per model
 rcv --demo                       # HIV-1 TAR NMR ensemble + two predictions
 python -m rcv ...                # same without installing the command
 ```
 
+**Several structure files** given on the command line open together as **one ensemble**, in file-name order
+(`model_2` before `model_10`); the first is the reference for superposition. Wildcards such as `models\*.pdb`
+work in every shell, also in the Windows Command Prompt and PowerShell, which do not expand them themselves.
+Every `.rcv` file, prediction folder or folder of structures opens as an ensemble of its own. Files of different
+RNAs given together open as one ensemble per RNA; `--separate` opens every file on its own.
+
 Options: `--shell auto|webview|window|browser|none`, `--port 8765`, `--projects-dir DIR` (default
-`Documents/RCV/projects`, also in View ▸ Preferences), `--chain B`, `--keep-running`, `--verbose`.
+`Documents/RCV/projects`, also in View ▸ Preferences), `--chain B`, `--separate`, `--keep-running`, `--verbose`.
 
 Command-line tools (no window) — the same tools are in the **Tools** menu of the window (section 4):
 
@@ -93,9 +100,11 @@ settings, plugins and projects of RNAconfSwitch 0.4 are still found.
 
 ## 2. Start page
 
-![Start page with a FASTA batch](images/rcv_welcome.png)
+![Start page: the two ways to use RCV](images/rcv_welcome.png)
 
-The start page is one box and four buttons:
+The start page shows the **two ways to use RCV**, side by side:
+
+**1 · Predict RNA conformations from sequence(s)**
 
 * **Paste a sequence** (plain or FASTA; T is read as U) and press **Predict conformations** (or `Ctrl+Enter`).
   The line under the box checks the input as you type and estimates the run time.
@@ -103,16 +112,23 @@ The start page is one box and four buttons:
   * **Several sequences** (multi-record FASTA; a dot-bracket line after a sequence is used as its known 2D):
     RCV lists them with a check per sequence and offers **Predict N sequences** — a **batch** run, one
     prediction after another, each on all chosen cores (up to 100 sequences).
-* **Open files…** — an `.rcv` file, PDB/mmCIF files, a multi-model (NMR) file, a prediction folder or a workspace.
-  Files can also be dropped anywhere on the window.
+* **Load a FASTA file…** — fills the box from a file (a FASTA file dropped on the box works too).
+* **Advanced settings** (closed by default): name, number of conformations to keep, sampling depth (Fast /
+  Standard / Thorough = 2 / 4 / 8 trajectories per kept conformation), CPU cores, a known secondary structure
+  (dot-bracket), the random seed, *Fill in the demo sequence*.
+
+**2 · View experimental or predicted structures of one RNA**
+
+* **Open files…** (or drop files on the card, or anywhere on the window) — PDB/mmCIF files, a multi-model (NMR)
+  file, an `.rcv` file, a prediction folder or a workspace. Several structure files, or the models of one
+  multi-model file, open together as **one ensemble** of the same RNA (section 11).
 * **Fetch PDB…** — type a 4-character PDB ID (e.g. `1ANR`, `1EHZ`), optionally a chain; RCV downloads the mmCIF
   from the RCSB PDB into `projects/fetched/` and opens it. Nothing is downloaded unless you do this.
 * **Demo ensembles** — the HIV-1 TAR NMR ensemble and two predictions.
-* **Advanced settings** (closed by default): name, number of conformations to keep, sampling depth (Fast /
-  Standard / Thorough = 2 / 4 / 8 trajectories per kept conformation), CPU cores, a known secondary structure
-  (dot-bracket), the random seed, *Load a FASTA file…*, *Fill in the demo sequence*, *Browse folders…*, *All
-  prediction runs…*.
-* **Recent predictions** — the latest runs in the projects folder (including RNAconfSwitch 0.4 runs).
+* *Browse folders…* and *All prediction runs…* open folders and earlier predictions.
+
+**Recent predictions** below the cards lists the latest runs in the projects folder (including RNAconfSwitch 0.4
+runs).
 
 ## 3. Prediction progress and batch results
 
@@ -439,8 +455,9 @@ All of these, plus custom colours, labels and hidden or highlighted residues, ar
   RCV knows about them. Typically **10–14× smaller than the same models as PDB** (e.g. 20-model TAR NMR
   ensemble: 77 kB vs 1.0 MB), while also containing energies, 2D structures and layouts, validation reports,
   provenance and your view. Opening it is instant (no re-evaluation).
-* **Structures**: PDB, mmCIF, multi-model files, rnafold3d run folders. All conformations must be the same RNA
-  (matched by position when the sequences are identical, else by author numbering).
+* **Structures**: PDB, mmCIF, multi-model files, rnafold3d run folders. Files opened together form one ensemble,
+  in file-name order (`model_2` before `model_10`). All conformations must be the same RNA (matched by position
+  when the sequences are identical, else by author numbering).
 * **Workspace** (`Ctrl+Shift+S`): every open ensemble in one JSON file (larger; opens without the engine).
   RNAconfSwitch sessions (`.rnaconf.json`) and older `.rnaview.json` files still open.
 

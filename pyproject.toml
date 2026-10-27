@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rna-conformation-viewer"
-version = "0.7.0"
+version = "0.7.1"
 description = "RCV (RNA Conformation Viewer): predict, explore and present RNA conformational ensembles locally (physics-inspired engine, no deep learning)"
 requires-python = ">=3.10"
 authors = [{name = "Zixiang Wang", email = "princewang2018@gmail.com"}]

@@ -11,11 +11,27 @@ for _v in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'):
     _os.environ.setdefault(_v, '1')   # one BLAS thread per process; parallelism is across trajectories
 
 import argparse
+import glob
 import json
 import os
+import re
 import sys
 
 from .predict import PredictConfig, predict, read_fasta, read_dbn, normalize_sequence
+
+
+def expand_files(files):
+    """Wildcards expanded here too (the Windows shells pass model_*.pdb on unexpanded); model_2 before model_10."""
+    out = []
+    for f in files:
+        if any(c in f for c in '*?[') and not os.path.exists(f):
+            hits = glob.glob(os.path.expanduser(f))
+            if not hits:
+                raise FileNotFoundError(f'no files match {f}')
+            out += sorted(hits, key=lambda h: [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', h)])
+        else:
+            out.append(f)
+    return out
 
 
 def _predict(a):
@@ -148,7 +164,7 @@ def main(argv=None):
     im.set_defaults(func=_import)
     vw = sub.add_parser('view', help='open the RCV application (same as the rcv command)')
     vw.add_argument('paths', nargs='*', help='ensemble package folders, PDB/mmCIF files or folders of them '
-                                             '(each argument becomes one ensemble)')
+                                             '(structure files given together become one ensemble)')
     vw.add_argument('--port', type=int, default=8765)
     vw.add_argument('--no-browser', action='store_true', help='only print the URL')
     vw.add_argument('--browser-tab', action='store_true', help='open in a normal browser tab instead of an app window')
@@ -165,6 +181,8 @@ def main(argv=None):
     ev.set_defaults(func=_export_view)
     a = ap.parse_args(argv)
     try:
+        if a.cmd in ('validate', 'import'):
+            a.files = expand_files(a.files)
         return a.func(a)
     except (ValueError, FileNotFoundError, RuntimeError) as exc:
         print(f'rnafold3d {a.cmd}: error: {exc}', file=sys.stderr)

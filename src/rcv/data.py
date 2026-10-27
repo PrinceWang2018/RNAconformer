@@ -5,10 +5,11 @@ Sources
     * any set of PDB / mmCIF files, single- or multi-model (NMR ensembles, MD snapshots, other predictors)
     * in-memory uploads ({name, text}) from the GUI
 
-All conformations must be the same RNA: residues are matched by author numbering and must carry
-the same nucleotides. The document holds one shared atom table, per-conformation coordinates
-(superposed on the first conformation), base pairs, helix families, energy terms (engine scores
-when available plus the model-independent evaluator) and ensemble statistics.
+Files are read in file-name order (model_2 before model_10). All conformations must be the same RNA:
+residues are matched by position when every structure has the same sequence, else by author numbering,
+and must carry the same nucleotides (DifferentRNAError otherwise). The document holds one shared atom
+table, per-conformation coordinates (superposed on the first conformation), base pairs, helix families,
+energy terms (engine scores when available plus the model-independent evaluator) and ensemble statistics.
 """
 from __future__ import annotations
 
@@ -58,7 +59,12 @@ class Conformation:
         self.residues, self.meta, self.title = residues, meta or {}, title
 
 
-def _natural_key(s):
+class DifferentRNAError(ValueError):
+    """The structures given together are not all the same RNA."""
+
+
+def natural_key(s):
+    """Sort key that puts model_2 before model_10."""
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', str(s))]
 
 
@@ -115,13 +121,15 @@ def collect_paths(paths, chain_id=None):
     files = []
     for p in paths:
         if p.is_dir():
-            files += sorted((f for f in p.iterdir() if f.suffix.lower() in STRUCT_EXT), key=_natural_key)
+            files += [f for f in p.iterdir() if f.suffix.lower() in STRUCT_EXT]
         elif p.exists():
             files.append(p)
         else:
             raise FileNotFoundError(f'not found: {p}')
     if not files:
         raise ValueError('no PDB/mmCIF files found')
+    # conformations in file-name order, whatever order the shell passed the files in (as for folders and uploads)
+    files = sorted({f.resolve(): f for f in reversed(files)}.values(), key=lambda f: (natural_key(f.name), natural_key(f)))
     confs = []
     for f in files:
         confs += _models_to_confs(read_models(f), f.name, chain_id, warnings, single_file=len(files) == 1)
@@ -159,7 +167,7 @@ def collect_uploads(files, chain_id=None):
                 name = manifest.get('input', {}).get('name') or 'ensemble'
                 return name, confs, manifest, warnings, {'kind': 'upload-package'}
     confs = []
-    names = sorted((k for k in by_name if k.lower().endswith(STRUCT_EXT)), key=_natural_key)
+    names = sorted((k for k in by_name if k.lower().endswith(STRUCT_EXT)), key=natural_key)
     if not names:
         raise ValueError('no PDB/mmCIF files among the uploaded files')
     for k in names:
@@ -330,8 +338,8 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
         common &= set(km)
     order = [k for k in ref_keys if k in common]
     if len(order) < max(2, 0.5 * len(ref_keys)):
-        raise ValueError('the structures do not share the same residues; all conformations must be the same RNA '
-                         f'({len(order)} common of {len(ref_keys)} residues)')
+        raise DifferentRNAError('the structures do not share the same residues; all conformations must be the '
+                                f'same RNA ({len(order)} common of {len(ref_keys)} residues)')
     if len(order) < len(ref_keys) or any(len(m) > len(order) for m in per_conf_maps):
         warnings.add(f'{len(order)} residues are present in every conformation; residues missing from any '
                      'conformation are not shown.')
@@ -339,8 +347,8 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
     for k in order:
         bases = {m[k].base for m in per_conf_maps}
         if len(bases) > 1:
-            raise ValueError(f'residue {k[0]}{k[1]} differs between conformations ({"/".join(sorted(bases))}); '
-                             'all conformations must have the same sequence')
+            raise DifferentRNAError(f'residue {k[0]}{k[1]} differs between conformations '
+                                    f'({"/".join(sorted(bases))}); all conformations must have the same sequence')
         seq += per_conf_maps[0][k].base
 
     # --- shared atom table (atoms present in every conformation)

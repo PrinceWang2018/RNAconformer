@@ -1,4 +1,4 @@
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 from .core import parse, aform_stem, transform, endpoint_reachable
 from .topology import build_topology
 from .geometry import aform_three_site, rigid_transform_sites, stem_endpoint_frames

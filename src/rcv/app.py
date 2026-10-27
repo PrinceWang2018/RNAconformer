@@ -1,6 +1,7 @@
 """RCV (RNA Conformation Viewer) entry point.
 
-    rcv [PATH ...]                 open the app (start page, or the given ensembles / .rcv files)
+    rcv [PATH ...]                 open the app (start page, or the given ensembles / .rcv files);
+                                   structure files given together open as one ensemble (rcv models/*.pdb)
     rcv engine predict ...         run the bundled prediction engine (rnafold3d CLI)
     rcv export-document PATH --out doc.json
     rcv convert PATH ... -o ensemble.rcv     structures / prediction folder -> one .rcv file
@@ -12,18 +13,62 @@
     rcv probing INPUT --data FILE [--dms]    agreement with SHAPE/DMS reactivities, maximum-entropy reweighting
     rcv confidence INPUT                     predicted per-nucleotide accuracy (confidence model)
 
-Options: --shell auto|webview|window|browser|none, --port, --demo, --projects-dir, --chain, --verbose.
+Options: --shell auto|webview|window|browser|none, --port, --demo, --projects-dir, --chain, --separate, --verbose.
 """
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import multiprocessing
+import os
 import sys
 import threading
 import time
+from pathlib import Path
 
 from . import APP_NAME, __version__
+
+
+# ----------------------------------------------------------------------------- command-line paths
+def expand_paths(args):
+    """Expand wildcards here as well: Windows shells (cmd, PowerShell) pass models\\*.pdb on unexpanded."""
+    from .data import natural_key
+    out = []
+    for arg in args:
+        arg = str(arg)
+        if any(c in arg for c in '*?[') and not Path(arg).expanduser().exists():
+            hits = glob.glob(os.path.expanduser(arg), recursive=True)
+            if not hits:
+                raise FileNotFoundError(f'no files match {arg}')
+            out += sorted(hits, key=natural_key)
+        else:
+            out.append(arg)
+    return out
+
+
+def ensemble_groups(paths, separate=False):
+    """How command-line paths open: all plain structure files together as one ensemble (unless separate), and
+    every .rcv file, prediction folder or folder of structures as an ensemble of its own."""
+    from .data import STRUCT_EXT
+    groups, structures = [], None
+    for p in paths:
+        if not separate and Path(p).suffix.lower() in STRUCT_EXT and not Path(p).is_dir():
+            if structures is None:
+                structures = []
+                groups.append(structures)
+            structures.append(p)
+        else:
+            groups.append([p])
+    return groups
+
+
+def _cli_paths(paths):
+    """expand_paths for the subcommands: an unmatched wildcard ends the command with a short message."""
+    try:
+        return expand_paths(paths)
+    except FileNotFoundError as exc:
+        raise SystemExit(f'rcv: {exc}')
 
 
 def _engine(argv):
@@ -39,7 +84,7 @@ def _export_document(argv):
     ap.add_argument('--name')
     a = ap.parse_args(argv)
     from .data import load_document
-    doc = load_document(a.paths, chain_id=a.chain, name=a.name)
+    doc = load_document(_cli_paths(a.paths), chain_id=a.chain, name=a.name)
     text = json.dumps(doc, separators=(',', ':'))
     if a.out == '-':
         print(text)
@@ -62,7 +107,7 @@ def _convert(argv):
     from .data import collect_paths, build_document
     from .methods import methods_text
     from .server import vienna_version
-    nm, confs, manifest, warnings, source = collect_paths(a.paths, a.chain)
+    nm, confs, manifest, warnings, source = collect_paths(_cli_paths(a.paths), a.chain)
     doc = build_document(a.name or nm, confs, manifest, warnings, source)
     out = a.out if a.out.lower().endswith('.rcv') else a.out + '.rcv'
     size = rcvfile.write(out, doc, methods=methods_text(doc, vienna_version()), provenance_manifest=manifest,
@@ -103,7 +148,6 @@ def _extract(argv):
     ap.add_argument('-o', '--out', required=True, help='output folder (or file with --multi)')
     ap.add_argument('--multi', action='store_true', help='one multi-model PDB file instead of one file per conformation')
     a = ap.parse_args(argv)
-    from pathlib import Path
     from . import rcvfile
     doc, _, _ = rcvfile.read(a.file)
     if a.multi:
@@ -129,7 +173,6 @@ def _batch(argv):
     ap.add_argument('--cores', type=int)
     ap.add_argument('--seed', type=int, default=42)
     a = ap.parse_args(argv)
-    from pathlib import Path
     from . import paths as P
     from .jobs import BatchJob
     from .server import AppState
@@ -159,17 +202,10 @@ def _html(argv):
     ap.add_argument('-o', '--out', required=True)
     ap.add_argument('--title')
     a = ap.parse_args(argv)
-    from pathlib import Path
-    from . import rcvfile
     from .htmlexport import build_html
     from .methods import methods_text
     from .server import vienna_version
-    if len(a.paths) == 1 and a.paths[0].lower().endswith('.rcv'):
-        doc, session, _ = rcvfile.read(a.paths[0])
-        view = (session or {}).get('view')
-    else:
-        from .data import load_document
-        doc, view = load_document(a.paths), None
+    doc, view = _load_any(a.paths)
     Path(a.out).write_text(build_html(doc, view, a.title, methods_text(doc, vienna_version())), encoding='utf-8')
     print(json.dumps({'out': a.out, 'bytes': Path(a.out).stat().st_size, 'conformations': len(doc['conformations'])}))
     return 0
@@ -178,6 +214,7 @@ def _html(argv):
 def _load_any(paths):
     """Document (and saved view) of an .rcv file or of structures / a prediction folder."""
     from . import rcvfile
+    paths = _cli_paths(paths)
     if len(paths) == 1 and paths[0].lower().endswith('.rcv'):
         doc, session, _ = rcvfile.read(paths[0])
         return doc, (session or {}).get('view')
@@ -283,7 +320,6 @@ def _probing(argv):
     ap.add_argument('--theta', type=float, help='reweighting strength (default 0.1 x number of data points)')
     ap.add_argument('-o', '--out', help='write the result as JSON')
     a = ap.parse_args(argv)
-    from pathlib import Path
     from . import probing
     doc, _ = _load_any(a.paths)
     kind = 'DMS' if a.dms else 'SHAPE'
@@ -339,18 +375,70 @@ def parser():
                                         '  rcv confidence x.rcv             predicted per-nucleotide accuracy\n'
                                         '  rcv engine predict|ss|validate   the rnafold3d prediction engine\n'
                                         '  rcv export-document PATH --out doc.json')
-    ap.add_argument('paths', nargs='*', help='rnafold3d run folders, PDB/mmCIF files (multi-model files give one '
-                                             'conformation per model) or folders of them; each argument opens as one ensemble')
+    ap.add_argument('paths', nargs='*', help='PDB/mmCIF files of one RNA (given together they open as one ensemble; '
+                                             'wildcards such as models/*.pdb also work in Windows shells; a multi-model '
+                                             'file gives one conformation per model), .rcv files, prediction folders or '
+                                             'folders of structures (each of these opens as an ensemble of its own)')
     ap.add_argument('--shell', choices=['auto', 'webview', 'window', 'browser', 'none'], default='auto',
                     help='window type (default: native window if pywebview is installed, else an Edge/Chrome app window)')
     ap.add_argument('--port', type=int, default=8765, help='local port (default 8765; the next free one is used if busy)')
     ap.add_argument('--demo', action='store_true', help='open the demo ensembles')
     ap.add_argument('--projects-dir', help='folder for predictions (default: Documents/RCV/projects)')
     ap.add_argument('--chain', help='RNA chain to show when files contain several')
+    ap.add_argument('--separate', action='store_true', help='open every structure file as an ensemble of its own')
     ap.add_argument('--keep-running', action='store_true', help='do not quit when the window is closed')
     ap.add_argument('--verbose', action='store_true')
     ap.add_argument('--version', action='version', version=f'{APP_NAME} {__version__}')
     return ap
+
+
+def _open_groups(args, separate, print_error):
+    """Path groups to open from the command line (an unmatched wildcard is reported and skipped)."""
+    paths = []
+    for arg in args:
+        try:
+            paths += expand_paths([arg])
+        except FileNotFoundError as exc:
+            print_error(f'could not open {arg}: {exc}')
+    return ensemble_groups(paths, separate)
+
+
+def _opened(s):
+    print(f'opened {s["name"]}: {s["n_conformations"]} conformations, {s["length"]} nt', flush=True)
+
+
+def _open_group(state, group, chain):
+    """Open one group of paths. Structure files of different RNAs open as one ensemble per RNA (same sequence)."""
+    from .data import DifferentRNAError, collect_paths
+
+    def try_open(files):
+        try:
+            _opened(state.open_paths(files, chain))
+        except Exception as exc:
+            what = files[0] if len(files) == 1 else f'{len(files)} structure files'
+            print(f'could not open {what}: {exc}', file=sys.stderr, flush=True)
+    if len(group) == 1:
+        return try_open(group)
+    try:
+        return _opened(state.open_paths(group, chain))
+    except DifferentRNAError:
+        pass
+    except Exception as exc:
+        print(f'could not open {len(group)} structure files: {exc}', file=sys.stderr, flush=True)
+        return
+    by_rna = {}
+    for p in group:
+        try:
+            confs = collect_paths([p], chain)[1]
+            key = ''.join(r.base for r in confs[0].residues)
+        except Exception:
+            key = p                         # unreadable: on its own, so its error names this file
+        by_rna.setdefault(key, []).append(p)
+    parts = list(by_rna.values()) if len(by_rna) > 1 else [[p] for p in group]
+    print(f'the {len(group)} structure files are not all the same RNA: opening them as {len(parts)} ensembles'
+          + (' (one per RNA)' if len(by_rna) > 1 else ''), file=sys.stderr, flush=True)
+    for files in parts:
+        try_open(files)
 
 
 def run(a, ready=None):
@@ -358,17 +446,12 @@ def run(a, ready=None):
     from .server import make_server
     from . import paths as P
     server, state = make_server(a.port, a.verbose, a.projects_dir)
-    for p in a.paths:
-        try:
-            s = state.open_paths([p], a.chain)
-            print(f'opened {s["name"]}: {s["n_conformations"]} conformations, {s["length"]} nt', flush=True)
-        except Exception as exc:
-            print(f'could not open {p}: {exc}', file=sys.stderr, flush=True)
+    for group in _open_groups(a.paths, a.separate, print_error=lambda m: print(m, file=sys.stderr, flush=True)):
+        _open_group(state, group, a.chain)
     if a.demo and P.demo_dir():
         for name in ('HIV1_TAR_NMR_1ANR.pdb', 'HIV1_TAR_prediction', '1EHZ_tRNA_prediction'):
             if (P.demo_dir() / name).exists():
-                s = state.open_paths([P.demo_dir() / name])
-                print(f'opened {s["name"]}: {s["n_conformations"]} conformations, {s["length"]} nt', flush=True)
+                _opened(state.open_paths([P.demo_dir() / name]))
     threading.Thread(target=server.serve_forever, kwargs={'poll_interval': 0.3}, daemon=True).start()
     url = f'http://localhost:{server.server_address[1]}/#token={state.token}'
     print(f'{APP_NAME} {__version__} running at {url}', flush=True)

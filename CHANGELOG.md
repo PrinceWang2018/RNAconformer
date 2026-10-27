@@ -1,5 +1,30 @@
 # Changelog
 
+## Package 0.7.1 — 2026-10-27 — RCV · RNA Conformation Viewer
+
+### Changed
+- **Start page: the two ways to use RCV, side by side.** Card 1, *Predict RNA conformations from sequence(s)*: the
+  sequence box (one sequence, or several in FASTA format), *Predict conformations*, *Load a FASTA file…* and the
+  advanced settings. Card 2, *View experimental or predicted structures of one RNA*: a large *Open files…* target
+  (files can be dropped on it), *Fetch PDB…*, *Demo ensembles*, *Browse folders…* and *All prediction runs…*. The
+  new text is in all 10 interface languages.
+- **Command line: structure files given together open as one ensemble.** `rcv models/*.pdb` (or
+  `rcv a.pdb b.cif …`) opens one ensemble with one conformation per file (one per model for multi-model files);
+  before, every argument opened as an ensemble of its own. `.rcv` files, prediction folders and folders of
+  structures still open on their own. Files of different RNAs given together open as one ensemble per RNA, with a
+  note; `--separate` opens every file on its own.
+- **Wildcards work on Windows.** The Command Prompt and PowerShell pass `models\*.pdb` on unexpanded, so RCV
+  expands it itself, for `rcv`, `rcv convert`, `rcv html`, `rcv pathway`, `rcv probing`, `rcv confidence`,
+  `rcv export-document`, `rnafold3d import` and `rnafold3d validate`. A pattern that matches nothing gives a short
+  message.
+- Structure files are read in file-name order everywhere (`model_2` before `model_10`), whatever order the shell
+  passes them in, as already for folders and the Open dialog; the first is the reference for superposition.
+  Duplicate paths are read once.
+
+### Added
+- `DifferentRNAError` (`rcv.data`) for structures that are not all the same RNA; `rcv.app.expand_paths` and
+  `rcv.app.ensemble_groups`. Test: `tests/test_app.py::TestCli::test_structure_files_open_as_one_ensemble`.
+
 ## Package 0.7.0 — 2026-10-26 — RCV · RNA Conformation Viewer
 
 From pictures of conformations to the mechanism between them: how A turns into B, how fast, through which

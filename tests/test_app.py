@@ -226,6 +226,37 @@ class TestCli(unittest.TestCase):
             out2 = Path(tmp) / 'doc2.json'
             self.assertEqual(engine_main(['export-view', str(PRED), '--out', str(out2)]), 0)   # engine CLI forwards
 
+    def test_structure_files_open_as_one_ensemble(self):
+        # 0.7.1: `rcv models/*.pdb` gives one ensemble; wildcards are expanded by RCV as well (Windows shells pass
+        # them on unexpanded); files of different RNAs open as one ensemble per RNA
+        import contextlib
+        import io
+        from rcv.app import _open_group, ensemble_groups, expand_paths
+        from rcv.data import DifferentRNAError, collect_paths
+        trna = DEMO / '1EHZ_tRNA_prediction' / 'conformations' / 'conf_001.pdb'
+        with tempfile.TemporaryDirectory() as tmp:
+            models = read_models(NMR)
+            for k in (1, 2, 10):                       # written so that the shell order (1, 10, 2) differs
+                (Path(tmp) / f'model_{k}.pdb').write_text(_model_text(models[k - 1][1]['A']))
+            files = expand_paths([str(Path(tmp) / 'model_*.pdb')])
+            self.assertEqual([Path(f).name for f in files], ['model_1.pdb', 'model_2.pdb', 'model_10.pdb'])
+            with self.assertRaises(FileNotFoundError):
+                expand_paths([str(Path(tmp) / 'nothing_*.pdb')])
+            shell_order = [str(Path(tmp) / n) for n in ('model_1.pdb', 'model_10.pdb', 'model_2.pdb')]
+            self.assertEqual([c.label for c in collect_paths(shell_order)[1]], ['model_1', 'model_2', 'model_10'])
+            groups = ensemble_groups(shell_order + ['x.rcv', str(PRED), str(trna)])
+            self.assertEqual(groups, [shell_order + [str(trna)], ['x.rcv'], [str(PRED)]])
+            self.assertEqual(len(ensemble_groups(shell_order, separate=True)), 3)
+            with self.assertRaises(DifferentRNAError):
+                load_document(shell_order + [str(trna)])
+            state = srv.AppState(Path(tmp) / 'runs', [], [])
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                _open_group(state, shell_order + [str(trna)], None)
+            sizes = sorted((len(e.doc['sequence']), len(e.doc['conformations'])) for e in state.entries.values())
+            self.assertEqual(sizes, [(29, 3), (76, 1)])           # TAR models together, the tRNA on its own
+            self.assertIn('one per RNA', err.getvalue())
+
 
 class TestJobs(unittest.TestCase):
     def test_pull_restraints_tie_pulled_residue_to_unmoved_anchors(self):
