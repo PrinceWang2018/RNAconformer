@@ -1,0 +1,62 @@
+{
+ "targets": 15,
+ "methods": {
+  "rcv": {
+   "label": "RCV 0.7.2 (rnafold3d, physics-based)",
+   "n": 15,
+   "mean_top1_tm": 0.251,
+   "mean_best5_tm": 0.283,
+   "median_top1_rmsd": 15.35,
+   "median_best5_rmsd": 14.88,
+   "top1_tm_ge_0.45": 0,
+   "mean_top1_inf_wc": 0.748
+  },
+  "304": {
+   "label": "AlphaFold 3 (AF3-server)",
+   "n": 15,
+   "mean_top1_tm": 0.48,
+   "mean_best5_tm": 0.501,
+   "median_top1_rmsd": 8.58,
+   "median_best5_rmsd": 8.29,
+   "top1_tm_ge_0.45": 8,
+   "mean_top1_inf_wc": 0.918
+  },
+  "052": {
+   "label": "trRosettaRNA (Yang-Server)",
+   "n": 15,
+   "mean_top1_tm": 0.493,
+   "mean_best5_tm": 0.539,
+   "median_top1_rmsd": 9.38,
+   "median_best5_rmsd": 4.97,
+   "top1_tm_ge_0.45": 9,
+   "mean_top1_inf_wc": 0.855
+  },
+  "481": {
+   "label": "Vfold",
+   "n": 15,
+   "mean_top1_tm": 0.534,
+   "mean_best5_tm": 0.565,
+   "median_top1_rmsd": 3.51,
+   "median_best5_rmsd": 3.09,
+   "top1_tm_ge_0.45": 10,
+   "mean_top1_inf_wc": 0.914
+  },
+  "183": {
+   "label": "GuangzhouRNA-human",
+   "n": 15,
+   "mean_top1_tm": 0.526,
+   "mean_best5_tm": 0.548,
+   "median_top1_rmsd": 5.81,
+   "median_best5_rmsd": 3.81,
+   "top1_tm_ge_0.45": 9,
+   "mean_top1_inf_wc": 0.928
+  }
+ },
+ "rcv_vs_af3": {
+  "targets": 15,
+  "rcv_top1_better_or_within_0.02": 3,
+  "rcv_best5_better_or_within_0.02": 3
+ },
+ "casp_median_group_mean_top1_tm": 0.453,
+ "rcv_mean_fraction_of_groups_beaten": 0.263
+}

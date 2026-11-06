@@ -36,7 +36,7 @@ from .search import Scorer, ScoreWeights, AnnealConfig, anneal
 from .structure_io import write_pdb, write_mmcif
 
 ENGINE = 'rnafold3d-v2-foldtree'
-ENGINE_VERSION = '2.0.1'
+ENGINE_VERSION = '2.0.2'
 KCAL_TO_KT_37C = 1.0 / (0.0019872 * 310.15)
 
 

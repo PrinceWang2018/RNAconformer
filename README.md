@@ -82,9 +82,11 @@ FASTA ──► ViennaRNA 2D hypotheses (MFE + distinct suboptimals; thermodynam
       ──► ranked, structurally distinct ensemble: PDB + mmCIF + manifest.json
 ```
 
-**Status (v2.0.1, 2026-10-22):** valid all-atom ensembles from sequence alone for 26/26 pilot
+**Status (v2.0.2, 2026-11-06):** valid all-atom ensembles from sequence alone for 26/26 pilot
 benchmark targets (14–192 nt); accurate for hairpins and small motifs (≈2–4 Å), near random-arrangement
-accuracy for large multi-branched RNAs (no tertiary-contact physics yet).
+accuracy for large multi-branched RNAs (no tertiary-contact physics yet). On the blind CASP16 targets it is
+clearly less accurate than AlphaFold 3 and the best CASP16 groups — see
+[Comparison with leading predictors (CASP16)](#comparison-with-leading-predictors-casp16).
 Details, benchmark results and limitations: **[docs/V2_STATUS.md](docs/V2_STATUS.md)**, tables in
 `docs/benchmark_v1/`, and
 `RNAFold3D_Project_Progress_and_Next_Steps.md`. Earlier milestone notes (M0-M4, guide-site
@@ -143,6 +145,37 @@ config.json, logs/run.log
 ```
 
 Runs are deterministic for a given seed and package version (independent of worker count).
+
+## Comparison with leading predictors (CASP16)
+
+CASP16 (2024) is the latest community-wide blind test of RNA 3D structure prediction. RCV 0.7.2 predicted its
+15 single-chain RNA targets up to 250 nt from the sequence alone (5 models, *thorough* sampling, a 16-core
+desktop CPU, 1–6 minutes per target). RCV's models and the models submitted to CASP16 by AlphaFold 3, the trRosettaRNA
+server and two of the top expert groups (Vfold, GuangzhouRNA) were all scored the same way, with US-align
+as in the official assessment (the official CASP16 numbers are reproduced).
+
+<p align="center"><img src="benchmark/casp16/results/casp16_tm.svg" width="760"
+alt="TM-score of model 1 per CASP16 RNA target for RCV, AlphaFold 3 and the best CASP16 group"></p>
+
+| Method | Mean TM-score, model 1 | Mean TM-score, best of 5 | Median RMSD, model 1 (Å) | Correct global fold (TM ≥ 0.45) | Base pairs right (INF-WC) |
+|---|---|---|---|---|---|
+| RCV 0.7.2, physics-based, no deep learning | 0.25 | 0.28 | 15.3 | 0 of 15 | 0.75 |
+| AlphaFold 3 (AF3-server) | 0.48 | 0.50 | 8.6 | 8 of 15 | 0.92 |
+| trRosettaRNA (Yang-Server) | 0.49 | 0.54 | 9.4 | 9 of 15 | 0.85 |
+| Vfold | 0.53 | 0.56 | 3.5 | 10 of 15 | 0.91 |
+| GuangzhouRNA-human | 0.53 | 0.55 | 5.8 | 9 of 15 | 0.93 |
+
+**What it means.** For a single, most-likely structure, the deep-learning and template-based methods are much
+better: they get the global fold right on 8–10 of the 15 targets; RCV on none. The gap is mostly in how
+correct helices are arranged in 3D (junctions, coaxial stacking, tertiary contacts), which RCV does not model
+yet — on several targets RCV's base pairs are as accurate as AlphaFold 3's. On the targets that the whole field
+found hardest, RCV is close to the median CASP16 group. RCV's strengths are elsewhere: alternative folds,
+switching, pathways and their analysis, on any computer without a GPU. A practical combination: predict
+a structure with a deep-learning tool, open its models in RCV, and add RCV's own ensemble for alternative states.
+
+Per-target tables, method and fairness notes: [benchmark/casp16/results](benchmark/casp16/results/README.md).
+Reproduce: `python benchmark/casp16/compare.py fetch --models && python benchmark/casp16/compare.py run &&
+python benchmark/casp16/compare.py evaluate` (needs ViennaRNA and US-align).
 
 ## Benchmark
 

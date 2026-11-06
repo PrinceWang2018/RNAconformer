@@ -305,19 +305,63 @@ def _stem_quality(model, sequence, pairs):
         for p, q in hbs:
             worst = max(worst, 2.9 - float(np.linalg.norm(p - q)))
     from scipy.spatial import cKDTree
+    hb = _hbond_atom_set(sequence, pairs)
     keys = [(r, a) for r in model for a in model[r]]
     pts = np.array([model[r][a] for r, a in keys])
     dmin = np.inf
     for a, b in cKDTree(pts).query_pairs(2.75):
         ra, rb_ = keys[a][0], keys[b][0]
-        if abs(ra - rb_) <= 1:
-            continue
+        if ra == rb_ or (abs(ra - rb_) == 1 and not (_is_base(keys[a][1]) and _is_base(keys[b][1]))):
+            continue                      # covalent neighbours; stacked bases of neighbours still count
         pol = keys[a][1][0] in 'NO' and keys[b][1][0] in 'NO' and not keys[a][1].startswith('OP')
         d = float(np.linalg.norm(pts[a] - pts[b]))
-        if pol and (ra, rb_) in {(i, j) for i, j in pairs} | {(j, i) for i, j in pairs}:
-            continue                      # Watson-Crick hydrogen bonds are judged by `worst`
-        dmin = min(dmin, d if not pol else d + 0.3)
+        if (keys[a], keys[b]) in hb:
+            continue                      # pair hydrogen bonds are judged by `worst`; other atoms of
+        dmin = min(dmin, d if not pol else d + 0.3)   # the two partner bases must not overlap
     return worst, dmin
+
+
+def _pair_hbond_list(sequence, pairs):
+    """[(i, atom_i, j, atom_j)] for every Watson-Crick / wobble H-bond of the stem's pairs."""
+    out = []
+    for i, j in pairs:
+        a, b = sequence[i], sequence[j]
+        if (a, b) in PAIR_HBONDS:
+            out += [(i, x, j, y) for x, y in PAIR_HBONDS[(a, b)]]
+        elif (b, a) in PAIR_HBONDS:
+            out += [(j, x, i, y) for x, y in PAIR_HBONDS[(b, a)]]
+    return out
+
+
+def _is_base(atom):
+    return "'" not in atom and not atom.startswith(('P', 'OP'))
+
+
+def _hbond_atom_set(sequence, pairs):
+    """{((i, atom), (j, atom))} in both orders for every Watson-Crick / wobble H-bond of the pairs."""
+    out = set()
+    for i, a, j, b in _pair_hbond_list(sequence, pairs):
+        out.add(((i, a), (j, b)))
+        out.add(((j, b), (i, a)))
+    return out
+
+
+def _close_contacts(model, sequence, pairs, cutoff=2.9):
+    """Close cross-residue atom contacts (not sequence neighbours, not pair H-bonds) with a target minimum distance."""
+    from scipy.spatial import cKDTree
+    hb = _hbond_atom_set(sequence, pairs)
+    keys = [(r, a) for r in model for a in model[r]]
+    pts = np.array([model[r][a] for r, a in keys])
+    out = []
+    for a, b in cKDTree(pts).query_pairs(cutoff):
+        (ra, na), (rb_, nb) = keys[a], keys[b]
+        if ra == rb_ or (abs(ra - rb_) == 1 and not (_is_base(na) and _is_base(nb))):
+            continue
+        pol = na[0] in 'NO' and nb[0] in 'NO'
+        if ((ra, na), (rb_, nb)) in hb:
+            continue                      # handled as pair H-bonds
+        out.append((ra, na, rb_, nb, 2.6 if pol else 2.9))
+    return out
 
 
 def build_stem(rb: ResidueBuilder, sequence, pairs, refine=True):
@@ -327,8 +371,9 @@ def build_stem(rb: ResidueBuilder, sequence, pairs, refine=True):
     strands have exact covalent geometry. Strand 2 is rigidly fitted so every base matches the
     calibrated Watson-Crick/wobble pair geometry relative to its partner. If a pair is distorted
     (any pair H-bond compressed below 2.4 A) or two residues come closer than 2.5 A (e.g. next to G-U
-    wobbles or at stem ends), strand-2 torsions are refined by regularised least squares
-    (pair-geometry residuals + deviation from A-form in units of the calibrated spread).
+    wobbles or at stem ends), the torsions of both strands are refined by regularised least squares
+    (pair-geometry residuals + deviation from A-form in units of the calibrated spread + penalties for
+    compressed pair H-bonds and close contacts, with increasing weight until the stem is clash-free).
     Results are cached per (stem sequence) since they do not depend on the rest of the RNA.
     """
     key = (''.join(sequence[i] for i, _ in pairs), ''.join(sequence[j] for _, j in pairs), refine)
@@ -380,19 +425,53 @@ def build_stem(rb: ResidueBuilder, sequence, pairs, refine=True):
             x = x.reshape(L, 6)
             return [{**aform, **{n: aform[n] + x[k, q] for q, n in enumerate(names)}} for k in range(L)]
 
-        def resid(x):
-            _, _, _, f = assemble(tors_of(x))
-            return np.concatenate([(f - dst).ravel(), 0.5 * (x.reshape(L, 6) / sd).ravel()])
-        sol = least_squares(resid, np.zeros(6 * L), method='trf', max_nfev=25, x_scale=5.0, diff_step=1e-3)
-        strand2b, rb2, tb2, fitb = assemble(tors_of(sol.x))
-        out_b = to_model(strand2b, rb2, tb2)
-        worst_b, dmin_b = _stem_quality(out_b, sequence, pairs)
-        if (worst_b <= 0.5 and dmin_b >= 2.5) or (min(dmin_b, 2.5) >= min(dmin, 2.5) and worst_b < worst):
+        hb_list = _pair_hbond_list(sequence, pairs)
+
+        def assemble_both(x):
+            """Both strands from torsion offsets x = [strand 1 (6L), strand 2 (6L)]; strand 2 fitted to the pair targets."""
+            st1 = build_strand(rb, [sequence[i] for i in s1], torsions=tors_of(x[:6 * L]))
+            tg, nm, _ = _pair_targets(rb, sequence, pairs, st1)
+            d = np.vstack(tg)
+            st2 = build_strand(rb, [sequence[j] for j in s2], torsions=tors_of(x[6 * L:]))
+            src = np.vstack([np.array([st2[L - 1 - k][n] for n in nm[k]]) for k in range(L)])
+            r2, t2 = kabsch(src, d)
+            m = {idx: atoms for idx, atoms in zip(s1, st1)}
+            for idx, atoms in zip(s2, st2):
+                m[idx] = {k: v @ r2.T + t2 for k, v in atoms.items()}
+            return m, src @ r2.T + t2 - d
+
+        def resid_for(contacts, x_sd):
+            def resid(x):
+                m, dev = assemble_both(x)
+                # compressed pair H-bonds and close cross-residue contacts are pushed apart explicitly: rigid
+                # A-form strands next to (or ending in) a G-U wobble otherwise squeeze a pair or overlap two bases
+                pen = [max(0.0, 2.75 - float(np.linalg.norm(m[i][a] - m[j][b]))) for i, a, j, b in hb_list]
+                pen += [max(0.0, lim - float(np.linalg.norm(m[i][a] - m[j][b]))) for i, a, j, b, lim in contacts]
+                return np.concatenate([dev.ravel(), 0.5 * (x.reshape(2 * L, 6) / sd).ravel(),
+                                       x_sd * np.array(pen or [0.0])])
+            return resid
+        x0 = np.zeros(12 * L)
+        contacts = _close_contacts(out, sequence, pairs)
+        best = None
+        for x_sd in (10.0, 20.0, 40.0):
+            sol = least_squares(resid_for(contacts, x_sd), x0, method='trf', max_nfev=80, x_scale=5.0, diff_step=1e-3)
+            out_b, dev = assemble_both(sol.x)
+            worst_b, dmin_b = _stem_quality(out_b, sequence, pairs)
+            ok = worst_b <= 0.5 and dmin_b >= 2.5
+            if best is None or (ok, min(dmin_b, 2.5) - worst_b) > (best[0], min(best[3], 2.5) - best[2]):
+                best = (ok, out_b, worst_b, dmin_b, dev, sol.x)
+            if ok:
+                break
+            x0 = sol.x
+            known = {c[:4] for c in contacts}
+            contacts = contacts + [c for c in _close_contacts(out_b, sequence, pairs) if c[:4] not in known]
+        ok, out_b, worst_b, dmin_b, dev, xb = best
+        if ok or (min(dmin_b, 2.5) >= min(dmin, 2.5) and worst_b < worst):
             out = out_b
-            report.update({'refined': True, 'pair_fit_rmsd': float(np.sqrt(np.mean(np.sum((fitb - dst) ** 2, axis=1)))),
+            report.update({'refined': True, 'pair_fit_rmsd': float(np.sqrt(np.mean(np.sum(dev ** 2, axis=1)))),
                            'max_hbond_compression': round(worst_b, 3),
                            'min_contact': None if not np.isfinite(dmin_b) else round(dmin_b, 3),
-                           'max_torsion_shift_deg': round(float(np.max(np.abs(sol.x))), 1)})
+                           'max_torsion_shift_deg': round(float(np.max(np.abs(xb))), 1)})
     base_i, base_j = pairs[0]
     loc = {}
     for r_, atoms in out.items():

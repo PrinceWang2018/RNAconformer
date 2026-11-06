@@ -515,8 +515,23 @@ def main(argv=None):
     sub = {'export-document': _export_document, 'convert': _convert, 'info': _info, 'extract': _extract,
            'batch': _batch, 'html': _html, 'pathway': _pathway, 'probing': _probing, 'confidence': _confidence}
     if argv and argv[0] in sub:
-        return sub[argv[0]](argv[1:])
+        return _run_tool(argv[0], sub[argv[0]], argv[1:])
     return run(parser().parse_args(argv))
+
+
+def _run_tool(name, fn, argv):
+    """Run a command-line tool; problems with the user's files are reported in one line, not as a traceback."""
+    import zipfile
+    try:
+        return fn(argv)
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile) as exc:
+        if os.environ.get('RCV_DEBUG'):
+            raise
+        msg = str(exc) if not isinstance(exc, OSError) or not exc.filename else f'{exc.strerror}: {exc.filename}'
+        if isinstance(exc, IsADirectoryError) and name in ('info', 'extract'):
+            msg += ' (this tool reads an .rcv file; `rcv convert FOLDER -o x.rcv` makes one from a prediction folder)'
+        sys.stderr.write(f'rcv {name}: error: {msg or type(exc).__name__}\n')
+        return 2
 
 
 if __name__ == '__main__':

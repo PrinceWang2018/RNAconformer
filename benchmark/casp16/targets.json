@@ -1,0 +1,152 @@
+[
+ {
+  "id": "R1203",
+  "casp_id": "R1203",
+  "reference": "R1203v1",
+  "chain": "0",
+  "family": "HIV-1 RRE stem-loop II",
+  "resolved": 134,
+  "pdb": "8UO6",
+  "sequence": "GCCCGGAUAGCUCAGUCGGUAGAGCAGCGGGCACUAUGGGCGCAGUGUCAAUGGACGCUGACGGUACAGGCCAGACAAUUAUUGUCUGGUAUAGUGCCCGCGGGUCCAGGGUUCAAGUCCCUGUUCGGGCGCCA"
+ },
+ {
+  "id": "R1205",
+  "casp_id": "R1205",
+  "reference": "R1205",
+  "chain": "0",
+  "family": "xrRNA",
+  "resolved": 55,
+  "pdb": "9CFN",
+  "sequence": "AAGUACCCUCCAAGCCCUACAGGUUGGAAGAGGGGGCUAUCAGUCCUGUAGGCAGACUC"
+ },
+ {
+  "id": "R1209",
+  "casp_id": "R1209",
+  "reference": "R1209",
+  "chain": "0",
+  "family": "HIV-1 RRE stem-loop II (Fab complex)",
+  "resolved": 72,
+  "pdb": "9C2K",
+  "sequence": "GGCACUAUGGGCGCAGCGUCAAUGACGCUGACGGUACAGGCCAGACAAGAAACACUUGUCUGAUAUAGUGCC"
+ },
+ {
+  "id": "R1211",
+  "casp_id": "R1211",
+  "reference": "R1211_updated",
+  "chain": "0",
+  "family": "CVB3 cloverleaf",
+  "resolved": 90,
+  "pdb": "9DCF",
+  "sequence": "GGUAAAACAGCCUGUGGGUUGAUCCCACCCACAGGGCCCAUUGGGCGCUAGCACUCUGGUAUCACGGUACCUUUGUGCGCCUGUUUUACC"
+ },
+ {
+  "id": "R1212",
+  "casp_id": "R1212",
+  "reference": "R1212",
+  "chain": "0",
+  "family": "Fanzor2 ωRNA (247 nt, above 200)",
+  "resolved": 117,
+  "pdb": "9B0L",
+  "sequence": "AAAAAUAGUCUAAUAAAAUCAGGGGUACAUUCCGCUAGUACUCCACCCUACGGGUUAAGCAAAUGAGAAUAUCGAAACGGUAUGCACAGGAUUCUUCGAGUGAUAAUCUUAGGAUGACUCACUAAGGAGAUGACUAAAGUGUAUCAUUCAAUAUUGUAUUGAACGGUAUUCUUCCAUAGAGAGUUGAUUUUUGGAGUAUCCAAAAAUAUCAACUUUUUAUGAGCGGGCAGCCACCUCCUUGUUAUUG"
+ },
+ {
+  "id": "R1221s3",
+  "casp_id": "R1221s3",
+  "reference": "R1221s3",
+  "chain": "3",
+  "family": "RNase P substrate (pre-tRNA)",
+  "resolved": 82,
+  "pdb": "",
+  "sequence": "GAAUUCUAUGGCUACGUAGCUCAGUUGGUUAGAGCACAUCACUCAUAAUGAUGGGGUCACAGGUUCGAAUCCCGUCGUAGCCACCA"
+ },
+ {
+  "id": "R1224s3",
+  "casp_id": "R1224s3",
+  "reference": "R1224s3",
+  "chain": "3",
+  "family": "RNase P substrate (pre-tRNA)",
+  "resolved": 82,
+  "pdb": "",
+  "sequence": "GAAUUCUAUGGCUACGUAGCUCAGUUGGUUAGAGCACAUCACUCAUAAUGAUGGGGUCACAGGUUCGAAUCCCGUCGUAGCCACCA"
+ },
+ {
+  "id": "R1261",
+  "casp_id": "R1261",
+  "reference": "R1261",
+  "chain": "0",
+  "family": "ZTP riboswitch",
+  "resolved": 87,
+  "pdb": "9BZC",
+  "sequence": "UAGUCAUAUGACUGACGGAAGUGGAGUUACCACAUGAAGUAUGACUAGGCAUAUUAUCUUAUAUGCCACAAAAAGCCGACCGUCUGGGC"
+ },
+ {
+  "id": "R1262",
+  "casp_id": "R1262",
+  "reference": "R1262",
+  "chain": "0",
+  "family": "ZTP riboswitch + AICA",
+  "resolved": 84,
+  "pdb": "9BZ1",
+  "sequence": "UAGUCAUAUGACUGACGGAAGUGGAGUUACCACAUGAAGUAUGACUAGGCAUAUUAUCUUAUAUGCCACAAAAAGCCGACCGUCUGGGC"
+ },
+ {
+  "id": "R1263",
+  "casp_id": "R1263",
+  "reference": "R1263",
+  "chain": "0",
+  "family": "ZTP riboswitch (64 nt)",
+  "resolved": 64,
+  "pdb": "8VQV",
+  "sequence": "GGGUCGUGACUGGCGAACAGGUGGGAAACCACCGGGGAGCGACCCUUGCCGCCCGCCUGGGCAA"
+ },
+ {
+  "id": "R1264",
+  "casp_id": "R1264",
+  "reference": "R1264",
+  "chain": "0",
+  "family": "ZTP riboswitch (64 nt) + ligand",
+  "resolved": 64,
+  "pdb": "8VVJ",
+  "sequence": "GGGUCGUGACUGGCGAACAGGUGGGAAACCACCGGGGAGCGACCCUUGCCGCCCGCCUGGGCAA"
+ },
+ {
+  "id": "R1271",
+  "casp_id": "R1271",
+  "reference": "R1271",
+  "chain": "0",
+  "family": "tRNA (RECC complex)",
+  "resolved": 77,
+  "pdb": "",
+  "sequence": "GCGCUGAUGGUCUAGGUGGUUAUGACGUCGCUUUAACACGGCGAAGGUCUCGGGUUCGAGUCCCGAUCGGCGUACCA"
+ },
+ {
+  "id": "R1288",
+  "casp_id": "R1288",
+  "reference": "R1288",
+  "chain": "0",
+  "family": "SAMURI ribozyme",
+  "resolved": 58,
+  "pdb": "",
+  "sequence": "GGAGUCAUGGCUCAGGGCUGUUCGCAGCCGCUGCAGUCAGUCGAAAGACUGAGACUCC"
+ },
+ {
+  "id": "R1293",
+  "casp_id": "R1293",
+  "reference": "R1293",
+  "chain": "1",
+  "family": "translation enhancer motif",
+  "resolved": 82,
+  "pdb": "",
+  "sequence": "GGACAAGACCCCAGGCGGGACGCCACACCCAUGUGAAACACACAUGGCCCGAGGAAACUCUGGUGUGGGCUGGGGGGAAUCC"
+ },
+ {
+  "id": "R1296",
+  "casp_id": "R1296",
+  "reference": "R1296",
+  "chain": "0",
+  "family": "tRNA (G34U mutant)",
+  "resolved": 72,
+  "pdb": "9C75",
+  "sequence": "GGCACUAUGGGCGCAGCGUCAAUGACGCUGACGUUACAGGCCAGACAAGAAACACUUGUCUGAUAUAGUGCC"
+ }
+]

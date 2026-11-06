@@ -1,5 +1,31 @@
 # Changelog
 
+## Package 0.7.2 — 2026-11-06 — RCV · RNA Conformation Viewer (engine rnafold3d 2.0.2)
+
+Bug fixes and a blind-test comparison with the leading RNA 3D structure predictors (CASP16).
+
+### Fixed
+- **Stems next to G-U wobble pairs were sometimes built with clashing atoms, so whole folds were lost.** The
+  rigid A-form stem builder could squeeze the pair next to a wobble (G26-C41 O6-N4 at 2.05 Å in CASP16 R1205),
+  overlap the two bases of a terminal wobble (1.5 Å) or push stacked neighbours together. Stems stay rigid during
+  the search, so every trajectory on such a secondary structure failed validation and the hypothesis silently
+  dropped out of the ensemble — even when it was the most stable (MFE) fold. Affected: about 5% of stems that
+  contain a G-U pair (81 of 1600 random test stems). The refinement now adjusts both strands, pushes compressed
+  pair hydrogen bonds and close contacts apart explicitly and checks stacked neighbours as the validator does:
+  0 of 1600 stems clash, and the pair geometry fits better (0.15–0.2 Å instead of 1.4 Å RMSD in the failing
+  cases). R1205: 18 of 20 trajectories valid (was 4), 5 models (was 4), MFE fold included. Test:
+  `tests/test_v072.py`.
+- **Command-line tools no longer print Python tracebacks for ordinary mistakes.** `rcv info`, `extract`,
+  `convert`, `html`, `batch`, `pathway`, `probing`, `confidence` and `export-document` report a missing file, a
+  file that is not an .rcv file, or a folder given to `rcv info`/`extract` (with a hint to `rcv convert`) in one
+  line and exit with code 2. `RCV_DEBUG=1` shows the full traceback.
+
+### Added
+- **CASP16 benchmark** (`benchmark/casp16/`): RCV predicts the 15 single-chain CASP16 RNA targets up to 250 nt
+  from sequence alone, and every model — RCV's and the submitted models of AlphaFold 3, trRosettaRNA, Vfold and
+  GuangzhouRNA — is scored with the same US-align call as the official CASP16 assessment (`compare.py verify`
+  reproduces the official table). Results: `benchmark/casp16/results/`, summary in the README.
+
 ## Package 0.7.1 — 2026-10-27 — RCV · RNA Conformation Viewer
 
 ### Changed
