@@ -135,6 +135,11 @@ jobs:
           path: installers
           merge-multiple: true
       - run: ls -la installers
+      - name: Checksums
+        working-directory: installers
+        run: |
+          sha256sum RCV-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Attach to the website release
         if: env.TOKEN != ''
         uses: softprops/action-gh-release@v2
