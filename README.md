@@ -1,10 +1,14 @@
-# RCV — RNA Conformation Viewer
+# RCV: RNA Conformation Viewer
 
 ![RCV](docs/images/rcv-wordmark.svg)
 
-**Predict, explore and present RNA conformations on your own computer.** RCV combines the rnafold3d
-prediction engine (physics-inspired, **no deep learning in the prediction**) with an interactive desktop viewer
-and analyses of how an RNA switches between its conformations. Free and open source (GPL-3.0).
+**Predict, explore and present RNA conformations on your own computer.** RCV is a free, open-source desktop application for RNA 3D conformation prediction, interactive molecular visualization, conformational ensemble analysis, and RNA conformational switching studies.
+
+Unlike tools focused only on displaying a single RNA structure, RCV combines 3D visualization with linked secondary-structure views, multi-conformation exploration, switching analysis, mutation scanning, and publication-ready figure generation.
+
+RCV supports Windows, macOS, and Linux. It is designed for researchers in RNA biology, structural biology, computational biology, and bioinformatics.
+
+**Keywords**: RNA 3D structure viewer, RNA conformation visualization, RNA conformational ensemble, RNA conformational switching, RNA structure analysis, molecular visualization, bioinformatics software.
 
 **Author:** Zixiang Wang · princewang2018@gmail.com
 
