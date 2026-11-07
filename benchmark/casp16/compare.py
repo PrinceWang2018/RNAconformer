@@ -14,8 +14,7 @@ public at predictioncenter.org. This script
 
 Usage (from the repository root, ViennaRNA and US-align installed):
   python benchmark/casp16/compare.py fetch --models
-  python benchmark/casp16/compare.py run --workers 16                       # templates on (runs_v073_tmpl)
-  python benchmark/casp16/compare.py run --workers 16 --templates off --runs benchmark/casp16/runs_v073_free
+  python benchmark/casp16/compare.py run --workers 16                       # -> runs_v073_tmpl
   python benchmark/casp16/compare.py verify
   python benchmark/casp16/compare.py evaluate
 
@@ -190,8 +189,7 @@ def group_inf_wc(c, t, ref):
     return out
 
 
-RCV_RUNS = {'rcv': 'RCV 0.7.3 (physics + templates)', 'rcvfree': 'RCV 0.7.3 without templates',
-            'rcv072': 'RCV 0.7.2 (physics only)'}
+RCV_RUNS = {'rcv': 'RCV 0.7.3 (physics + templates)', 'rcv072': 'RCV 0.7.2 (physics only)'}
 
 
 def _rcv_scores(run, t, ref):
@@ -215,8 +213,7 @@ def _release_dates():
 
 def cmd_evaluate(a):
     c = cache_dir(a)
-    runs = {'rcv': Path(a.runs), 'rcvfree': Path(a.runs_free) if a.runs_free else None,
-            'rcv072': Path(a.runs_prev) if a.runs_prev else None}
+    runs = {'rcv': Path(a.runs), 'rcv072': Path(a.runs_prev) if a.runs_prev else None}
     runs = {k: v for k, v in runs.items() if v is not None and v.exists()}
     table = official_table(c)
     released = _release_dates()
@@ -259,7 +256,7 @@ def cmd_evaluate(a):
             row['rcv_top1_beats_groups'] = round(sum(x < row['rcv_top1_tm'] for x in all_top1) / len(all_top1), 3)
         rows.append(row)
         print(f"{t['id']:8s} RCV top1 TM {row['rcv_top1_tm']}  best5 {row['rcv_best5_tm']}  [{tmpl or 'no template'}]"
-              f"  | no templates {row.get('rcvfree_top1_tm')}  | 0.7.2 {row.get('rcv072_top1_tm')}"
+              f"  | 0.7.2 {row.get('rcv072_top1_tm')}"
               f"  | AF3 {row['304_top1_tm']}  | CASP median {row['casp_median_top1_tm']}")
     out = HERE / 'results'
     out.mkdir(exist_ok=True)
@@ -342,13 +339,13 @@ def report(rows, s):
           f"\"Targets with a template\": RCV found a related structure released before 2024-05-01 "
           f"({', '.join(s['template_targets']['targets'])}).", '',
           '## Per target (TM-score, model 1 / best of 5)', '',
-          '| Target | nt | Family | RCV 0.7.3 | Template (released) | RCV 0.7.3 without templates | RCV 0.7.2 '
+          '| Target | nt | Family | RCV 0.7.3 | Template (released) | RCV 0.7.2 '
           '| AlphaFold 3 | trRosettaRNA | Vfold | GuangzhouRNA | CASP16 median / best |',
-          '|---|---|---|---|---|---|---|---|---|---|---|---|']
+          '|---|---|---|---|---|---|---|---|---|---|---|']
     f = lambda r, k: '–' if r.get(f'{k}_top1_tm') is None else f"{r[f'{k}_top1_tm']:.2f} / {r[f'{k}_best5_tm']:.2f}"
     for r in rows:
         tp = f"{r['rcv_template']} ({r['rcv_template_released']})" if r.get('rcv_template') else '–'
-        L.append(f"| {r['target']} | {r['length']} | {r['family']} | **{f(r, 'rcv')}** | {tp} | {f(r, 'rcvfree')} | "
+        L.append(f"| {r['target']} | {r['length']} | {r['family']} | **{f(r, 'rcv')}** | {tp} | "
                  f"{f(r, 'rcv072')} | {f(r, '304')} | {f(r, '052')} | {f(r, '481')} | {f(r, '183')} | "
                  f"{r['casp_median_top1_tm']:.2f} / {r['casp_best_top1_tm']:.2f} |")
     rcv, af3 = m['rcv'], m.get('304', {})
@@ -369,8 +366,6 @@ def report(rows, s):
           f"how similar the template is to the target: mean {rcv['mean_top1_tm_template_targets']:.3f} (AlphaFold 3 "
           f"{af3.get('mean_top1_tm_template_targets', 0):.3f}). On the other {nf} targets, which the whole field found "
           f"hard, RCV has {rcv['mean_top1_tm_other_targets']:.3f} (AlphaFold 3 {af3.get('mean_top1_tm_other_targets', 0):.3f}).",
-          (f"* Without templates (physics, ViennaRNA 2D and junction geometry from the library) RCV 0.7.3 has "
-           f"{m['rcvfree']['mean_top1_tm']:.3f}." if 'rcvfree' in m else ''),
           f"* Speed: median {s['rcv_wall_time_s']['median']} s per target (longest {s['rcv_wall_time_s']['max']} s) "
           f"for 40 trajectories on a 16-core laptop CPU (Intel Core Ultra 9 285H), no GPU; the structure library is 21.5 MB.",
           '* RNAs solved in several conformations (R1203, R1255, R1256): [ENSEMBLES.md](ENSEMBLES.md). Size, hardware '
@@ -426,7 +421,6 @@ def main():
     ap.add_argument('command', choices=['fetch', 'run', 'evaluate', 'verify'])
     ap.add_argument('--cache', default=str(HERE / 'cache'))
     ap.add_argument('--runs', default=str(HERE / 'runs_v073_tmpl'), help='RCV run (templates on)')
-    ap.add_argument('--runs-free', default=str(HERE / 'runs_v073_free'), help='evaluate: RCV run without templates')
     ap.add_argument('--runs-prev', default=str(HERE / 'runs'), help='evaluate: RCV 0.7.2 run (physics only)')
     ap.add_argument('--models', action='store_true', help='fetch: also download all groups\' models (~150 MB)')
     ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 2) - 1))

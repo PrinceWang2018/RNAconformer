@@ -16,8 +16,8 @@ installation) and AlphaFold Server results open directly.
   states down. When the best template leaves a part of ≥ 20 nt uncovered (an insert in a scaffold), a template
   for that part is added. A template gives the 2D (the rest folded by ViennaRNA with the template pairs
   enforced), C4′ distance restraints, starting torsions and atom positions. Development benchmark (26 PDB
-  chains, templates released before each one; 5 had a template): mean TM-score of model 1 0.271 (0.230 without
-  templates), e.g. tRNA-Phe 1EHZ 0.42 → 0.89.
+  chains, templates released before each one; 5 had a template): mean TM-score of model 1 0.271, e.g. tRNA-Phe 1EHZ
+  0.89.
 - **Cartesian refinement** (`rnafold3d/cartesian.py`). After the fold-tree search, every atom is pulled onto
   the superposed template atoms (each template part on its own) while bond lengths, angles, ring geometry and
   chirality stay those of the ideal model and atom overlaps are pushed apart (distance restraints, L-BFGS,
@@ -51,9 +51,9 @@ installation) and AlphaFold Server results open directly.
 
 ### Changed
 - **CASP16 benchmark** (`benchmark/casp16/`): RCV is run with templates (only structures released before
-  2024-05-01, the start of the CASP16 prediction season) and without; both are reported next to 0.7.2.
-  Mean TM-score of model 1 over the 15 targets: 0.490 with templates (AlphaFold 3 0.480, trRosettaRNA 0.493,
-  Vfold 0.534, GuangzhouRNA 0.526), 0.265 without (0.7.2: 0.251); right global fold (TM ≥ 0.45) on 8 of 15
+  2024-05-01, the start of the CASP16 prediction season) and reported next to 0.7.2.
+  Mean TM-score of model 1 over the 15 targets: 0.490 (AlphaFold 3 0.480, trRosettaRNA 0.493,
+  Vfold 0.534, GuangzhouRNA 0.526; 0.7.2: 0.251); right global fold (TM ≥ 0.45) on 8 of 15
   targets (AlphaFold 3: 8; 0.7.2: none). 1–7 minutes per target on a 16-core laptop CPU without GPU, at most
   1.3 GB of memory; the same models with 4 cores (deterministic), in about twice the time.
 - New: `ensembles.py` (CASP16 RNAs solved in several conformations: how well the five models of each method

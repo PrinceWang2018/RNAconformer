@@ -109,8 +109,8 @@ Junction geometry: better on 12 targets, worse on 5 (by ≤ 0.05). Templates: 1E
 3MXH 0.25 → 0.75 (3IWN), 5KPY 0.20 → 0.39 (1Y27); 1ANR (29-nt NMR structure) 0.21 → 0.16 and 4QLM 0.23 → 0.20.
 
 **CASP16** (`benchmark/casp16/`, 15 blind targets, templates released before 2024-05-01): mean TM-score of
-model 1 0.490 with templates (AlphaFold 3 0.480, trRosettaRNA 0.493, Vfold 0.534, GuangzhouRNA 0.526), 0.265
-without (2.0.2: 0.251). The template rules were set with the CASP16 results visible; the development benchmark
+model 1 0.490 with templates (AlphaFold 3 0.480, trRosettaRNA 0.493, Vfold 0.534, GuangzhouRNA 0.526;
+2.0.2: 0.251). The template rules were set with the CASP16 results visible; the development benchmark
 above is the independent check. Limitations: a template is only as good as its similarity to the target (tRNA
 R1271: closest earlier tRNA conformation 0.50); coarse cryo-EM templates can make loop closure fail (R1256: 6
 of 40 trajectories valid); without a template the 3D arrangement of helices is still the weak point.

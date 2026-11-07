@@ -161,18 +161,17 @@ Runs are deterministic for a given seed and package version (independent of work
 
 CASP16 (2024) is the latest community-wide blind test of RNA 3D structure prediction. RCV 0.7.3 predicted its
 15 single-chain RNA targets up to 250 nt from the sequence (5 models, *thorough* sampling, 1–7 minutes per target
-on a laptop CPU with 16 cores, Intel Core Ultra 9 285H, no GPU), once with templates — only structures released
-before 2024-05-01, the start of the CASP16 season — and once without. RCV's models and the models submitted to CASP16 by AlphaFold 3, the
+on a laptop CPU with 16 cores, Intel Core Ultra 9 285H, no GPU), using as templates only structures released
+before 2024-05-01, the start of the CASP16 season. RCV's models and the models submitted to CASP16 by AlphaFold 3, the
 trRosettaRNA server and two of the top expert groups (Vfold, GuangzhouRNA) were all scored the same way, with
 US-align as in the official assessment (the official CASP16 numbers are reproduced).
 
 <p align="center"><img src="benchmark/casp16/results/casp16_tm.svg" width="760"
-alt="TM-score of model 1 per CASP16 RNA target for RCV with and without templates, AlphaFold 3 and the best CASP16 group"></p>
+alt="TM-score of model 1 per CASP16 RNA target for RCV, AlphaFold 3 and the best CASP16 group"></p>
 
 | Method | Mean TM-score, model 1 | Mean TM-score, best of 5 | Median RMSD, model 1 (Å) | Correct global fold (TM ≥ 0.45) | Base pairs right (INF-WC) |
 |---|---|---|---|---|---|
 | **RCV 0.7.3, physics + templates, no deep learning** | **0.490** | **0.511** | 10.7 | 8 of 15 | 0.83 |
-| RCV 0.7.3 without templates | 0.265 | 0.288 | 18.0 | 0 of 15 | 0.74 |
 | RCV 0.7.2, physics only | 0.251 | 0.283 | 15.3 | 0 of 15 | 0.75 |
 | AlphaFold 3 (AF3-server) | 0.480 | 0.501 | 8.6 | 8 of 15 | 0.92 |
 | trRosettaRNA (Yang-Server) | 0.493 | 0.539 | 9.4 | 9 of 15 | 0.85 |

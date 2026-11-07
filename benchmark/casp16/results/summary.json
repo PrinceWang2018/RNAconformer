@@ -13,18 +13,6 @@
    "mean_top1_tm_template_targets": 0.641,
    "mean_top1_tm_other_targets": 0.263
   },
-  "rcvfree": {
-   "label": "RCV 0.7.3 without templates",
-   "n": 15,
-   "mean_top1_tm": 0.265,
-   "mean_best5_tm": 0.288,
-   "median_top1_rmsd": 17.99,
-   "median_best5_rmsd": 13.64,
-   "top1_tm_ge_0.45": 0,
-   "mean_top1_inf_wc": 0.742,
-   "mean_top1_tm_template_targets": 0.267,
-   "mean_top1_tm_other_targets": 0.263
-  },
   "rcv072": {
    "label": "RCV 0.7.2 (physics only)",
    "n": 15,
