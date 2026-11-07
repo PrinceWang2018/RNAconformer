@@ -1,8 +1,10 @@
-// Start page: the two ways to use RCV (1 predict from sequence(s), 2 view structures of one RNA); progress of local predictions.
+// Start page: the two ways to use RCV (1 predict from sequence(s) with the RCV engine or a local AlphaFold 3,
+// 2 view structures of one RNA, including AlphaFold Server results); progress of local predictions.
 import { el, slug, loadPref, savePref, readFileText, fmt } from './util.js';
 import { icon } from './icons.js';
 import { toast } from './ui.js';
 import { watchJob, fmtDuration } from './jobs.js';
+import { af3SettingsDialog, af3Configured, af3Summary, loadAf3Settings, AF3_SERVER } from './af3.js';
 
 const SAMPLING = { fast: [2, 6, 'Fast'], standard: [4, 8, 'Standard'], thorough: [8, 16, 'Thorough'] };
 const trajSeconds = n => 45 + n + 0.004 * n * n;          // same rough model as the job runner
@@ -104,8 +106,19 @@ export class Welcome {
     this.coresLabel = el('span', { class: 'muted' });
     this.ssIn = el('input', { class: 'input mono', placeholder: 'e.g. ((((((...((((......))))))))))', 'aria-label': 'Known secondary structure' });
     this.seedIn = el('input', { class: 'input', type: 'number', value: 42, 'aria-label': 'Random seed' });
+    this.templatesIn = el('input', { type: 'checkbox', checked: p.templates !== false, 'aria-label': 'Use related experimental structures' });
+    this.templatesIn.addEventListener('change', () => { this.prefs.templates = this.templatesIn.checked; savePref('predictForm', this.prefs); });
     this.estimate = el('div', { class: 'wl-estimate' });
     this.predictBtn = el('button', { class: 'btn primary wl-go', onclick: () => this.startPrediction() }, icon('flask'), el('span', { text: 'Predict conformations' }));
+    // engine: the built-in RCV engine (physics + templates) or a local AlphaFold 3 installation
+    this.engine = p.engine === 'alphafold3' ? 'alphafold3' : 'rcv';
+    this.engineSeg = el('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'Prediction engine' },
+      el('button', { type: 'button', 'data-e': 'rcv', title: 'Built-in engine: physics-based 3D sampling guided by known structures; runs on the CPU' }, 'RCV engine'),
+      el('button', { type: 'button', 'data-e': 'alphafold3', title: 'Your own AlphaFold 3 installation (Linux, NVIDIA GPU)' }, 'AlphaFold 3 (local)'));
+    this.engineSeg.addEventListener('click', e => { const v = e.target.closest('button')?.dataset.e; if (v) { this.engine = v; this.prefs.engine = v; savePref('predictForm', this.prefs); this._engineUi(); this._estimate(); } });
+    this.af3Info = el('span', { class: 'muted af3-summary' });
+    this.af3Row = el('div', { class: 'wl-af3', hidden: true }, icon('info'), this.af3Info, el('span', { class: 'grow' }),
+      el('button', { class: 'btn small', type: 'button', onclick: () => af3SettingsDialog(app, sv => { this.af3 = sv; this._engineUi(); this._estimate(); }) }, 'AlphaFold 3 settings…'));
     this.batchList = el('div', { class: 'wl-batchlist', hidden: true });
     this.fastaIn = el('input', { type: 'file', accept: '.fa,.fasta,.fna,.txt,.seq', hidden: true });
     this.fastaIn.addEventListener('change', () => this.fastaIn.files[0] && this.loadFastaFile(this.fastaIn.files[0]));
@@ -128,11 +141,14 @@ export class Welcome {
       el('div', { class: 'grid2' },
         el('div', { class: 'field' }, el('label', { text: 'Known secondary structure (dot-bracket)' }), this.ssIn),
         el('div', { class: 'field' }, el('label', { text: 'Random seed' }), this.seedIn)),
+      el('label', { class: 'check wl-templates', title: 'The built-in library holds about 4000 RNA chains from the PDB (21 MB). Related structures (sequence identity, covering at least about half of the sequence) guide the 3D model; switch off for a physics-only prediction.' },
+        this.templatesIn, el('span', { text: 'Use related experimental structures (templates) when the library has one' })),
       el('div', { class: 'wl-adv-links' },
         el('button', { class: 'linkbtn', type: 'button', onclick: () => this.useDemo() }, `Fill in the demo sequence (${DEMO.label})`)));
     return el('section', { class: 'wl-card wl-main-card' },
       this._cardHead('1', 'Predict RNA conformations from sequence(s)', 'Paste one sequence, or several in FASTA format. Runs on this computer.'),
       this.seqIn, el('div', { class: 'wl-statusrow' }, this.seqStatus, el('span', { class: 'grow' }), this.estimate), this.batchList, this.fastaIn,
+      el('div', { class: 'wl-engine' }, el('span', { class: 'flabel', text: 'Engine' }), this.engineSeg), this.af3Row,
       el('div', { class: 'wl-actions' },
         this.predictBtn,
         el('button', { class: 'btn', onclick: () => this.chooseFasta() }, icon('open'), 'Load a FASTA file…')),
@@ -141,7 +157,7 @@ export class Welcome {
 
   _viewCard() {
     const app = this.app;
-    this.fileIn = el('input', { type: 'file', multiple: true, accept: '.rcv,.pdb,.ent,.cif,.mmcif,.json', hidden: true });
+    this.fileIn = el('input', { type: 'file', multiple: true, accept: '.rcv,.pdb,.ent,.cif,.mmcif,.json,.zip', hidden: true });
     this.fileIn.addEventListener('change', () => this.fileIn.files.length && app.openLocalFiles([...this.fileIn.files]));
     const chooseFiles = async () => {
       if (app.native?.available()) { const paths = await app.native.chooseFiles(); if (paths.length) await app.openNativePaths(paths); }
@@ -150,7 +166,7 @@ export class Welcome {
     // a big target for files; a drop on it reaches the window's drop handler, which opens the files
     const drop = el('button', { class: 'wl-drop', type: 'button', onclick: chooseFiles, title: 'Open an .rcv file, PDB/mmCIF files or a prediction folder' },
       icon('open'), el('b', { text: 'Open files…' }),
-      el('span', { text: 'PDB/mmCIF, multi-model NMR or .rcv files, or a prediction folder. You can also drop them here.' }));
+      el('span', { text: 'PDB/mmCIF, multi-model NMR or .rcv files, a prediction folder, or an AlphaFold Server result (.zip). You can also drop them here.' }));
     drop.addEventListener('dragover', () => drop.classList.add('over'));
     drop.addEventListener('dragleave', e => { if (!drop.contains(e.relatedTarget)) drop.classList.remove('over'); });
     drop.addEventListener('drop', () => drop.classList.remove('over'));
@@ -163,7 +179,20 @@ export class Welcome {
         this.demoBtn),
       el('div', { class: 'wl-adv-links' },
         el('button', { class: 'linkbtn', type: 'button', onclick: () => app.openDialog('server') }, 'Browse folders…'),
-        el('button', { class: 'linkbtn', type: 'button', onclick: () => app.openDialog('library') }, 'All prediction runs…')));
+        el('button', { class: 'linkbtn', type: 'button', onclick: () => app.openDialog('library') }, 'All prediction runs…'),
+        el('button', { class: 'linkbtn', type: 'button', title: 'Predict on the AlphaFold Server, download the result .zip and open it here',
+          onclick: () => import('./dialogs.js').then(m => m.openExternal(app, AF3_SERVER)) }, 'AlphaFold Server…')));
+  }
+
+  // Engine choice: AlphaFold 3 needs a local installation; sampling options apply to the RCV engine only.
+  _engineUi() {
+    const af3 = this.engine === 'alphafold3';
+    for (const b of this.engineSeg.children) b.classList.toggle('on', b.dataset.e === this.engine);
+    this.af3Row.hidden = !af3;
+    this.af3Info.textContent = af3Summary(this.af3);
+    this.af3Row.classList.toggle('warn', af3 && !af3Configured(this.af3));
+    for (const c of [this.samplingSeg, this.modelsIn, this.ssIn]) c.closest('.field')?.classList.toggle('disabled', af3);
+    this.templatesIn.closest('label')?.classList.toggle('disabled', af3);
   }
 
   // ---------------------------------------------------------------- state
@@ -177,6 +206,8 @@ export class Welcome {
     this.viewerBtn.hidden = !app.ensembles.size;
     this.themeBtn.replaceChildren(icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon'));
     this.demoBtn.hidden = !app.info?.demo;
+    if (this.af3 === undefined) { this.af3 = null; loadAf3Settings(app).then(s => { this.af3 = s; this._engineUi(); this._estimate(); }); }
+    this._engineUi();
     if (!this._advInit) { this._advInit = true; if (this.prefs.advancedOpen) this.adv.open = true; this.adv.addEventListener('toggle', () => { this.prefs.advancedOpen = this.adv.open; savePref('predictForm', this.prefs); }); }
     const gpu = app.viewer?.gpuName();
     this.sys.replaceChildren(
@@ -196,7 +227,8 @@ export class Welcome {
     const records = parseFastaRecords(this.seqIn.value);
     this.batchList.hidden = records.length < 2;
     if (records.length >= 2) return this._estimateBatch(records);
-    this.predictBtn.lastChild.textContent = this.seqIn.value.trim() ? 'Predict conformations' : 'Predict the demo sequence';
+    const af3 = this.engine === 'alphafold3';
+    this.predictBtn.lastChild.textContent = af3 ? 'Predict with AlphaFold 3' : this.seqIn.value.trim() ? 'Predict conformations' : 'Predict the demo sequence';
     const { seq, bad, name } = parseSequenceInput(this.seqIn.value);
     if (name && !this.nameIn.value) this.nameIn.placeholder = name;
     for (const b of this.samplingSeg.children) b.classList.toggle('on', b.dataset.s === this.sampling);
@@ -224,6 +256,11 @@ export class Welcome {
     const ok = (empty || (n >= 8 && n <= 400 && !bad.length && !(ss && ss.length !== n))) && this.app.api.online && !this.job;
     this.predictBtn.disabled = !ok;
     const nn = empty ? DEMO.sequence.length : n;
+    if (af3) {
+      const seeds = this.af3?.seeds || 1;
+      this.estimate.textContent = `AlphaFold 3 · ${seeds * 5} models (${seeds} seed${seeds > 1 ? 's' : ''} × 5) · on the GPU`;
+      return;
+    }
     this.estimate.textContent = nn >= 8 && !bad.length ? `${traj} trajectories · about ${fmtDuration(trajSeconds(nn) * Math.ceil(traj / cores) + 15)} on ${cores} core${cores > 1 ? 's' : ''}` : '';
   }
 
@@ -302,11 +339,15 @@ export class Welcome {
       toast(`No sequence was entered, so the demo sequence (${DEMO.label}) is predicted. Paste your own sequence or a FASTA file to predict it instead.`, 'info', 'Demo sequence', 7000);
     }
     const records = parseFastaRecords(this.seqIn.value);
+    const af3 = this.engine === 'alphafold3';
+    if (af3 && !af3Configured(this.af3)) { af3SettingsDialog(app, sv => { this.af3 = sv; this._engineUi(); this._estimate(); }); return; }
+    if (af3 && records.length > 1) { toast('AlphaFold 3 runs one sequence at a time here. Predict the sequences one by one, or use the RCV engine for a batch.', 'error', 'AlphaFold 3'); return; }
     if (records.length > 1) return this.startBatch(records);
     const { seq, name: fastaName } = parseSequenceInput(this.seqIn.value);
     const name = this.nameIn.value.trim() || fastaName || 'rna';
     const params = { name: slug(name), sequence: seq, structure: this.ssIn.value.trim(), models: +this.modelsIn.value || 8,
-      sampling: this.sampling, cores: +this.coresIn.value, seed: +this.seedIn.value || 42 };
+      sampling: this.sampling, cores: +this.coresIn.value, seed: +this.seedIn.value || 42, templates: this.templatesIn.checked ? 'auto' : 'off',
+      ...(af3 ? { engine: 'alphafold3' } : {}) };
     this.prefs = { ...this.prefs, models: params.models, sampling: params.sampling, cores: params.cores };
     savePref('predictForm', this.prefs);
     try {
@@ -322,7 +363,8 @@ export class Welcome {
         this.job = null;
         this._showProgress(false);
         app.showPage('viewer');
-        toast(`${j.document.n_conformations} conformation${j.document.n_conformations === 1 ? '' : 's'} of ${j.document.name}. Drag a residue with the Pull tool to switch between them.`, 'ok', 'Prediction finished', 7000);
+        toast(j.result?.engine === 'alphafold3' ? `${j.document.n_conformations} AlphaFold 3 models of ${j.document.name}, best ranking score first. Colour by Confidence to see the pLDDT.`
+          : `${j.document.n_conformations} conformation${j.document.n_conformations === 1 ? '' : 's'} of ${j.document.name}. Drag a residue with the Pull tool to switch between them.`, 'ok', 'Prediction finished', 7000);
       },
       onFail: j => { this.job = j; this._render(j); },
     });
@@ -331,7 +373,7 @@ export class Welcome {
   async startBatch(records) {
     const app = this.app;
     const params = { records: records.map(r => ({ name: r.name, sequence: r.sequence, structure: r.structure })), models: +this.modelsIn.value || 8,
-      sampling: this.sampling, cores: +this.coresIn.value, seed: +this.seedIn.value || 42 };
+      sampling: this.sampling, cores: +this.coresIn.value, seed: +this.seedIn.value || 42, templates: this.templatesIn.checked ? 'auto' : 'off' };
     this.prefs = { ...this.prefs, models: params.models, sampling: params.sampling, cores: params.cores };
     savePref('predictForm', this.prefs);
     try {
@@ -420,7 +462,7 @@ export class Welcome {
     }
     this.progress.replaceChildren(el('div', { class: 'wl-pg-card' },
       el('div', { class: 'wl-pg-head' }, el('h2', { text: j.kind === 'batch' ? `Batch prediction · ${j.title || ''}` : `Predicting conformations · ${j.title || ''}` }),
-        el('span', { class: 'muted', text: j.kind === 'batch' ? `${(j.result?.items || []).length} sequences, one after another, on ${j.result?.cores} CPU cores` : j.result?.cores ? `${j.result.trajectories} trajectories on ${j.result.cores} CPU cores` : '' })),
+        el('span', { class: 'muted', text: j.kind === 'batch' ? `${(j.result?.items || []).length} sequences, one after another, on ${j.result?.cores} CPU cores` : j.result?.engine === 'alphafold3' ? `AlphaFold 3 · ${j.result.seeds} seed(s) × 5 samples` : j.result?.cores ? `${j.result.trajectories} trajectories on ${j.result.cores} CPU cores` : '' })),
       steps,
       el('div', { class: `progress big ${j.status === 'failed' ? 'bad' : ''}` }, el('i', { style: { width: `${pct}%` } })),
       el('div', { class: 'wl-pg-meta', text: meta }),

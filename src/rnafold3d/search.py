@@ -48,6 +48,7 @@ class ScoreWeights:
     torsion: float = 1.0
     restraint: float = 0.5                  # crossing (pseudoknot) / tertiary base-pair restraints
     pull: float = 2.0                       # interactive pull restraints (bias; removed before relaxation)
+    template: float = 1.0                   # C4'-C4' distance restraints from a template or junction motif
 
 
 def is_branched(pairs):
@@ -74,7 +75,7 @@ CENTRAL_HBOND = {('G', 'C'): ('N1', 'N3'), ('C', 'G'): ('N3', 'N1'), ('A', 'U'):
 
 class Scorer:
     def __init__(self, model: FoldModel, weights: ScoreWeights = ScoreWeights(), prior: TorsionPrior | None = None,
-                 restraints=(), pull_restraints=()):
+                 restraints=(), pull_restraints=(), distance_restraints=None):
         self.m = model
         self.w = weights
         self.prior = prior or TorsionPrior(model.geom)
@@ -150,13 +151,66 @@ class Scorer:
                                                 min(6.0 * min(r - L.a, L.b - r), 6.0 + 1.0 * L.n))
                 ends.append((I[(r, atom)], proxy))
             self.pull.append((ends[0], ends[1], float(p['target']), float(p.get('tol', 1.5))))
+        self._init_distance_restraints(distance_restraints, loop_of)
         self.branched = is_branched(model.pairs)
         self.compaction_on = (not weights.compaction_branched_only) or self.branched
         self.clash_scale = 1.0
+        self.dr_scale = 1.0             # distance restraints on (1) or off (0)
         self.atom_clash_from = 1.0      # all-atom sterics only once the steric ramp reaches this scale
         self.dof_names = [d.name for d in model.dofs]
         self.dof_res = np.array([d.res for d in model.dofs], dtype=int)
         self.dof_col = np.array([TOR[d.name] for d in model.dofs], dtype=int)
+
+    def _init_distance_restraints(self, dr, loop_of):
+        """C4'-C4' flat-bottom distance restraints {'i','j','d','tol'} (template or junction motif).
+
+        Residues of loops that are not built yet are represented by the midpoint of the loop's flanking C4'
+        atoms, with the loop's reach added to the tolerance."""
+        self.dr = None
+        if not dr or not len(dr.get('i', ())):
+            return
+        I = self.m.idx
+        i = np.asarray(dr['i'], int)
+        j = np.asarray(dr['j'], int)
+        prox = np.zeros((self.m.n, 3))
+        for r in range(self.m.n):
+            L = loop_of.get(r)
+            c4 = I[(r, "C4'")]
+            prox[r] = (c4, c4, 0.0) if L is None else (I[(L.a, "C4'")], I[(L.b, "C4'")],
+                                                       min(6.0 * min(r - L.a, L.b - r), 6.0 + 1.0 * L.n))
+        self.dr = {'ia': self.c4_idx[i], 'ib': self.c4_idx[j], 'd': np.asarray(dr['d'], float),
+                   'tol': np.asarray(dr['tol'], float), 'w': np.asarray(dr.get('w', np.ones(len(i))), float),
+                   'pa': prox[i].astype(int)[:, :2], 'pb': prox[j].astype(int)[:, :2], 'aa': prox[i, 2], 'ab': prox[j, 2],
+                   'norm': self.m.n / max(1.0, float(np.sum(dr.get('w', np.ones(len(i))))))}
+
+    def distance_restraint_energy(self):
+        """Weighted mean squared violation (A^2) of the distance restraints, scaled by the chain length."""
+        dr = self.dr
+        if dr is None:
+            return 0.0
+        x, pres = self.m.xyz, self.m.present
+        pa_ok = pres[dr['ia']]
+        pb_ok = pres[dr['ib']]
+        A = np.where(pa_ok[:, None], x[dr['ia']], 0.5 * (x[dr['pa'][:, 0]] + x[dr['pa'][:, 1]]))
+        B = np.where(pb_ok[:, None], x[dr['ib']], 0.5 * (x[dr['pb'][:, 0]] + x[dr['pb'][:, 1]]))
+        allow = np.where(pa_ok, 0.0, dr['aa']) + np.where(pb_ok, 0.0, dr['ab'])
+        d = np.sqrt(np.sum((A - B) ** 2, axis=1))
+        v = np.maximum(0.0, np.abs(d - dr['d']) - dr['tol'] - allow)
+        return float(np.sum(dr['w'] * v * v) * dr['norm'])
+
+    def distance_restraint_stats(self):
+        """Fraction of restraints satisfied within tolerance and RMS deviation (built residues only)."""
+        dr = self.dr
+        if dr is None:
+            return None
+        x, pres = self.m.xyz, self.m.present
+        ok = pres[dr['ia']] & pres[dr['ib']]
+        if not ok.any():
+            return None
+        d = np.linalg.norm(x[dr['ia'][ok]] - x[dr['ib'][ok]], axis=1)
+        dev = d - dr['d'][ok]
+        return {'n': int(ok.sum()), 'satisfied': round(float(np.mean(np.abs(dev) <= dr['tol'][ok])), 3),
+                'rms_deviation_A': round(float(np.sqrt(np.mean(dev ** 2))), 2)}
 
     # ------------------------------------------------------------------ sites
     def base_centroids(self):
@@ -324,10 +378,11 @@ class Scorer:
         for L in self.loop_linkers:
             if L.id in m.active_loops:
                 e_cb += m.chainbreak(L)
+        e_dr = self.distance_restraint_energy() if self.dr is not None and w.template else 0.0
         cs = self.clash_scale
         total = (cs * w.clash * e_clash + cs * w.atom_clash * e_ac + cs * w.chainbreak * e_cb
                  + w.restraint * e_rs + w.feasibility * e_f + w.compaction * e_rg + w.stacking * e_st
-                 + w.hairpin * e_hp + w.electro * e_el + w.torsion * e_t)
+                 + w.hairpin * e_hp + w.electro * e_el + w.torsion * e_t + self.dr_scale * w.template * e_dr)
         pull_bias = self.pull_scale * w.pull * e_pull
         total += pull_bias
         if not detail:
@@ -337,7 +392,8 @@ class Scorer:
                 'compaction': w.compaction * e_rg, 'stacking': w.stacking * e_st, 'hairpin': w.hairpin * e_hp,
                 'electro': w.electro * e_el, 'torsion': w.torsion * e_t, 'rg': rg, 'rg0': self.rg0,
                 'compaction_applied': self.compaction_on,
-                'n_stacked_helix_ends': int(n_stacks), 'pull_bias': pull_bias}
+                'n_stacked_helix_ends': int(n_stacks), 'pull_bias': pull_bias,
+                'template': self.dr_scale * w.template * e_dr}
 
     def pull_energy(self):
         """Flat-bottom harmonic energy of the pull restraints (A^2)."""
@@ -479,3 +535,85 @@ def anneal(model: FoldModel, scorer: Scorer, rng, cfg: AnnealConfig = AnnealConf
     stats.update(final_score=e, best_score=best[0] if best else e)
     return stats
 
+
+
+def fit_restraints(model: FoldModel, scorer: Scorer, iters=40, lam=1.0, max_step_deg=25.0):
+    """Levenberg-Marquardt fit of the backbone torsions to the distance restraints (template / junction motif).
+
+    Residuals are the flat-bottom violations of restraints between built atoms; the Jacobian of a distance with
+    respect to a torsion is analytic (rotation of the moved atoms about the bond axis). A step is kept only if the
+    full score (restraints, clashes, torsion prior, ...) decreases, and explicit loops are re-closed after it.
+    Returns {'iterations', 'accepted', 'start', 'end'} (full scores)."""
+    dr = scorer.dr
+    if dr is None:
+        return None
+    dofs = [k for k in model.active_dofs if model.dofs[k].name != 'chi' and len(model.dofs[k].moved)]
+    if not dofs:
+        return None
+    ia, ib, d0, tol, w = dr['ia'], dr['ib'], dr['d'], dr['tol'], np.sqrt(dr['w'] * dr['norm'])
+    atoms = np.unique(np.concatenate([ia, ib]))
+    col = {int(a): c for c, a in enumerate(atoms)}
+    ca = np.array([col[int(a)] for a in ia])
+    cb = np.array([col[int(b)] for b in ib])
+    moved = np.zeros((len(dofs), len(atoms)), bool)
+    for r, k in enumerate(dofs):
+        ms = model._moved_sets[k]
+        moved[r] = [int(a) in ms for a in atoms]
+    e = scorer()
+    stats = {'iterations': 0, 'accepted': 0, 'start': e}
+    for it in range(iters):
+        x, pres = model.xyz, model.present
+        ok = pres[ia] & pres[ib]
+        if not ok.any():
+            break
+        A, B = x[ia], x[ib]
+        diff = A - B
+        d = np.linalg.norm(diff, axis=1) + 1e-9
+        dev = d - d0
+        viol = np.sign(dev) * np.maximum(0.0, np.abs(dev) - tol)
+        act = ok & (viol != 0)
+        if not act.any():
+            break
+        u = diff[act] / d[act, None]
+        # d x(atom) / d theta_k = axis_k x (x - v_k) for moved atoms
+        axes = np.array([x[model.dofs[k].v] - x[model.dofs[k].u] for k in dofs])
+        axes /= np.linalg.norm(axes, axis=1)[:, None]
+        piv = np.array([x[model.dofs[k].v] for k in dofs])
+        X = x[atoms]
+        G = np.cross(axes[:, None, :], X[None, :, :] - piv[:, None, :]) * moved[:, :, None]      # K x atoms x 3
+        J = (np.einsum('kaj,aj->ak', G[:, ca[act]], u) - np.einsum('kaj,aj->ak', G[:, cb[act]], u)) * w[act, None]
+        r = viol[act] * w[act]
+        JtJ = J.T @ J
+        g = J.T @ r
+        improved = False
+        for _ in range(6):
+            try:
+                step = -np.linalg.solve(JtJ + lam * (np.diag(np.diag(JtJ)) + 1e-3 * np.eye(len(dofs))), g)
+            except np.linalg.LinAlgError:
+                lam *= 10
+                continue
+            step = np.degrees(step)
+            mx = np.max(np.abs(step))
+            if mx > max_step_deg:
+                step *= max_step_deg / mx
+            old_xyz, old_tor = model.xyz.copy(), model.tor.copy()
+            for k, s in zip(dofs, step):
+                if abs(s) > 1e-3:
+                    model.rotate(k, float(s))
+            if model.dof_loops:
+                reclose(model, [k for k, s in zip(dofs, step) if abs(s) > 1e-3])
+            e_new = scorer()
+            if e_new < e:
+                e = e_new
+                lam = max(lam / 3.0, 1e-4)
+                improved = True
+                stats['accepted'] += 1
+                break
+            model.xyz[:] = old_xyz
+            model.tor[:] = old_tor
+            lam *= 4.0
+        stats['iterations'] = it + 1
+        if not improved:
+            break
+    stats['end'] = e
+    return stats

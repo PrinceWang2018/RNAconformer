@@ -158,10 +158,25 @@ class Job:
             self.note(f'{plural(m.group(3), "secondary-structure hypothesis", "secondary-structure hypotheses")} from {m.group(4)}.')
             self.progress = max(self.progress, 0.05)
             return
-        m = re.match(r'(ss\d+) (\S+) (\S+) kcal/mol \[(\w+)\]', msg)
+        m = re.match(r'template search: (\d+) significant hit\(s\) in (\S+) s(.*)', msg)
+        if m:
+            k = int(m.group(1))
+            when = m.group(3).strip().strip('()')
+            self.note((f'{plural(k, "related experimental structure")} found in the built-in library'
+                       if k else 'No related experimental structure in the built-in library: physics-only modelling')
+                      + (f' ({when})' if when else '') + f' in {m.group(2)} s.')
+            return
+        m = re.match(r'template (\S+) E=(\S+) identity (\S+) coverage (\S+) pairs (\S+) \'(.*)\'', msg)
+        if m:
+            self.note(f'Template {m.group(1)} ({m.group(6).strip()}): sequence identity {m.group(3)}, '
+                      f'covers {m.group(4)} of the sequence, E-value {m.group(2)}.')
+            return
+        m = re.match(r'(ss\d+) (\S+) (\S+) kcal/mol \[([^\]]+)\]', msg)
         if m:
             src = {'vienna_mfe': 'minimum free energy', 'vienna_suboptimal': 'suboptimal', 'user': 'your input',
                    'seed': 'current conformation'}.get(m.group(4), m.group(4))
+            if src.startswith('template '):
+                src = 'from experimental structure ' + src.split(' ', 1)[1]
             e = '' if m.group(3) == 'None' else f', ΔG {m.group(3)} kcal/mol'
             self.note(f'{m.group(1)} ({src}{e}): {m.group(2)}')
             return
@@ -228,6 +243,7 @@ class PredictJob(Job):
         per, low = SAMPLING.get(params.get('sampling', 'standard'), SAMPLING['standard'])
         self.trajectories = int(params.get('trajectories') or max(low, per * self.models))
         self.seed = int(params.get('seed', 42))
+        self.templates = 'off' if params.get('templates') in (False, 'off') else 'auto'
         cpu = os.cpu_count() or 1
         self.cores = max(1, min(cpu, int(params.get('cores') or max(1, cpu - 1))))
         self.out = Path(state.projects_dir) / f'{name}_{time.strftime("%Y%m%d-%H%M%S")}'
@@ -245,7 +261,7 @@ class PredictJob(Job):
                       'warning')
         args = ['predict', '--sequence', self.sequence, '--name', self.name, '--models', str(self.models),
                 '--trajectories', str(self.trajectories), '--seed', str(self.seed), '--workers', str(self.cores),
-                '--out', str(self.out)]
+                '--out', str(self.out), '--templates', self.templates]
         if self.structure:
             args += ['--structure', self.structure]
         self.run_engine(args)
@@ -440,7 +456,7 @@ class BatchJob(Job):
         self.STAGES = tuple((f'item{k}', f'{r["name"]} · {len(r["sequence"])} nt') for k, r in enumerate(records))
         super().__init__(state, f'Batch of {plural(len(records), "sequence")}')
         self.records = records
-        self.params = {k: params.get(k) for k in ('models', 'sampling', 'cores', 'seed')}
+        self.params = {k: params.get(k) for k in ('models', 'sampling', 'cores', 'seed', 'templates')}
         cpu = os.cpu_count() or 1
         self.cores = max(1, min(cpu, int(params.get('cores') or max(1, cpu - 1))))
         self.out = Path(state.projects_dir) / f'batch_{time.strftime("%Y%m%d-%H%M%S")}'
@@ -560,3 +576,110 @@ class BatchJob(Job):
             self.result['summary_csv'] = str(self.out / 'batch_summary.csv')
         except OSError as exc:
             self.note(f'Could not write the batch summary: {exc}', 'warning')
+
+
+# ------------------------------------------------------------------------------------- AlphaFold 3
+class AlphaFold3Job(Job):
+    """Runs a local AlphaFold 3 installation (configured in the AlphaFold 3 settings) on one RNA sequence and opens
+    every sampled model as one ensemble. RCV writes the input JSON, starts the program and reads the output."""
+    kind = 'predict'
+    STAGES = (('input', 'AlphaFold 3 input'), ('run', 'AlphaFold 3 (data pipeline and inference)'),
+              ('load', 'Opening the viewer'))
+    MARKERS = (('Running data pipeline', 'data pipeline (MSA search)', 0.15),
+               ('Featurising', 'featurising the input', 0.35), ('Running model inference', 'model inference', 0.5),
+               ('Extracting', 'extracting the structures', 0.85), ('Writing outputs', 'writing the models', 0.9),
+               ('Fold job', 'finished', 0.92))
+
+    def __init__(self, state, params):
+        from . import alphafold
+        seq = re.sub(r'\s+', '', params.get('sequence', '')).upper().replace('T', 'U')
+        if not seq or not re.fullmatch(r'[ACGU]+', seq):
+            raise ValueError('the sequence may contain only A, C, G, U (T is read as U)')
+        name = safe_name(params.get('name'), 'rna')
+        super().__init__(state, f'{name} · {len(seq)} nt · AlphaFold 3')
+        self.sequence, self.name, self.n_nt = seq, name, len(seq)
+        self.settings = {**alphafold.load_settings(), **(params.get('af3') or {})}
+        self.seeds = max(1, min(20, int(params.get('af3_seeds') or self.settings.get('seeds') or 1)))
+        self.out = Path(state.projects_dir) / f'{name}_af3_{time.strftime("%Y%m%d-%H%M%S")}'
+        self.eta_s = None
+        self.result = {'out': str(self.out), 'engine': 'alphafold3', 'seeds': self.seeds}
+
+    def on_line(self, line):
+        for key, label, frac in self.MARKERS:
+            if key.lower() in line.lower():
+                self.stage('run', 'active', label)
+                self.progress = max(self.progress, frac)
+                self.note(f'AlphaFold 3: {line.strip()[:200]}')
+                return
+        low = line.lower()
+        if 'error' in low or 'traceback' in low or 'out of memory' in low:
+            self.note(line.strip()[:300], 'error' if 'error' in low else 'warning')
+
+    def run(self):
+        from . import alphafold
+        from .data import build_document
+        from .server import Entry
+        self.out.mkdir(parents=True, exist_ok=True)
+        self.stage('input', 'active')
+        msa_free = not self.settings.get('db_dir')
+        job = alphafold.input_json(self.name, self.sequence, self.seeds, msa_free=msa_free)
+        jpath = self.out / f'{self.name}_af3_input.json'
+        jpath.write_text(json.dumps(job, indent=1), encoding='utf-8')
+        af_out = self.out / 'af3_output'
+        af_out.mkdir(exist_ok=True)
+        cmd = alphafold.command(self.settings, jpath, af_out)
+        self.stage('input', 'done', f'{plural(self.seeds, "seed")} × 5 samples' + (' · without MSA' if msa_free else ''))
+        self.note(f'AlphaFold 3 started for {self.n_nt} nt ({plural(self.seeds, "seed")}, 5 samples each'
+                  + (', no MSA search' if msa_free else ', with MSA search') + f'); output in {af_out}.')
+        self.note('Command: ' + ' '.join(cmd)[:400])
+        self.stage('run', 'active', 'starting')
+        self.progress = 0.05
+        flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == 'nt' else 0
+        try:
+            self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8',
+                                         errors='replace', bufsize=1, creationflags=flags, cwd=str(self.out))
+        except OSError as exc:
+            raise RuntimeError(f'could not start AlphaFold 3 ({cmd[0]}): {exc}. Check the AlphaFold 3 settings.') from exc
+        for raw in self.proc.stdout:
+            line = raw.rstrip()
+            if not line:
+                continue
+            with self._lock:
+                self.lines.append(line)
+                if len(self.lines) > 400:
+                    del self.lines[:100]
+            try:
+                self.on_line(line)
+            except Exception:
+                pass
+        code = self.proc.wait()
+        self.proc.stdout.close()
+        if self.cancelled:
+            raise RuntimeError('cancelled')
+        (self.out / 'af3_log.txt').write_text('\n'.join(self.lines), encoding='utf-8')
+        dirs = [d for d in af_out.iterdir() if d.is_dir() and alphafold.is_af3_dir(d)] if af_out.is_dir() else []
+        if code != 0 or not dirs:
+            tail = [l for l in self.lines[-6:] if l.strip()]
+            raise RuntimeError('AlphaFold 3 stopped without models' + (f' (exit code {code})' if code else '') + ': '
+                               + (' | '.join(tail) or 'no output') + ' — full log in af3_log.txt')
+        self.stage('run', 'done')
+        self.stage('load', 'active', 'reading the models and computing energies')
+        nm, confs, warnings, info = alphafold.collect_dir(dirs[0])
+        doc = build_document(self.name, confs, None, warnings, {**info, 'path': str(dirs[0].resolve())},
+                             self.state.py_plugins)
+        summary = self.state._store(Entry(doc, confs, None, set(warnings), doc['source'], self.name))
+        self.document = summary
+        entry = self.state.entries.get(summary['id'])
+        try:
+            from .server import vienna_version
+            target = self.out / f'{self.name}.rcv'
+            size = rcvfile.write(target, entry.doc, methods=methods_text(entry.doc, vienna_version()),
+                                 app_version=__version__)
+            entry.rcv_path = str(target)
+            self.result.update(rcv=str(target), rcv_bytes=size)
+        except Exception as exc:
+            self.note(f'Could not write the .rcv file: {exc}', 'warning')
+        self.result.update(conformers=len(confs))
+        self.stage('load', 'done', plural(len(confs), 'model'))
+        self.note(f'{plural(len(confs), "AlphaFold 3 model")} opened (best ranking score first); colour by Confidence '
+                  'to see the pLDDT.')

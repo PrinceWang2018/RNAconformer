@@ -52,7 +52,8 @@ def _predict(a):
     cfg = PredictConfig(n_models=a.models, trajectories=a.trajectories, seed=a.seed,
                         max_structures=extra.pop('max_structures', a.max_structures),
                         workers=a.workers, anneal_steps=a.steps, temperature=a.temperature,
-                        cluster_rmsd=a.cluster_rmsd, **extra)
+                        cluster_rmsd=a.cluster_rmsd, templates=a.templates, template_cutoff=a.template_cutoff,
+                        template_exclude=tuple(x for x in a.template_exclude.replace(' ', '').split(',') if x), **extra)
     m = predict(seq, a.out, name=name, dbn=dbn, config=cfg, log=None if a.quiet else print)
     print(json.dumps({'out': a.out, 'conformers': len(m['conformers']), **m['statistics']}, indent=1))
     return 0 if m['conformers'] else 2
@@ -143,6 +144,11 @@ def main(argv=None):
     p.add_argument('--out', required=True)
     p.add_argument('--quiet', action='store_true')
     p.add_argument('--job-json', help='JSON with guided-exploration options (seed_structures, pull_restraints, relax_steps)')
+    p.add_argument('--templates', choices=('auto', 'off'), default='auto',
+                   help='use related experimental structures from the built-in library as templates (default auto)')
+    p.add_argument('--template-cutoff', default='', metavar='YYYY-MM-DD',
+                   help='only use templates released before this date (blind benchmarks)')
+    p.add_argument('--template-exclude', default='', metavar='PDB,PDB', help='PDB ids never used as templates')
     p.set_defaults(func=_predict)
     v = sub.add_parser('validate', help='independent all-atom validation of PDB/mmCIF files')
     v.add_argument('files', nargs='+')

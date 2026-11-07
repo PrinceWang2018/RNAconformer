@@ -812,3 +812,18 @@ body.native *::-webkit-scrollbar-track { background: transparent; }
 .sw-cond { gap: 6px; font-size: 12px; margin-top: 2px; }
 .cond-dialog .row .field { flex: 1; }
 .cond-dialog .input.mono { font-family: var(--mono); }
+
+/* ================================================================== 0.7.3: engine choice, AlphaFold 3 */
+.wl-engine { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.wl-engine .flabel { margin: 0; }
+.wl-af3 { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 10px; border-radius: 7px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 12.5px; min-width: 0; }
+.wl-af3 .af3-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.wl-af3.warn { border-color: var(--warn, #c98a1b); }
+.wl-af3 svg { flex: none; }
+.field.disabled { opacity: 0.45; pointer-events: none; }
+.af3-check { list-style: none; padding: 0; margin: 10px 0 0; font-size: 12.5px; }
+.af3-check li { display: flex; gap: 6px; align-items: flex-start; padding: 2px 0; }
+.af3-check li svg { flex: none; margin-top: 2px; }
+.wl-adv .wl-templates { margin: 6px 0 2px; font-size: 13px; }
+.wl-adv label.check.disabled { opacity: .5; pointer-events: none; }

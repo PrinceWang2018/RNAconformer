@@ -32,11 +32,11 @@ from .annotate import dotbracket_to_pairs, nested_subset, pairs_to_dotbracket
 from .checks import validate_model
 from .fold import FoldModel
 from .loops import TorsionPrior, close_linker, final_relief, finish_closure
-from .search import Scorer, ScoreWeights, AnnealConfig, anneal
+from .search import Scorer, ScoreWeights, AnnealConfig, anneal, fit_restraints
 from .structure_io import write_pdb, write_mmcif
 
 ENGINE = 'rnafold3d-v2-foldtree'
-ENGINE_VERSION = '2.0.2'
+ENGINE_VERSION = '2.1.0'
 KCAL_TO_KT_37C = 1.0 / (0.0019872 * 310.15)
 
 
@@ -63,6 +63,13 @@ class PredictConfig:
     seed_structures: tuple = ()
     pull_restraints: tuple = ()
     relax_steps: int = 1500
+    # template-based modelling from the built-in library of experimental RNA structures (templates.py)
+    templates: str = 'auto'          # 'auto': use significant hits; 'off': physics only
+    template_cutoff: str = ''        # only templates released before this date (YYYY-MM-DD), for blind tests
+    template_exclude: tuple = ()     # PDB ids that are never used as templates
+    max_templates: int = 3
+    template_share: float = 0.7      # fraction of trajectories for template hypotheses when hits exist
+    motifs: str = 'auto'             # junction geometry from non-homologous library structures ('off': none)
 
 
 def normalize_sequence(seq, allow_t=True):
@@ -139,6 +146,10 @@ def _r3(v):
     return None if v is None else round(float(v), 3)
 
 
+def _round_stats(st):
+    return None if st is None else {k: (round(v, 3) if isinstance(v, float) else v) for k, v in st.items()}
+
+
 def run_trajectory(job):
     """Worker: one independent search trajectory. Returns a JSON-friendly candidate dict.
 
@@ -156,23 +167,47 @@ def run_trajectory(job):
         return _run_trajectory(job)
 
 
+LOCAL_ISSUES = {'bond_angle', 'bond_length', 'chain_break', 'severe_clash'}
+
+
 def _run_trajectory(job):
     t0 = time.time()
     seq, hyp, k, seed, cfg = job['sequence'], job['hypothesis'], job['index'], job['seed'], job['config']
     weights = ScoreWeights(**cfg['weights'])
     rng = np.random.default_rng([seed, k])
     out = {'trajectory': k, 'ss_id': hyp['id'], 'seed': [seed, k]}
+    if hyp.get('motifs'):
+        out['junction_motifs'] = hyp['motifs']
     try:
         model = FoldModel(seq, hyp['pairs'], explicit_loops=True)
         prior = TorsionPrior(model.geom)
         scorer = Scorer(model, weights, prior, restraints=hyp.get('restraints', ()),
-                        pull_restraints=cfg.get('pull_restraints') or ())
+                        pull_restraints=cfg.get('pull_restraints') or (),
+                        distance_restraints=hyp.get('distance_restraints'))
         # stage 1: global arrangement; short closure loops explicit, long loops and hairpins implicit
         short = {L.id for L in model.loop_linkers if L.kind == 'closure' and L.n <= cfg.get('short_loop_max', 4)}
         model.set_active_loops(short)
         model.sample_torsions(rng)
+        guided = bool(hyp.get('torsions'))
+        if guided:
+            model.apply_torsions(hyp['torsions'])
+            scorer.dr_scale = float(cfg.get('template_weight', 5.0))
         model.build()
-        stats = anneal(model, scorer, rng, AnnealConfig(steps=cfg['anneal_steps']))
+        if scorer.dr is not None:              # template / junction-motif restraints: least-squares fit first
+            scorer.clash_scale = 0.3
+            out['fit'] = _round_stats(fit_restraints(model, scorer, iters=60 if guided else 30))
+        # a template that covers (nearly) everything fixes the fold: small moves only; a partial template
+        # leaves the arrangement of the other parts open: broader search
+        close_fit = guided and float(hyp.get('template_coverage') or 1.0) >= 0.85
+        if close_fit:
+            a1 = AnnealConfig(steps=cfg['anneal_steps'], t_start=0.8, sigma_start=10.0, sigma_end=3.0,
+                              p_residue_jump=0.02, p_junction_aform=0.0)
+        elif guided:
+            a1 = AnnealConfig(steps=cfg['anneal_steps'], t_start=3.0, sigma_start=25.0, sigma_end=4.0,
+                              p_residue_jump=0.1, p_junction_aform=0.0)
+        else:
+            a1 = AnnealConfig(steps=cfg['anneal_steps'])
+        stats = anneal(model, scorer, rng, a1)
         out['search'] = {k2: (round(v, 3) if isinstance(v, float) else v) for k2, v in stats.items()}
         # stage 2: grow + CCD-close the remaining loops
         closures = []
@@ -180,7 +215,12 @@ def _run_trajectory(job):
         for L in order:
             if L.id in model.active_loops:
                 continue
-            closures.append(close_linker(model, L, rng, prior, attempts=cfg['closure_attempts']))
+            if guided and scorer.dr is not None:      # keep the template loop shape (restrained closure)
+                closures.append(close_linker(model, L, rng, prior, attempts=cfg['closure_attempts'], from_current=4,
+                                             extra=lambda: scorer.dr_scale * scorer.w.template
+                                             * scorer.distance_restraint_energy(), restraints=scorer.dr))
+            else:
+                closures.append(close_linker(model, L, rng, prior, attempts=cfg['closure_attempts']))
             model.set_active_loops(model.active_loops | {L.id})
         if not all(c.get('closed') for c in closures):
             out['closures'] = closures
@@ -190,10 +230,15 @@ def _run_trajectory(job):
             return out
         # stage 3: joint annealing with every loop explicit (closure-preserving moves)
         model.set_loops_active(True)
+        if scorer.dr is not None:
+            scorer.clash_scale = 2.0
+            out['fit2'] = _round_stats(fit_restraints(model, scorer, iters=40 if guided else 20))
         ref = anneal(model, scorer, rng, AnnealConfig(steps=min(8000, 2000 + 12 * len(model.active_dofs)),
-                                                      t_start=1.5, t_end=0.1, sigma_start=15.0, sigma_end=4.0,
+                                                      t_start=0.6 if close_fit else 1.5, t_end=0.1,
+                                                      sigma_start=8.0 if close_fit else 15.0,
+                                                      sigma_end=3.0 if close_fit else 4.0,
                                                       clash_scale_start=2.0, clash_scale_end=25.0,
-                                                      p_residue_jump=0.05, p_junction_aform=0.0))
+                                                      p_residue_jump=0.01 if close_fit else 0.05, p_junction_aform=0.0))
         out['refine'] = {k2: (round(v, 3) if isinstance(v, float) else v) for k2, v in ref.items()}
         if scorer.pull:
             # stage 3b: remove the pull bias and relax into the nearest stable state of the unbiased score
@@ -213,11 +258,41 @@ def _run_trajectory(job):
             return out
         out['relief'] = final_relief(model, rng, prior)
         residues = model.residues_atoms()
+        ideal = residues                     # covalent geometry of the torsion model (ideal bonds and angles)
         val = validate_model(seq, residues, hyp['pairs'], model.geom)
+        ta = hyp.get('template_atoms')
+        if ta and ta.get('atoms'):
+            # stage 5: Cartesian refinement onto the template atoms (keeps covalent geometry, removes overlaps)
+            from .cartesian import refine_cartesian, template_targets
+            targets = template_targets(seq, residues, {int(r): v for r, v in ta['atoms'].items()}, ta['names'],
+                                       group={int(r): g for r, g in (ta.get('group') or {}).items()})
+            refined, fit = refine_cartesian(seq, residues, targets, geom=model.geom)
+            if fit is not None:
+                # polish: ideal covalent geometry of the torsion model, shape of the refined model
+                from .cartesian import regularize
+                refined, pol = regularize(seq, refined, model.geom, reference=residues)
+                fit['polish_moved_rms_A'] = pol['atoms_moved_rms_A']
+                val2 = validate_model(seq, refined, hyp['pairs'], model.geom)
+                fit['accepted'] = bool(val2['passed'] or (not val['passed'] and len(val2['issues']) <= len(val['issues'])))
+                if fit['accepted']:
+                    residues, val = refined, val2
+                out['template_fit'] = fit
+        if not val['passed'] and set(val['issue_counts']) <= LOCAL_ISSUES:
+            # local strain only (closure junction angles, overlaps): Cartesian regularisation keeps the shape
+            from .cartesian import regularize
+            fixed, reg = regularize(seq, residues, model.geom, reference=ideal)
+            val2 = validate_model(seq, fixed, hyp['pairs'], model.geom)
+            reg['issues_before'] = dict(val['issue_counts'])
+            reg['passed'] = bool(val2['passed'])
+            if val2['passed']:
+                residues, val = fixed, val2
+            out['regularized'] = reg
         if hyp.get('restraints'):
             rv = validate_model(seq, residues, hyp['restraints'], model.geom, max_report=0)['pair_recovery']
             val['restraint_pair_recovery'] = rv
         detail = scorer(detail=True)
+        if scorer.dr is not None:
+            out['template_restraints'] = scorer.distance_restraint_stats()
         loop_tor = float(sum(c.get('torsion_energy', 0.0) for c in closures))
         score3d = detail['total'] + loop_tor + 10.0 * val['severe_clashes']
         out.update({
@@ -248,7 +323,7 @@ def kabsch_rmsd(a, b):
 
 
 def select_diverse(cands, n_models, threshold):
-    order = sorted(range(len(cands)), key=lambda i: cands[i]['total_score'])
+    order = sorted(range(len(cands)), key=lambda i: cands[i].get('rank_key', (1, 0, cands[i]['total_score'])))
     reps = []
     for i in order:
         x = cands[i]['_c4']
@@ -263,6 +338,80 @@ def select_diverse(cands, n_models, threshold):
         c['cluster'] = k + 1
         c['rmsd_to_representative'] = round(d[k], 3)
     return reps
+
+
+# ---------------------------------------------------------------------------- templates
+def _template_hypotheses(seq, config, say, lib, scan, meta):
+    """Search the built-in structure library; one 2D/3D hypothesis per significant hit."""
+    from .templates import search, hypothesis, rank_templates, segment_hits
+    meta = {**meta, 'mode': config.templates, 'cutoff': config.template_cutoff or None,
+            'excluded': list(config.template_exclude), 'library': lib.version if lib else None}
+    if lib is None:
+        say('template library not installed; physics-only prediction')
+        return [], [], meta
+    t0 = time.time()
+    hits = search(seq, lib, cutoff=config.template_cutoff or None, exclude=config.template_exclude,
+                  max_hits=max(8, config.max_templates), scan=scan)
+    n_found = len(hits)
+    hits = rank_templates(seq, hits, lib, config.max_templates)
+    meta['search_time_s'] = round(time.time() - t0 + meta.get('scan_time_s', 0.0), 2)
+    say(f'template search: {n_found} significant hit(s) in {meta["search_time_s"]} s'
+        + (f' (released before {config.template_cutoff})' if config.template_cutoff else ''))
+    hyps, out = [], []
+    for rank, h in enumerate(hits):
+        # the best template may leave a part uncovered (an insert in a scaffold): add templates for that part
+        extra = segment_hits(seq, h, lib, cutoff=config.template_cutoff or None,
+                             exclude=config.template_exclude) if rank == 0 else []
+        hy = hypothesis(seq, h, lib, config.temperature, extra=extra)
+        label = '+'.join(f"{x['pdb']}_{x['chain']}" for x in (h, *extra))
+        say(f"  template {h['pdb']}_{h['chain']} E={h['evalue']:.2g} identity {h['identity']:.0%} coverage {h['coverage']:.0%} "
+            f"pairs {h['pairs_compatible']}/{h['pairs_mapped']} '{h['title'][:60]}'")
+        for x in extra:
+            say(f"  template {x['pdb']}_{x['chain']} E={x['evalue']:.2g} identity {x['identity']:.0%} coverage "
+                f"{len(x['aligned']) / len(seq):.0%} pairs {x['pairs_compatible']}/{x['pairs_mapped']} '{x['title'][:60]}'")
+        info = {k: h[k] for k in ('pdb', 'chain', 'model', 'release', 'method', 'resolution', 'title', 'evalue',
+                                  'bits', 'identity', 'coverage', 'consensus', 'rank_score', 'pairs_mapped',
+                                  'pairs_compatible')}
+        if extra:
+            info['parts'] = [{k: x[k] for k in ('pdb', 'chain', 'model', 'release', 'method', 'resolution', 'title',
+                                                'evalue', 'identity', 'segment')} for x in extra]
+            info['coverage'] = round(len({a for x in (h, *extra) for a, _ in x['aligned']}) / len(seq), 3)
+        info['label'] = label
+        info['aligned_residues'] = sum(len(x['aligned']) for x in (h, *extra))
+        info['distance_restraints'] = len(hy['distance_restraints']['i'])
+        out.append(info)
+        e = hy['energy_kcal_mol']
+        hyps.append({'id': '', 'dbn': hy['dbn'], 'pairs': hy['pairs'], 'energy_kcal_mol': e,
+                     'source': f'template {label}', 'restraints': hy['restraints'],
+                     'pseudoknot_pairs': [(i + 1, j + 1) for i, j in hy['restraints']],
+                     'distance_restraints': hy['distance_restraints'], 'torsions': hy['torsions'],
+                     'template_atoms': hy['template_atoms'],
+                     'template': {**info, 'rank': rank}})
+    return out, hyps, meta
+
+
+def _allocate(hyps, n_traj, config):
+    """Trajectories per hypothesis: templates first (best hit most), then MFE and suboptimal 2D."""
+    alloc = [0] * len(hyps)
+    t_idx = [k for k, h in enumerate(hyps) if h.get('template')]
+    p_idx = [k for k, h in enumerate(hyps) if not h.get('template')]
+    n_t = 0
+    if t_idx:
+        n_t = n_traj if not p_idx else min(n_traj - 1, max(1, int(round(config.template_share * n_traj))))
+        w = np.array([0.6 ** r for r in range(len(t_idx))])
+        share = np.floor(w / w.sum() * n_t).astype(int)
+        share[0] += n_t - share.sum()
+        for k, c in zip(t_idx, share):
+            alloc[k] = int(c)
+    rest = n_traj - n_t
+    if p_idx and rest > 0:
+        if len(p_idx) == 1:
+            alloc[p_idx[0]] = rest
+        else:
+            alloc[p_idx[0]] = max(1, int(round(config.mfe_share * rest)))
+            for k in range(rest - alloc[p_idx[0]]):
+                alloc[p_idx[1 + k % (len(p_idx) - 1)]] += 1
+    return alloc
 
 
 # ---------------------------------------------------------------------------- main entry
@@ -322,27 +471,51 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
             hyps, ss_meta = [], {'program': 'seed structures only (ViennaRNA unavailable)'}
         if config.seed_structures:
             hyps = _seed_hypotheses(seq, config.seed_structures, config.temperature, hyps)
+    # -------------------------------------------------------------- templates (experimental structures)
+    template_hits, template_meta = [], {'mode': config.templates}
+    lib, scan = None, None
+    guided_run = bool(config.seed_structures or config.pull_restraints)
+    if (config.templates != 'off' or config.motifs != 'off') and not guided_run:
+        from .templates import load_library, sw_scan
+        lib = load_library()
+        if lib is not None:
+            t0 = time.time()
+            scan = sw_scan(seq, lib)
+            template_meta['scan_time_s'] = round(time.time() - t0, 2)
+    if config.templates != 'off' and dbn is None and not guided_run:
+        template_hits, tmpl_hyps, template_meta = _template_hypotheses(seq, config, say, lib, scan, template_meta)
+        if tmpl_hyps:
+            hyps = tmpl_hyps + hyps
+            for k2, h in enumerate(hyps, 1):
+                h['id'] = f'ss{k2}'
     say(f'{name}: {n} nt; {len(hyps)} secondary-structure hypotheses ({ss_meta.get("program")})')
     for h in hyps:
         say(f"  {h['id']} {h['dbn']} {h.get('energy_kcal_mol')} kcal/mol [{h['source']}]")
     # -------------------------------------------------------------- trajectories
     n_traj = config.trajectories or max(8, 4 * config.n_models)
-    alloc = [0] * len(hyps)
-    if len(hyps) == 1:
-        alloc[0] = n_traj
-    else:
-        alloc[0] = max(1, int(round(config.mfe_share * n_traj)))
-        rest = n_traj - alloc[0]
-        for k in range(rest):
-            alloc[1 + k % (len(hyps) - 1)] += 1
+    alloc = _allocate(hyps, n_traj, config)
     cfg_dict = asdict(config)
+    motif_mask, motif_cache, motif_meta = None, {}, {'mode': config.motifs}
+    if config.motifs != 'off' and lib is not None:
+        from .templates import homologs
+        motif_mask = lib.allowed(config.template_cutoff or None, config.template_exclude) & ~homologs(seq, lib, scan)
+        motif_meta.update({'library_chains': int(motif_mask.sum()), 'homologs_excluded': int(homologs(seq, lib, scan).sum())})
     jobs = []
     k = 0
     for h, cnt in zip(hyps, alloc):
         for _ in range(cnt):
-            jobs.append({'sequence': seq, 'hypothesis': {'id': h['id'], 'pairs': h['pairs'],
-                                                         'restraints': h.get('restraints', [])}, 'index': k,
-                         'seed': config.seed, 'config': cfg_dict})
+            hyp_job = {'id': h['id'], 'pairs': h['pairs'], 'restraints': h.get('restraints', []),
+                       'distance_restraints': h.get('distance_restraints'), 'torsions': h.get('torsions'),
+                       'template_atoms': h.get('template_atoms'),
+                       'template_coverage': (h.get('template') or {}).get('coverage')}
+            if motif_mask is not None and not h.get('template'):
+                from .motifs import junction_restraints
+                dr, used = junction_restraints(seq, h['pairs'], lib, motif_mask, np.random.default_rng([config.seed, k, 7]),
+                                               cache=motif_cache)
+                if dr['i']:
+                    hyp_job['distance_restraints'] = dr
+                    hyp_job['motifs'] = used
+            jobs.append({'sequence': seq, 'hypothesis': hyp_job, 'index': k, 'seed': config.seed, 'config': cfg_dict})
             k += 1
     say(f'running {len(jobs)} trajectories on {config.workers} worker(s)')
     if config.workers > 1:
@@ -374,8 +547,18 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
             continue
         h = hyp_by_id[r['ss_id']]
         dg = h.get('energy_kcal_mol')
-        r['ss_offset_kT'] = round((dg - e_mfe) * KCAL_TO_KT_37C, 3) if (dg is not None and e_mfe is not None) else 0.0
-        r['total_score'] = r['score_3d'] + r['ss_offset_kT']
+        if h.get('template'):
+            r['ss_offset_kT'] = 0.0          # 2D taken from an experimental structure
+            r['rank_key'] = (0, h['template']['rank'], r['score_3d'])
+        else:
+            r['ss_offset_kT'] = round((dg - e_mfe) * KCAL_TO_KT_37C, 3) if (dg is not None and e_mfe is not None) else 0.0
+        # junction geometry from other structures only guides the sampling: its restraint energy is not part of the
+        # score that ranks models (otherwise models of hypotheses without junctions would always rank first)
+        guide = float((r.get('score_terms') or {}).get('template') or 0.0) if r.get('junction_motifs') else 0.0
+        if guide:
+            r['guide_energy_excluded'] = round(guide, 3)
+        r['total_score'] = r['score_3d'] - guide + r['ss_offset_kT']
+        r.setdefault('rank_key', (1, 0, r['total_score']))
         r['_residues'] = [{a: np.array(xyz) for a, xyz in res.items()} for res in r['residues']]
         r['_c4'] = _c4(r['_residues'])
         valid.append(r)
@@ -406,6 +589,10 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
         conformers.append({
             'id': cid, 'rank': rank, 'files': {'pdb': f'conformations/{cid}.pdb', 'mmcif': f'conformations/{cid}.cif'},
             'secondary_structure_id': h['id'], 'secondary_structure': h['dbn'],
+            **({'template': h['template']['label'], 'template_restraints': r.get('template_restraints'),
+                'template_fit': r.get('template_fit')} if h.get('template') else {}),
+            **({'junction_motifs': r['junction_motifs'], 'motif_restraints': r.get('template_restraints'),
+                'guide_energy_excluded': r.get('guide_energy_excluded', 0.0)} if r.get('junction_motifs') else {}),
             'ss_free_energy_kcal_mol': h.get('energy_kcal_mol'),
             'total_score': round(r['total_score'], 3), 'score_3d': r['score_3d'], 'ss_offset_kT': r['ss_offset_kT'],
             'score_terms': r['score_terms'], 'trajectory': r['trajectory'], 'seed': r['seed'],
@@ -455,7 +642,9 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
         'input': {'name': name, 'sequence': seq, 'length': n, 'sha256': hashlib.sha256(seq.encode()).hexdigest(),
                   'secondary_structure_mode': 'user' if dbn is not None else 'predicted_from_sequence',
                   'secondary_structure_method': ss_meta,
-                  'secondary_structures': [{k2: v for k2, v in h.items() if k2 not in ('pairs', 'restraints')} for h in hyps]},
+                  'secondary_structures': [{k2: v for k2, v in h.items() if k2 not in ('pairs', 'restraints', 'distance_restraints', 'torsions')}
+                                           for h in hyps],
+                  'templates': {**template_meta, 'hits': template_hits}, 'junction_motifs': motif_meta},
         'parameters': {**{k2: v for k2, v in cfg_dict.items() if k2 != 'weights'}, 'weights': cfg_dict['weights'],
                        'trajectories_run': len(jobs), 'trajectory_allocation': dict(zip([h['id'] for h in hyps], alloc)),
                        'cluster_rmsd_threshold': round(threshold, 3), 'ionic_conditions': 'implicit; Debye length 10 A '
@@ -470,8 +659,10 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
         'warnings': warnings,
         'notes': ['Scores are dimensionless model scores (kT-like units), not free energies; ranks are not populations.',
                   'Secondary-structure energies are ViennaRNA nearest-neighbour free energies (kcal/mol).',
-                  'Models are physics-inspired predictions without deep learning or tertiary templates; '
-                  'accuracy must be judged from the benchmark report.'],
+                  ('Models built on a template follow an experimental structure of a related RNA (see input.templates); '
+                   'the others are physics-inspired predictions. No deep learning is used.' if template_hits else
+                   'Models are physics-inspired predictions without deep learning or templates; '
+                   'accuracy must be judged from the benchmark report.')],
     }
     (out / 'metadata' / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     (out / 'config.json').write_text(json.dumps(cfg_dict, indent=2))

@@ -113,15 +113,23 @@ The start page shows the **two ways to use RCV**, side by side:
     RCV lists them with a check per sequence and offers **Predict N sequences** — a **batch** run, one
     prediction after another, each on all chosen cores (up to 100 sequences).
 * **Load a FASTA file…** — fills the box from a file (a FASTA file dropped on the box works too).
+* **Engine** *(0.7.3)* — **RCV engine** (built in, runs on the CPU; section 3.1) or **AlphaFold 3 (local)**, your
+  own AlphaFold 3 installation (section 3.2).
 * **Advanced settings** (closed by default): name, number of conformations to keep, sampling depth (Fast /
   Standard / Thorough = 2 / 4 / 8 trajectories per kept conformation), CPU cores, a known secondary structure
-  (dot-bracket), the random seed, *Fill in the demo sequence*.
+  (dot-bracket), the random seed, **Use related experimental structures (templates)** (on by default; section
+  3.1), *Fill in the demo sequence*.
 
 **2 · View experimental or predicted structures of one RNA**
 
 * **Open files…** (or drop files on the card, or anywhere on the window) — PDB/mmCIF files, a multi-model (NMR)
   file, an `.rcv` file, a prediction folder or a workspace. Several structure files, or the models of one
   multi-model file, open together as **one ensemble** of the same RNA (section 11).
+* **AlphaFold Server results** *(0.7.3)* — open the `.zip` you download from the
+  [AlphaFold Server](https://alphafoldserver.com/) (*AlphaFold Server…* opens the site). All sampled models of
+  the job open as one ensemble, best ranking score first, with the pLDDT of every nucleotide (colour by
+  *Confidence*), the ranking score, pTM and the fraction disordered as metrics. The output folder of a local
+  AlphaFold 3 run (`seed-*_sample-*` subfolders) opens the same way.
 * **Fetch PDB…** — type a 4-character PDB ID (e.g. `1ANR`, `1EHZ`), optionally a chain; RCV downloads the mmCIF
   from the RCSB PDB into `projects/fetched/` and opens it. Nothing is downloaded unless you do this.
 * **Demo ensembles** — the HIV-1 TAR NMR ensemble and two predictions.
@@ -146,6 +154,44 @@ later. A failed sequence does not stop the batch.
 
 Run time grows with length and sampling: on an 8-core laptop a 29-nt hairpin with Standard sampling takes about
 5–7 minutes, a 12–14-nt hairpin with Fast sampling 10–60 s.
+
+### 3.1 How the RCV engine builds 3D models *(0.7.3)*
+
+1. **Related experimental structures (templates).** RCV carries a library of about 4,000 RNA chains from the
+   Protein Data Bank (one per non-redundant class of the BGSU RNA 3D Hub; coarse coordinates, torsions and base
+   pairs; 21 MB, no network needed). The sequence is aligned to all of them in 1–3 s. A chain counts as a
+   template when the alignment is significant (E-value ≤ 10⁻³, or ≤ 10⁻² when it covers ≥ 60%) and covers at
+   least 45% of the sequence; templates are ranked by identity × coverage × their 3D agreement with the other
+   hits, so a structure in an unusual state (for example a tRNA bent by an enzyme) moves down. When the best
+   template leaves a part uncovered (an insert in a scaffold), another template is looked up for that part.
+2. **3D model from a template.** The template gives the base pairs, distance restraints between the aligned
+   nucleotides, starting torsions and atom positions. The fold-tree search satisfies the restraints, loops are
+   closed in the template's shape, and a final Cartesian refinement moves every atom onto the template while
+   keeping exact bond lengths and angles; parts without a template are modelled by the physics search.
+   Notes in the progress panel name the templates; *Details* shows the template of each conformation (with a
+   link to the PDB entry). 70% of the trajectories use templates (most of them the best one); the rest explore
+   other folds, so the ensemble still shows alternative conformations.
+3. **No template.** The search runs on ViennaRNA 2D hypotheses as before, and the **3D arrangement of the helices
+   at junctions** (internal loops, bulges, multi-way junctions) is now taken from library junctions with the same
+   topology and strand lengths (any homologue of the query excluded): one per trajectory, so the ensemble samples
+   the junction geometries seen in experimental structures.
+
+Switch templates off (*Advanced settings*) for a physics-only prediction, for example to test whether a design
+folds without relying on known structures. `rnafold3d predict --templates off`, `--template-cutoff YYYY-MM-DD`
+(only structures released before a date) and `--template-exclude 1ABC,2XYZ` do the same on the command line.
+
+### 3.2 AlphaFold 3 on this computer *(0.7.3, optional)*
+
+If AlphaFold 3 is installed on this computer (Linux with an NVIDIA GPU; the model parameters are granted by
+Google DeepMind and are not part of RCV), choose **AlphaFold 3 (local)** as the engine and fill in
+**AlphaFold 3 settings…** once: the Python of the AlphaFold 3 environment, `run_alphafold.py`, the model
+parameters folder and, optionally, the databases folder (without it AlphaFold 3 runs without MSA search, which
+needs no 600 GB databases but is usually less accurate for RNA), the number of seeds (5 models each) and extra
+flags. For Docker, WSL or a cluster, give a **custom command** with the placeholders `{json}`, `{json_name}`,
+`{input_dir}`, `{output_dir}`, `{model_dir}` and `{db_dir}`. *Check* tests the installation. RCV writes the
+AlphaFold 3 input, runs it, shows its log and opens every sampled model as one ensemble coloured by pLDDT; the
+run folder keeps the input, the log and the AlphaFold 3 output. AlphaFold 3 runs one sequence at a time (no
+batch); its terms of use apply to its output.
 
 ## 4. The window
 
@@ -625,7 +671,11 @@ rcv (Python standard-library server)                       src/rcv/
    ├─ fonts.py       PDF subsets of the bundled Liberation Sans (fontTools; standard PDF fonts without it)
    └─ desktop.py / paths.py  window shells, native dialogs, user folders
 rnafold3d engine (numpy, scipy, ViennaRNA)                 src/rnafold3d/
+   ├─ templates.py   structure library (data/pdb_rna_v2.npz), alignment, template hypotheses
+   ├─ motifs.py      junction geometry from library structures (template-free)
+   ├─ cartesian.py   restrained Cartesian refinement and regularisation
    └─ qa.py          optional confidence model (small neural network, numpy; weights data/qa_v1.npz)
+rcv/alphafold.py     AlphaFold Server results and local AlphaFold 3 runs (optional, AlphaFold 3 not included)
 ```
 
 The engine uses the CPU cores you allow; the GPU renders the view and exports. GPU acceleration of the engine
@@ -670,4 +720,6 @@ Silicon, macOS Intel) on GitHub's machines.
 * Pull switching chooses among computed conformations; explorations take minutes; helices are rigid.
 * Non-canonical base-pair annotation and multi-chain complexes are not supported yet. The molecular surface is a
   smooth Gaussian surface for figures, not a solvent-excluded surface for area calculations.
-* Prediction accuracy for large multi-branched RNAs is limited (see `docs/V2_STATUS.md`).
+* Prediction accuracy for large multi-branched RNAs without a related experimental structure is limited (see
+  `docs/V2_STATUS.md` and the CASP16 benchmark in the README). Templates come only from the built-in library
+  (PDB entries up to November 2026); a template-based model is as good as the template and its alignment.

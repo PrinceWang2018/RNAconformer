@@ -254,7 +254,7 @@ class App extends Emitter {
       try { const r = await this.api.post('/api/read-json', { path: p }); await this.loadSessionText(r.text, p.split(/[\\/]/).pop()); }
       catch (err) { toast(err.message, 'error', 'Workspace'); }
     }
-    const rcvs = paths.filter(p => /\.rcv$/i.test(p));
+    const rcvs = paths.filter(p => /\.(rcv|zip)$/i.test(p));       // each .rcv / AlphaFold Server .zip is one ensemble
     for (const p of rcvs) await this.openServerPaths([p]);
     const rest = paths.filter(p => !sessions.includes(p) && !rcvs.includes(p));
     if (rest.length) await this.openServerPaths(rest);
@@ -640,7 +640,9 @@ class App extends Emitter {
     for (const f of sessions) await this.loadSessionText(await readFileText(f), f.name);
     const rcvs = files.filter(f => /\.rcv$/i.test(f.name));
     for (const f of rcvs) await this.openRcvFile(f);
-    const rest = files.filter(f => !sessions.includes(f) && !rcvs.includes(f));
+    const zips = files.filter(f => /\.zip$/i.test(f.name));
+    if (zips.length) { const { openAf3Zip } = await import('./af3.js'); for (const f of zips) await openAf3Zip(this, f); }
+    const rest = files.filter(f => !sessions.includes(f) && !rcvs.includes(f) && !zips.includes(f));
     if (!rest.length) return;
     if (!this.api.online) { toast('Reading PDB/mmCIF files needs the local viewer server. Sessions open offline.', 'error', 'Offline'); return; }
     const done = busy(`Reading ${rest.length} file(s) and computing energies…`);
@@ -672,7 +674,7 @@ class App extends Emitter {
     const items = [...(dt.items || [])].map(i => i.webkitGetAsEntry?.()).filter(Boolean);
     if (items.length) for (const e of items) await walk(e);
     else files.push(...dt.files);
-    const keep = files.filter(f => /\.(pdb|ent|cif|mmcif|json|rcv)$/i.test(f.name));
+    const keep = files.filter(f => /\.(pdb|ent|cif|mmcif|json|rcv|zip)$/i.test(f.name));
     const fasta = files.filter(f => /\.(fa|fasta|fna)$/i.test(f.name));
     if (fasta.length && !keep.length) { this.showPage('welcome'); await this.welcome.loadFastaFile(fasta[0]); return; }
     if (!keep.length) { toast('No .rcv, PDB, mmCIF or workspace files found in the drop.', 'error'); return; }

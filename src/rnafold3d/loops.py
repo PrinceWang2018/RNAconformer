@@ -173,6 +173,110 @@ def ccd_close(model, L, tor, puck, max_sweeps=150, tol=0.03, close_at='p', froze
     return rmsd <= tol, rmsd, tor
 
 
+def restrained_close(model, L, tor, puck, dr, close_at='p', frozen=(), iters=60, tol=0.03,
+                     w_close=10.0, w_ref=0.5):
+    """Close loop L by Levenberg-Marquardt in loop torsion space while keeping its C4' atoms on the distance
+    restraints `dr` (Scorer.dr, e.g. from a template) and its torsions near the starting ones.
+
+    CCD alone closes a template loop by large changes of a few torsions, which loses the template shape;
+    here the closure gap, the restraint violations and the torsion changes are minimised together.
+    Returns (converged, rmsd, tor) like ccd_close (finished with a short CCD polish)."""
+    tor = tor.copy()
+    ref = tor.copy()
+    target = _targets(model, L, tor, close_at)
+    loop = list(L.loop)
+    c4_chain = {m: 3 + 6 * k + 3 for k, m in enumerate(loop)}
+    I = model.idx
+    rows = []
+    if dr is not None:
+        atom_res = {I[(m, "C4'")]: m for m in loop}
+        for q, (a, b) in enumerate(zip(dr['ia'], dr['ib'])):
+            ma, mb = atom_res.get(int(a)), atom_res.get(int(b))
+            if ma is None and mb is None:
+                continue
+            if (ma is None and not model.present[a]) or (mb is None and not model.present[b]):
+                continue
+            rows.append((ma, mb, int(a), int(b), float(dr['d'][q]), float(dr['tol'][q])))
+
+    def residuals(tor_):
+        chain, dofs = _mainchain(model, L, tor_, puck, close_at)
+        if frozen:
+            dofs = [d for d in dofs if (d[0], d[1]) not in frozen]
+        P = np.asarray(chain)
+        res = [w_close * (P[-3:] - target).ravel()]
+        geo = []
+        for ma, mb, a, b, d0, tl in rows:
+            pa = P[c4_chain[ma]] if ma is not None else model.xyz[a]
+            pb = P[c4_chain[mb]] if mb is not None else model.xyz[b]
+            diff = pa - pb
+            d = float(np.linalg.norm(diff)) + 1e-9
+            dev = d - d0
+            v = math.copysign(max(0.0, abs(dev) - tl), dev)
+            geo.append((v, diff / d, ma, mb))
+        res.append(np.array([g[0] for g in geo]))
+        dtheta = np.array([((tor_[r, TOR[nm]] - ref[r, TOR[nm]] + 180.0) % 360.0 - 180.0) for r, nm, _, _ in dofs])
+        res.append(w_ref * np.radians(dtheta))
+        return np.concatenate(res), P, dofs, geo
+
+    ia_pt = np.array([c4_chain[ma] if ma is not None else -1 for ma, _, _, _, _, _ in rows], int)
+    ib_pt = np.array([c4_chain[mb] if mb is not None else -1 for _, mb, _, _, _, _ in rows], int)
+
+    def jacobian(P, dofs, geo):
+        nd = len(dofs)
+        u_idx = np.array([d[2] for d in dofs])
+        v_idx = np.array([d[3] for d in dofs])
+        axes = P[v_idx] - P[u_idx]
+        axes /= np.linalg.norm(axes, axis=1)[:, None]
+        piv = P[v_idx]
+        E = P[-3:]
+        J_close = w_close * np.cross(axes[:, None, :], E[None, :, :] - piv[:, None, :]).reshape(nd, 9).T
+        if not geo:
+            return np.vstack([J_close, w_ref * np.eye(nd)])
+        unit = np.array([g[1] for g in geo])
+        act = np.array([g[0] != 0.0 for g in geo])
+        J_geo = np.zeros((len(geo), nd))
+        for pts, sign in ((ia_pt, 1.0), (ib_pt, -1.0)):
+            has = pts >= 0
+            if not has.any():
+                continue
+            X = P[pts[has]]
+            C = np.cross(axes[None, :, :], X[:, None, :] - piv[None, :, :])          # q x nd x 3
+            G = np.einsum('qdk,qk->qd', C, unit[has]) * (pts[has][:, None] > v_idx[None, :])
+            J_geo[has] += sign * G
+        J_geo[~act] = 0.0
+        return np.vstack([J_close, J_geo, w_ref * np.eye(nd)])
+
+    r, P, dofs, geo = residuals(tor)
+    cost = float(r @ r)
+    lam = 1e-2
+    for it in range(iters):
+        J = jacobian(P, dofs, geo)
+        JtJ = J.T @ J
+        g = J.T @ r
+        improved = False
+        for _ in range(8):
+            step = -np.linalg.solve(JtJ + lam * (np.diag(np.diag(JtJ)) + 1e-6 * np.eye(len(dofs))), g)
+            step = np.degrees(step)
+            mx = float(np.max(np.abs(step)))
+            if mx > 30.0:
+                step *= 30.0 / mx
+            trial = tor.copy()
+            for (res_, nm, _, _), s_ in zip(dofs, step):
+                k = TOR[nm]
+                trial[res_, k] = (trial[res_, k] + s_ + 180.0) % 360.0 - 180.0
+            r2, P2, dofs2, geo2 = residuals(trial)
+            c2 = float(r2 @ r2)
+            if c2 < cost:
+                tor, r, P, dofs, geo, cost = trial, r2, P2, dofs2, geo2, c2
+                lam = max(lam / 3.0, 1e-6)
+                improved = True
+                break
+            lam *= 5.0
+        if not improved or float(np.sqrt(np.mean((P[-3:] - target) ** 2) * 3.0 / 3.0)) < tol * 0.5 and it > 10:
+            break
+    return ccd_close(model, L, tor, puck, max_sweeps=60, tol=tol, close_at=close_at, frozen=frozen)
+
+
 def loop_torsion_residues(L):
     out = [(L.a, 'epsilon'), (L.a, 'zeta')]
     for m in L.loop:
@@ -336,39 +440,56 @@ def relax_loop(model, L, rng, prior, steps=150, sigma=20.0, tol=0.03, close_at='
     return best[2]
 
 
-def close_linker(model, L, rng, prior: TorsionPrior, attempts=24, keep=4, tol=0.03, relax_steps=150):
-    """Close linker L in place (writes model.tor/puck/xyz/present). Returns a report dict."""
+def close_linker(model, L, rng, prior: TorsionPrior, attempts=24, keep=4, tol=0.03, relax_steps=150,
+                 from_current=0, extra=None, restraints=None):
+    """Close linker L in place (writes model.tor/puck/xyz/present). Returns a report dict.
+
+    from_current: the first attempts start from the current torsions (e.g. taken from a template) with
+    increasing Gaussian noise instead of regrowing the loop from library conformers.
+    extra: optional callable adding a score for the closed candidate (e.g. template distance restraints).
+    restraints: Scorer.dr; attempts from the current torsions then close by restrained_close."""
     reach = model.geom.raw['loop_reach']
     close_at = getattr(L, 'close_at', 'p' if L.n >= 1 else 'c5')
     frozen = {(L.b, 'beta'), (L.b, 'gamma')} if close_at == 'p' else set()
+    free = [(r, nm) for r, nm in loop_torsion_residues(L) if (r, nm) not in frozen and nm != 'chi']
     best = None
     tried = converged = 0
     for attempt in range(attempts):
         tried += 1
         tor = model.tor.copy()
         puck = model.puck.copy()
-        if L.n >= 1:
+        if attempt < from_current:
+            sigma = 12.0 * attempt / max(1, from_current - 1)
+            for r, nm in free:
+                tor[r, TOR[nm]] = (tor[r, TOR[nm]] + rng.normal(0, sigma) + 180) % 360 - 180
+        elif L.n >= 1:
             grow_loop(model, L, rng, tor, puck, reach)
         else:
             lib = model.geom.loop_library
             row = lib[rng.integers(len(lib))]
             for r, nm in ((L.a, 'epsilon'), (L.a, 'zeta'), (L.b, 'alpha'), (L.b, 'beta'), (L.b, 'gamma')):
                 tor[r, TOR[nm]] = row[LIB_COLS.index(nm)]
-        ok, rmsd, tor = ccd_close(model, L, tor, puck, tol=tol, close_at=close_at, frozen=frozen)
+        if attempt < from_current and L.n >= 1:
+            ok, rmsd, tor = restrained_close(model, L, tor, puck, restraints, close_at=close_at, frozen=frozen, tol=tol)
+        else:
+            ok, rmsd, tor = ccd_close(model, L, tor, puck, tol=tol, close_at=close_at, frozen=frozen)
         if not ok:
             continue
         converged += 1
         saved = (model.tor.copy(), model.puck.copy())
         gap = _apply(model, L, tor, puck)
         clash_score, e_tor, n_cl = _loop_score(model, L, prior)
-        score = clash_score + e_tor + 100.0 * gap
+        score = clash_score + e_tor + 100.0 * gap + (float(extra()) if extra is not None else 0.0)
         cand = {'score': score, 'clashes': n_cl, 'torsion_energy': e_tor, 'gap_rmsd': gap,
                 'tor': model.tor.copy(), 'puck': model.puck.copy()}
         model.tor[:], model.puck[:] = saved
+        cand['template'] = attempt < from_current
         if best is None or score < best['score']:
             best = cand
-        if converged >= keep and best['clashes'] == 0:
+        if converged >= keep and best['clashes'] == 0 and attempt >= from_current - 1:
             break
+        if best is not None and best.get('template') and attempt >= from_current - 1:
+            break           # template-shaped closure found: keep it (clashes are relieved later with restraints)
     report = {'a': L.a + 1, 'b': L.b + 1, 'n': L.n, 'kind': L.kind, 'attempts': tried,
               'converged_attempts': converged, 'closure_point': "O3'-P" if close_at == 'p' else "O5'-C5'"}
     if best is None:
@@ -377,13 +498,15 @@ def close_linker(model, L, rng, prior: TorsionPrior, attempts=24, keep=4, tol=0.
         return report
     gap = _apply(model, L, best['tor'], best['puck'])
     relaxed = False
-    if best['clashes'] and relax_steps:
+    if best['clashes'] and relax_steps and not best.get('template'):
         relax_loop(model, L, rng, prior, steps=relax_steps, tol=tol, close_at=close_at)
         relaxed = True
     gap = _apply(model, L, model.tor, model.puck)
     _, e_tor, n_cl = _loop_score(model, L, prior)
     report.update({'closed': True, 'gap_rmsd': round(gap, 4), 'clashes': n_cl,
                    'torsion_energy': round(e_tor, 2), 'relaxed': relaxed})
+    if best.get('template'):
+        report['method'] = 'template'
     return report
 
 

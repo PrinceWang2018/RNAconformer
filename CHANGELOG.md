@@ -1,5 +1,71 @@
 # Changelog
 
+## Package 0.7.3 — 2026-11-07 — RCV · RNA Conformation Viewer (engine rnafold3d 2.1.0)
+
+3D interactions in the engine: related experimental structures (templates) and junction geometry from known
+structures, without deep learning, in a 21 MB library. AlphaFold 3 can be used as a second engine (your own
+installation) and AlphaFold Server results open directly.
+
+### Added
+- **Template-based modelling with a built-in structure library.** `rnafold3d/data/pdb_rna_v2.npz` holds 3,964 RNA
+  chains from the PDB (one per non-redundant class of the BGSU RNA 3D Hub, release 4.64): sequence, coarse
+  coordinates (C4′ plus P, C1′ and four base atoms), torsions and base pairs, 21.5 MB, no network needed. The
+  query is aligned to all chains in 1–3 s (exact Smith–Waterman with BLASTN scoring and E-values, collinear
+  multi-segment alignment). Hits must have E ≤ 10⁻³ (≤ 10⁻² when they cover ≥ 60% of the query) and cover ≥ 45%;
+  they are ranked by identity × coverage × 3D agreement with the other hits, which moves templates in unusual
+  states down. When the best template leaves a part of ≥ 20 nt uncovered (an insert in a scaffold), a template
+  for that part is added. A template gives the 2D (the rest folded by ViennaRNA with the template pairs
+  enforced), C4′ distance restraints, starting torsions and atom positions. Development benchmark (26 PDB
+  chains, templates released before each one; 5 had a template): mean TM-score of model 1 0.271 (0.230 without
+  templates), e.g. tRNA-Phe 1EHZ 0.42 → 0.89.
+- **Cartesian refinement** (`rnafold3d/cartesian.py`). After the fold-tree search, every atom is pulled onto
+  the superposed template atoms (each template part on its own) while bond lengths, angles, ring geometry and
+  chirality stay those of the ideal model and atom overlaps are pushed apart (distance restraints, L-BFGS,
+  about 1 s); a polish restores ideal covalent geometry. A template model reproduces its template to 0.2–0.4 Å
+  on the restrained atoms (R1263: TM-score 0.93, the template itself 0.93).
+- **Restrained loop closure.** Loops of template trajectories are closed by a Levenberg–Marquardt fit of the
+  loop torsions to the closure, the template restraints and the template torsions together (CCD alone changed a
+  few torsions by up to 180° and lost the loop shape).
+- **Junction geometry from known structures (template-free).** Every internal loop, bulge and multi-way junction
+  of the 2D gets, per trajectory, the geometry of a library junction with the same helix count and strand
+  lengths (homologues of the query excluded), as soft C4′ distance restraints; the ensemble samples junction
+  arrangements seen in experimental structures. The restraints only guide the sampling: their energy is left out
+  of the score that ranks the models (`guide_energy_excluded` in the manifest). Development benchmark (26 PDB
+  chains, structures released before each one): mean TM-score of model 1 0.230 with junction geometry,
+  0.214 without (better on 12 chains, worse on 5).
+- **Regularisation of strained models.** Trajectories that fail validation only through local strain
+  (closure-junction angles, a stretched O3′–P bond, a few severe overlaps) are repaired in Cartesian space
+  (atoms move 0.05–0.1 Å) instead of being discarded.
+- **AlphaFold 3 as a second engine** (start page, card 1, *Engine: AlphaFold 3 (local)*): RCV writes the
+  AlphaFold 3 input, runs your installation (Python + `run_alphafold.py` + model parameters, optional
+  databases, or a custom command for Docker/WSL/clusters), shows its log and opens all sampled models as one
+  ensemble coloured by pLDDT. AlphaFold 3 is not included in RCV.
+- **AlphaFold Server results** (card 2): open the downloaded `.zip` (or a local AlphaFold 3 output folder); all
+  models open as one ensemble, best ranking score first, with pLDDT, ranking score, pTM and fraction disordered.
+- Start page: *Use related experimental structures (templates)* in the advanced settings (on by default);
+  `rnafold3d predict --templates off`, `--template-cutoff YYYY-MM-DD`, `--template-exclude`.
+- Details tab: the template of every conformation, with a link to the PDB entry; progress notes name the
+  templates found.
+- `tools/build_template_library.py` builds the library from the BGSU list and the RCSB ModelServer
+  (`--split-date` keeps a pre-CASP16 member of every class; `--repack` converts older files).
+
+### Changed
+- **CASP16 benchmark** (`benchmark/casp16/`): RCV is run with templates (only structures released before
+  2024-05-01, the start of the CASP16 prediction season) and without; both are reported next to 0.7.2.
+  Mean TM-score of model 1 over the 15 targets: 0.490 with templates (AlphaFold 3 0.480, trRosettaRNA 0.493,
+  Vfold 0.534, GuangzhouRNA 0.526), 0.265 without (0.7.2: 0.251); right global fold (TM ≥ 0.45) on 8 of 15
+  targets (AlphaFold 3: 8; 0.7.2: none). 1–7 minutes per target on a 16-core laptop CPU without GPU, at most
+  1.3 GB of memory; the same models with 4 cores (deterministic), in about twice the time.
+- New: `ensembles.py` (CASP16 RNAs solved in several conformations: how well the five models of each method
+  cover them), `timing.py` (time and memory per RNA), `figure.py` (four-panel comparison of size, hardware,
+  speed and RNAs that move), `benchmark/dev_templates.py` (development benchmark with per-target date cutoffs).
+- Engine 2.1.0: runs differ from 2.0.2 for the same seed (templates and junction geometry are on by default;
+  `--templates off` plus `PredictConfig(motifs='off')` give the 2.0 behaviour).
+
+### Fixed
+- CASP16 target R1296 is HIV-1 RRE stem-loop II with G34U (R1209's RNA), not a tRNA: label corrected in
+  `benchmark/casp16/targets.json`.
+
 ## Package 0.7.2 — 2026-11-06 — RCV · RNA Conformation Viewer (engine rnafold3d 2.0.2)
 
 Bug fixes and a blind-test comparison with the leading RNA 3D structure predictors (CASP16).

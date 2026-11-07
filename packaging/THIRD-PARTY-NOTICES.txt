@@ -52,3 +52,15 @@ typing_extensions               PSF-2.0
 Microsoft Visual C++ runtime    redistributed under the Microsoft Visual Studio licence terms (Windows)
 PyInstaller bootloader          GPL-2.0-or-later with the PyInstaller exception (allows any licence for
                                 the bundled application)                   https://pyinstaller.org/
+
+DATA
+====
+
+RNA structure library (rnafold3d/data/pdb_rna_v2.npz; template-based modelling and junction geometry)
+  Coarse coordinates (P, C4', C1' and four base atoms per nucleotide), torsion angles and base pairs derived
+  from experimental structures in the Protein Data Bank (wwPDB, https://www.wwpdb.org/; data CC0 1.0), obtained
+  through the RCSB PDB ModelServer. Chains selected with the BGSU RNA 3D Hub non-redundant list
+  (http://rna.bgsu.edu/rna3dhub/nrlist/): N.B. Leontis and C.L. Zirbel (2012), "Nonredundant 3D structure
+  datasets for RNA knowledge extraction and benchmarking", in RNA 3D Structure Analysis and Prediction,
+  Springer, 281-298. The original entries are named in the library (PDB id, chain) and in every prediction
+  that uses them.

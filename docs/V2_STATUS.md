@@ -1,12 +1,15 @@
 # RNAfold3D v2 engine — validation and modification report
 
-**Date:** 2026-10-22 · **Engine:** `rnafold3d-v2-foldtree` 2.0.1 (current) · **Geometry parameters:** `geometry_v1.json` 1.0.0
+**Date:** 2026-11-07 · **Engine:** `rnafold3d-v2-foldtree` 2.1.0 (current; templates and junction geometry, §4.00) ·
+**Geometry parameters:** `geometry_v1.json` 1.0.0 · **Structure library:** `pdb_rna_v2.npz` (3,964 PDB RNA chains)
 
 **Summary.** The archived pipeline could not turn a sequence into a structure (0/26 benchmark
 targets). The reworked engine produces validated all-atom ensembles from sequence alone for
 26/26 targets (14–192 nt). Small RNAs are accurate (hairpins and TAR 1.8–4 Å); larger multi-branched
 RNAs reach random-arrangement accuracy in the top-ranked model and modestly better in best-of-5.
-Tertiary physics, pseudoknots and ranking — not chemistry — now limit accuracy.
+Tertiary physics, pseudoknots and ranking — not chemistry — now limit accuracy. v2.1.0 adds related
+experimental structures (templates) and junction geometry from a built-in PDB library: mean TM-score of model 1
+on the 26 chains 0.214 → 0.271, and on the blind CASP16 targets 0.251 → 0.490 (AlphaFold 3: 0.480).
 
 ## 1. Why the prediction engine was reworked
 
@@ -79,10 +82,40 @@ Success thresholds fixed in advance: best-of-K C4' RMSD ≤ 5 Å / ≤ 10 Å, eR
 
 Two complete runs were made with identical settings: **v2.0.0** (the frozen engine, run once on all
 targets) and **v2.0.1** (after failure analysis: stem refinement for compressed pairs, BLAS
-thread fix; see `CHANGELOG.md`). v2.0.1 is the current engine; both are reported. Reports are copied
-to `docs/benchmark_v1/`.
+thread fix; see `CHANGELOG.md`); both are reported in §4.0–4.1. Reports are copied to `docs/benchmark_v1/`.
+The current engine, v2.1.0 (templates and junction geometry), was measured on the same 26 chains with a
+development benchmark that limits every target to structures released before it (§4.00).
 
-### 4.0 v2.0.1 (current engine, `benchmark/runs/v2_0_1_pilot/`)
+### 4.00 v2.1.0 (current engine): templates and junction geometry
+
+What changed (details in `CHANGELOG.md`, package 0.7.3): a search of the built-in PDB library (Smith–Waterman,
+E-values, ranking by 3D agreement between hits); template 2D, C4′ distance restraints, torsions and atom
+positions for template hypotheses; loop closure restrained to the template loop shape; Cartesian refinement
+onto template atoms; junction geometry from non-homologous library structures as soft restraints for the other
+hypotheses (left out of the ranking score); Cartesian regularisation of models that fail validation only
+through local strain.
+
+**Development benchmark** (`benchmark/dev_templates.py`; the 26 pilot chains, 16 trajectories, seed 42;
+templates and junction geometry limited to structures released before each target, so no target is its own
+template). Mean US-align TM-score (normalised by the reference, as in CASP16):
+
+| | physics only (as 2.0) | + junction geometry | + templates (default) |
+|---|---|---|---|
+| Mean TM-score, model 1 | 0.214 | 0.230 | **0.271** |
+| Mean TM-score, best of 5 | 0.244 | 0.254 | **0.292** |
+| Targets with a template | – | – | 5 of 26 |
+
+Junction geometry: better on 12 targets, worse on 5 (by ≤ 0.05). Templates: 1EHZ tRNA-Phe 0.42 → 0.89 (486D),
+3MXH 0.25 → 0.75 (3IWN), 5KPY 0.20 → 0.39 (1Y27); 1ANR (29-nt NMR structure) 0.21 → 0.16 and 4QLM 0.23 → 0.20.
+
+**CASP16** (`benchmark/casp16/`, 15 blind targets, templates released before 2024-05-01): mean TM-score of
+model 1 0.490 with templates (AlphaFold 3 0.480, trRosettaRNA 0.493, Vfold 0.534, GuangzhouRNA 0.526), 0.265
+without (2.0.2: 0.251). The template rules were set with the CASP16 results visible; the development benchmark
+above is the independent check. Limitations: a template is only as good as its similarity to the target (tRNA
+R1271: closest earlier tRNA conformation 0.50); coarse cryo-EM templates can make loop closure fail (R1256: 6
+of 40 trajectories valid); without a template the 3D arrangement of helices is still the weak point.
+
+### 4.0 v2.0.1 (`benchmark/runs/v2_0_1_pilot/`)
 
 | | Legacy M1–M3 | v2.0.1 sequence only | v2.0.1 oracle 2D |
 |---|---|---|---|

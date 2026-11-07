@@ -1,0 +1,34 @@
+{
+ "cores": 4,
+ "cpu": "Intel(R) Core(TM) Ultra 9 285H",
+ "runs16": [
+  {
+   "target": "R1212",
+   "length": 247,
+   "workers": 16,
+   "wall_time_s": 454.9,
+   "peak_memory_mb": 1321,
+   "valid": 17
+  }
+ ],
+ "peak_memory_gb": 1.29,
+ "peak_workers": 16,
+ "runs": [
+  {
+   "target": "R1203",
+   "length": 134,
+   "workers": 4,
+   "wall_time_s": 537.4,
+   "peak_memory_mb": 566,
+   "valid": 34
+  },
+  {
+   "target": "R1263",
+   "length": 64,
+   "workers": 4,
+   "wall_time_s": 178.1,
+   "peak_memory_mb": 525,
+   "valid": 40
+  }
+ ]
+}

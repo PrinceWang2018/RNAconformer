@@ -28,7 +28,7 @@ from . import APP_NAME, WEBSITE, __version__
 from . import paths as P
 from . import rcvfile
 from .data import STRUCT_EXT, build_document, collect_paths, collect_uploads, _package_confs
-from .jobs import BatchJob, ExploreJob, PredictJob
+from .jobs import AlphaFold3Job, BatchJob, ExploreJob, PredictJob
 from .methods import methods_text
 
 MAX_BODY = 512 * 1024 * 1024
@@ -681,8 +681,30 @@ class Handler(BaseHTTPRequestHandler):
                     st.library_roots.insert(0, d)
                 P.save_settings({'projects_dir': str(d)})
             return self._json(system_info(st))
+        if parts and parts[0] == 'af3':
+            from . import alphafold
+            if method == 'GET' and parts == ['af3', 'settings']:
+                return self._json(alphafold.load_settings())
+            if method == 'POST' and parts == ['af3', 'settings']:
+                return self._json(alphafold.save_settings(self._body()))
+            if method == 'POST' and parts == ['af3', 'check']:
+                return self._json(alphafold.check(self._body()))
+            if method == 'POST' and parts == ['af3', 'open']:
+                # AlphaFold Server result (.zip bytes) -> ensemble
+                data = self._raw_body()
+                name = unquote(self.headers.get('X-Name', '')) or 'alphafold3.zip'
+                nm, confs, warnings, info = alphafold.collect_zip(data)
+                doc = build_document(nm, confs, None, warnings, {**info, 'file': name}, st.py_plugins)
+                return self._json(st._store(Entry(doc, confs, None, set(warnings), doc['source'], nm)))
         if method == 'POST' and parts in (['predict'], ['explore'], ['batch']):
-            job = {'predict': PredictJob, 'explore': ExploreJob, 'batch': BatchJob}[parts[0]](st, self._body())
+            body = self._body()
+            if parts == ['predict'] and body.get('engine') == 'alphafold3':
+                job = AlphaFold3Job(st, body)
+                with st.lock:
+                    st.jobs[job.id] = job
+                job.start()
+                return self._json(job.info())
+            job = {'predict': PredictJob, 'explore': ExploreJob, 'batch': BatchJob}[parts[0]](st, body)
             with st.lock:
                 st.jobs[job.id] = job
             job.start()
@@ -790,7 +812,7 @@ class Handler(BaseHTTPRequestHandler):
             # optional confidence model: predicted per-nucleotide lDDT of every conformation (rnafold3d/qa.py)
             from rnafold3d import qa
             body, doc = self._doc_body()
-            if not qa.available():
+            if not qa.available() and not all(c.get('plddt') for c in doc['conformations']):
                 return self._json({'available': False})
             key = ('confidence', doc['id'], qa.FEATURE_VERSION)
             res = st.cache_get(key)
@@ -877,8 +899,19 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def confidence_of(doc):
-    """Predicted per-nucleotide lDDT (confidence model) of every conformation of a document."""
+    """Predicted per-nucleotide lDDT (confidence model) of every conformation of a document.
+
+    Models from AlphaFold 3 carry their own per-nucleotide pLDDT, which is shown instead."""
     import json as _json
+    if doc['conformations'] and all(c.get('plddt') for c in doc['conformations']):
+        out = []
+        for c in doc['conformations']:
+            vals = [None if v is None else round(float(v) / 100.0, 3) for v in c['plddt']]
+            known = [v for v in vals if v is not None]
+            out.append({'global': round(sum(known) / len(known), 4) if known else None,
+                        'per_residue': [v if v is not None else 0.0 for v in vals]})
+        return {'available': True, 'version': 'alphafold3-plddt', 'conformations': out,
+                'info': {'source': 'alphafold3', 'label': 'AlphaFold 3 pLDDT (per nucleotide)'}}
     from rnafold3d import qa
     from rnafold3d.structure_io import Residue
     coords = rcvfile.doc_coords(doc)

@@ -1,0 +1,248 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1010" width="1240" height="1010" font-family="Liberation Sans, Arial, Helvetica, sans-serif" role="img" aria-label="RCV compared with deep-learning RNA structure predictors: size, speed and RNAs with several conformations">
+<style>
+.bg{fill:#fcfcfb}.t1{fill:#0b0b0b}.t2{fill:#52514e}.t3{fill:#898781}
+.grid{stroke:#e1e0d9;stroke-width:1}.axis{stroke:#c3c2b7;stroke-width:1}.span{stroke:#c3c2b7;stroke-width:2}
+.s1{fill:#2a78d6}.s2{fill:#eb6834}.s3{fill:#1baf7a}.oth{fill:#898781}.ring{stroke:#fcfcfb;stroke-width:2}
+.hollow{fill:#fcfcfb;stroke:#2a78d6;stroke-width:2.2}.wash{fill:#2a78d6;fill-opacity:.08}.sep{stroke:#e1e0d9;stroke-width:1}
+@media (prefers-color-scheme: dark){
+.bg{fill:#1a1a19}.t1{fill:#f0efec}.t2{fill:#c3c2b7}.t3{fill:#898781}
+.grid{stroke:#2c2c2a}.axis{stroke:#383835}.span{stroke:#4a4a45}
+.s1{fill:#3987e5}.s2{fill:#d95926}.s3{fill:#199e70}.ring{stroke:#1a1a19}
+.hollow{fill:#1a1a19;stroke:#3987e5}.wash{fill:#3987e5;fill-opacity:.12}.sep{stroke:#2c2c2a}}
+</style>
+<rect class="bg" width="1240" height="1010" rx="8"/>
+<text class="t1" x="24.0" y="36.0" font-size="19" text-anchor="start" font-weight="bold">RCV next to deep-learning RNA 3D structure predictors</text>
+<text class="t2" x="24.0" y="58.0" font-size="12.5" text-anchor="start">Size, hardware and RNAs that move. RCV: physics + experimental templates, no deep learning, no GPU.</text>
+<text class="t1" x="24.0" y="100.0" font-size="17" text-anchor="start" font-weight="bold">a</text>
+<text class="t1" x="44.0" y="100.0" font-size="14.5" text-anchor="start" font-weight="bold">Download and disk space</text>
+<text class="t2" x="44.0" y="118.0" font-size="11.5" text-anchor="start">Log scale. Other tools: Python/GPU software not counted.</text>
+<line class="grid" x1="174.0" x2="174.0" y1="156" y2="412"/>
+<text class="t3" x="174.0" y="428.0" font-size="11" text-anchor="middle">10 MB</text>
+<line class="grid" x1="258.0" x2="258.0" y1="156" y2="412"/>
+<text class="t3" x="258.0" y="428.0" font-size="11" text-anchor="middle">100 MB</text>
+<line class="grid" x1="342.0" x2="342.0" y1="156" y2="412"/>
+<text class="t3" x="342.0" y="428.0" font-size="11" text-anchor="middle">1 GB</text>
+<line class="grid" x1="426.0" x2="426.0" y1="156" y2="412"/>
+<text class="t3" x="426.0" y="428.0" font-size="11" text-anchor="middle">10 GB</text>
+<line class="grid" x1="510.0" x2="510.0" y1="156" y2="412"/>
+<text class="t3" x="510.0" y="428.0" font-size="11" text-anchor="middle">100 GB</text>
+<line class="grid" x1="594.0" x2="594.0" y1="156" y2="412"/>
+<text class="t3" x="594.0" y="428.0" font-size="11" text-anchor="middle">1 TB</text>
+<circle class="s1 ring" cx="50.0" cy="448.0" r="5"></circle>
+<text class="t2" x="60.0" y="452.0" font-size="11.5" text-anchor="start">RCV: complete installer</text>
+<rect class="s3 ring" x="213.6" y="443.0" width="10.0" height="10.0" rx="1.5"></rect>
+<text class="t2" x="228.6" y="452.0" font-size="11.5" text-anchor="start">model weights</text>
+<path class="s2 ring" d="M325.2 441.8L331.4 448.0L325.2 454.2L318.9 448.0Z"></path>
+<text class="t2" x="335.2" y="452.0" font-size="11.5" text-anchor="start">with sequence databases (full-accuracy mode)</text>
+<text class="t1" x="160.0" y="186.0" font-size="12.5" text-anchor="end" font-weight="bold">RCV 0.7.3</text>
+<text class="t3" x="160.0" y="200.0" font-size="10.5" text-anchor="end">physics + templates · CPU</text>
+<line class="span" x1="242.3" x2="245.5" y1="187.0" y2="187.0"/>
+<circle class="s1 ring" cx="243.9" cy="187.0" r="6.5"><title>RCV 0.7.3 installer: 65–71 MB, complete installer: Python, engine, ViennaRNA, viewer and the 21.5 MB structure library</title></circle>
+<text class="t1" x="257.5" y="191.0" font-size="11.5" text-anchor="start">65–71 MB, everything included</text>
+<text class="t1" x="160.0" y="236.0" font-size="12.5" text-anchor="end">trRosettaRNA2</text>
+<text class="t3" x="160.0" y="250.0" font-size="10.5" text-anchor="end">deep learning</text>
+<line class="span" x1="260.8" x2="468.6" y1="237.0" y2="237.0"/>
+<rect class="s3 ring" x="255.3" y="231.5" width="11.0" height="11.0" rx="1.5"><title>trRosettaRNA2: weights params_trRNA2.tar.bz2 108 MB (measured); RNAcentral database ~32 GB uncompressed (README, optional)</title></rect>
+<path class="s2 ring" d="M468.6 230.1L475.4 237.0L468.6 243.9L461.7 237.0Z"><title>trRosettaRNA2: weights params_trRNA2.tar.bz2 108 MB (measured); RNAcentral database ~32 GB uncompressed (README, optional)</title></path>
+<text class="t3" x="260.8" y="226.0" font-size="10.5" text-anchor="middle">108 MB</text>
+<text class="t2" x="468.6" y="226.0" font-size="10.5" text-anchor="middle">32 GB</text>
+<text class="t1" x="160.0" y="286.0" font-size="12.5" text-anchor="end">RhoFold+</text>
+<text class="t3" x="160.0" y="300.0" font-size="10.5" text-anchor="end">deep learning</text>
+<line class="span" x1="317.3" x2="590.2" y1="287.0" y2="287.0"/>
+<rect class="s3 ring" x="311.8" y="281.5" width="11.0" height="11.0" rx="1.5"><title>RhoFold+: checkpoint 508 MB (measured); RNAcentral, Rfam and nt "totaling about 900GB" (README)</title></rect>
+<path class="s2 ring" d="M590.2 280.1L597.1 287.0L590.2 293.9L583.3 287.0Z"><title>RhoFold+: checkpoint 508 MB (measured); RNAcentral, Rfam and nt "totaling about 900GB" (README)</title></path>
+<text class="t3" x="317.3" y="276.0" font-size="10.5" text-anchor="middle">508 MB</text>
+<text class="t2" x="590.2" y="276.0" font-size="10.5" text-anchor="middle">~900 GB</text>
+<text class="t1" x="160.0" y="336.0" font-size="12.5" text-anchor="end">RoseTTAFold2NA</text>
+<text class="t3" x="160.0" y="350.0" font-size="10.5" text-anchor="end">deep learning</text>
+<line class="span" x1="340.6" x2="567.4" y1="337.0" y2="337.0"/>
+<rect class="s3 ring" x="335.1" y="331.5" width="11.0" height="11.0" rx="1.5"><title>RoseTTAFold2NA: weights RF2NA_apr23.tgz 962 MB (measured); UniRef30 46G, BFD 272G, Rfam 300M, RNAcentral 12G, nt 151G (README; PDB100 size not stated, so a lower bound)</title></rect>
+<path class="s2 ring" d="M567.4 330.1L574.3 337.0L567.4 343.9L560.5 337.0Z"><title>RoseTTAFold2NA: weights RF2NA_apr23.tgz 962 MB (measured); UniRef30 46G, BFD 272G, Rfam 300M, RNAcentral 12G, nt 151G (README; PDB100 size not stated, so a lower bound)</title></path>
+<text class="t3" x="340.6" y="326.0" font-size="10.5" text-anchor="middle">962 MB</text>
+<text class="t2" x="567.4" y="326.0" font-size="10.5" text-anchor="middle">≥ 482 GB</text>
+<text class="t1" x="160.0" y="386.0" font-size="12.5" text-anchor="end">AlphaFold 3</text>
+<text class="t3" x="160.0" y="400.0" font-size="10.5" text-anchor="end">deep learning · GPU</text>
+<line class="span" x1="342.8" x2="577.2" y1="387.0" y2="387.0"/>
+<rect class="s3 ring" x="337.3" y="381.5" width="11.0" height="11.0" rx="1.5"><title>AlphaFold 3: af3.bin.zst 1.02 GB (measured); genetic databases 630 GB unpacked, 252 GB download (installation.md)</title></rect>
+<path class="s2 ring" d="M577.2 380.1L584.1 387.0L577.2 393.9L570.3 387.0Z"><title>AlphaFold 3: af3.bin.zst 1.02 GB (measured); genetic databases 630 GB unpacked, 252 GB download (installation.md)</title></path>
+<text class="t3" x="342.8" y="376.0" font-size="10.5" text-anchor="middle">1.0 GB</text>
+<text class="t2" x="577.2" y="376.0" font-size="10.5" text-anchor="middle">631 GB</text>
+<text class="t1" x="636.0" y="100.0" font-size="17" text-anchor="start" font-weight="bold">b</text>
+<text class="t1" x="656.0" y="100.0" font-size="14.5" text-anchor="start" font-weight="bold">Time per RNA on a laptop CPU, no GPU</text>
+<text class="t2" x="656.0" y="118.0" font-size="11.5" text-anchor="start">RCV 0.7.3, 5 models from 40 trajectories, CASP16 targets. Intel Core Ultra 9 285H, 16 cores.</text>
+<line class="grid" x1="692" x2="1192" y1="400.0" y2="400.0"/>
+<text class="t3" x="684.0" y="404.0" font-size="11" text-anchor="end">0</text>
+<line class="grid" x1="692" x2="1192" y1="352.4" y2="352.4"/>
+<text class="t3" x="684.0" y="356.4" font-size="11" text-anchor="end">2</text>
+<line class="grid" x1="692" x2="1192" y1="304.8" y2="304.8"/>
+<text class="t3" x="684.0" y="308.8" font-size="11" text-anchor="end">4</text>
+<line class="grid" x1="692" x2="1192" y1="257.2" y2="257.2"/>
+<text class="t3" x="684.0" y="261.2" font-size="11" text-anchor="end">6</text>
+<line class="grid" x1="692" x2="1192" y1="209.6" y2="209.6"/>
+<text class="t3" x="684.0" y="213.6" font-size="11" text-anchor="end">8</text>
+<line class="grid" x1="692" x2="1192" y1="162.0" y2="162.0"/>
+<text class="t3" x="684.0" y="166.0" font-size="11" text-anchor="end">10</text>
+<text class="t3" x="692.0" y="416.0" font-size="11" text-anchor="middle">50</text>
+<text class="t3" x="811.0" y="416.0" font-size="11" text-anchor="middle">100</text>
+<text class="t3" x="930.1" y="416.0" font-size="11" text-anchor="middle">150</text>
+<text class="t3" x="1049.1" y="416.0" font-size="11" text-anchor="middle">200</text>
+<text class="t3" x="1168.2" y="416.0" font-size="11" text-anchor="middle">250</text>
+<line class="axis" x1="692" x2="1192" y1="400" y2="400"/>
+<text class="t2" x="942.0" y="434.0" font-size="11.5" text-anchor="middle">RNA length (nucleotides)</text>
+<text class="t2" font-size="11.5" text-anchor="middle" transform="translate(652,281.0) rotate(-90)">Minutes per RNA</text>
+<circle class="s1 ring" cx="892.0" cy="300.1" r="5"><title>R1203, 134 nt: 4.2 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="713.4" cy="365.8" r="5"><title>R1205, 59 nt: 1.4 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="744.4" cy="367.2" r="5"><title>R1209, 72 nt: 1.4 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="787.2" cy="349.7" r="5"><title>R1211, 90 nt: 2.1 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="1161.0" cy="228.4" r="5"><title>R1212, 247 nt: 7.2 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="777.7" cy="338.1" r="5"><title>R1221s3, 86 nt: 2.6 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="777.7" cy="338.5" r="5"><title>R1224s3, 86 nt: 2.6 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="784.9" cy="331.5" r="5"><title>R1261, 89 nt: 2.9 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="784.9" cy="332.4" r="5"><title>R1262, 89 nt: 2.8 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="725.3" cy="367.2" r="5"><title>R1263, 64 nt: 1.4 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="725.3" cy="367.4" r="5"><title>R1264, 64 nt: 1.4 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="756.3" cy="334.6" r="5"><title>R1271, 77 nt: 2.7 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="711.0" cy="373.2" r="5"><title>R1288, 58 nt: 1.1 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="768.2" cy="352.3" r="5"><title>R1293, 82 nt: 2.0 min on 16 CPU cores</title></circle>
+<circle class="s1 ring" cx="744.4" cy="370.5" r="5"><title>R1296, 72 nt: 1.2 min on 16 CPU cores</title></circle>
+<circle class="hollow" cx="892.0" cy="186.8" r="4.6"><title>R1203, 134 nt: 9.0 min on 4 CPU cores</title></circle>
+<circle class="hollow" cx="725.3" cy="329.4" r="4.6"><title>R1263, 64 nt: 3.0 min on 4 CPU cores</title></circle>
+<circle class="s1 ring" cx="958.9" cy="326.2" r="5"></circle>
+<text class="t2" x="968.9" y="330.2" font-size="11.5" text-anchor="start">16 cores (median 2.1 min)</text>
+<circle class="hollow" cx="958.9" cy="346.2" r="4.6"></circle>
+<text class="t2" x="968.9" y="350.2" font-size="11.5" text-anchor="start">4 cores, same settings</text>
+<text class="t2" x="656.0" y="462.0" font-size="11.5" text-anchor="start">RCV peak memory: 1.3 GB (247 nt, all 16 workers together).</text>
+<text class="t2" x="656.0" y="478.0" font-size="11.5" text-anchor="start"></text>
+<text class="t2" x="656.0" y="494.0" font-size="11.5" text-anchor="start">Hardware the others need (documentation):</text>
+<text class="t2" x="656.0" y="510.0" font-size="11.5" text-anchor="start">AlphaFold 3 — NVIDIA GPU, compute capability ≥ 8.0</text>
+<text class="t2" x="656.0" y="526.0" font-size="11.5" text-anchor="start">(A100/H100 tested), ≥ 64 GB RAM; genetic search on CPU.</text>
+<text class="t1" x="24.0" y="560.0" font-size="17" text-anchor="start" font-weight="bold">c</text>
+<text class="t1" x="44.0" y="560.0" font-size="14.5" text-anchor="start" font-weight="bold">RNAs solved in several conformations</text>
+<text class="t2" x="44.0" y="578.0" font-size="11.5" text-anchor="start">CASP16: best TM-score of the 5 models for each experimental conformation, averaged.</text>
+<line class="grid" x1="194.0" x2="194.0" y1="646" y2="844"/>
+<text class="t3" x="194.0" y="860.0" font-size="11" text-anchor="middle">0.2</text>
+<line class="grid" x1="260.0" x2="260.0" y1="646" y2="844"/>
+<text class="t3" x="260.0" y="860.0" font-size="11" text-anchor="middle">0.3</text>
+<line class="grid" x1="326.0" x2="326.0" y1="646" y2="844"/>
+<text class="t3" x="326.0" y="860.0" font-size="11" text-anchor="middle">0.4</text>
+<line class="grid" x1="392.0" x2="392.0" y1="646" y2="844"/>
+<text class="t3" x="392.0" y="860.0" font-size="11" text-anchor="middle">0.5</text>
+<line class="grid" x1="458.0" x2="458.0" y1="646" y2="844"/>
+<text class="t3" x="458.0" y="860.0" font-size="11" text-anchor="middle">0.6</text>
+<line class="grid" x1="524.0" x2="524.0" y1="646" y2="844"/>
+<text class="t3" x="524.0" y="860.0" font-size="11" text-anchor="middle">0.7</text>
+<line class="grid" x1="590.0" x2="590.0" y1="646" y2="844"/>
+<text class="t3" x="590.0" y="860.0" font-size="11" text-anchor="middle">0.8</text>
+<text class="t2" x="392.0" y="878.0" font-size="11.5" text-anchor="middle">Coverage of the experimental conformations (TM-score)</text>
+<circle class="s1 ring" cx="50.0" cy="618.0" r="5"></circle>
+<text class="t2" x="60.0" y="622.0" font-size="11.5" text-anchor="start">RCV 0.7.3</text>
+<path class="s2 ring" d="M134.7 611.8L140.9 618.0L134.7 624.2L128.4 618.0Z"></path>
+<text class="t2" x="144.7" y="622.0" font-size="11.5" text-anchor="start">AlphaFold 3</text>
+<path class="oth ring" d="M232.0 611.8L238.2 623.0L225.8 623.0Z"></path>
+<text class="t2" x="242.0" y="622.0" font-size="11.5" text-anchor="start">trRosettaRNA, Vfold, GuangzhouRNA (CASP16)</text>
+<text class="t1" x="180.0" y="682.0" font-size="12.5" text-anchor="end">R1203 · 134 nt</text>
+<text class="t3" x="180.0" y="696.0" font-size="10.5" text-anchor="end">HIV-1 RRE stem-loop II</text>
+<text class="t3" x="180.0" y="709.0" font-size="10.5" text-anchor="end">2 conformations</text>
+<line class="span" x1="395.3" x2="466.6" y1="684.0" y2="684.0"/>
+<path class="oth ring" d="M417.7 678.4L423.4 688.5L412.1 688.5Z"><title>R1203 trRosettaRNA: coverage 0.54, spread of the 5 models 0.48</title></path>
+<path class="oth ring" d="M395.3 678.4L400.9 688.5L389.7 688.5Z"><title>R1203 Vfold: coverage 0.51, spread of the 5 models 0.38</title></path>
+<path class="oth ring" d="M423.7 678.4L429.3 688.5L418.1 688.5Z"><title>R1203 GuangzhouRNA: coverage 0.55, spread of the 5 models 0.44</title></path>
+<path class="s2 ring" d="M466.6 677.1L473.5 684.0L466.6 690.9L459.7 684.0Z"><title>R1203 AlphaFold 3: coverage 0.61, spread 0.31</title></path>
+<circle class="s1 ring" cx="397.3" cy="684.0" r="6"><title>R1203 RCV 0.7.3: coverage 0.51, spread 0.41</title></circle>
+<text class="t2" x="397.3" y="673.0" font-size="10.5" text-anchor="middle">0.51</text>
+<text class="t1" x="180.0" y="746.0" font-size="12.5" text-anchor="end">R1255 · 124 nt</text>
+<text class="t3" x="180.0" y="760.0" font-size="10.5" text-anchor="end">SARS-CoV-2 SL5</text>
+<text class="t3" x="180.0" y="773.0" font-size="10.5" text-anchor="end">10 conformations</text>
+<line class="span" x1="296.3" x2="512.8" y1="748.0" y2="748.0"/>
+<path class="oth ring" d="M296.3 742.4L301.9 752.5L290.7 752.5Z"><title>R1255 trRosettaRNA: coverage 0.35, spread of the 5 models 0.66</title></path>
+<path class="oth ring" d="M500.2 742.4L505.9 752.5L494.6 752.5Z"><title>R1255 Vfold: coverage 0.66, spread of the 5 models 0.60</title></path>
+<path class="oth ring" d="M512.8 742.4L518.4 752.5L507.2 752.5Z"><title>R1255 GuangzhouRNA: coverage 0.68, spread of the 5 models 0.05</title></path>
+<path class="s2 ring" d="M306.9 741.1L313.7 748.0L306.9 754.9L300.0 748.0Z"><title>R1255 AlphaFold 3: coverage 0.37, spread 0.33</title></path>
+<circle class="s1 ring" cx="491.0" cy="748.0" r="6"><title>R1255 RCV 0.7.3: coverage 0.65, spread 0.50</title></circle>
+<text class="t2" x="491.0" y="737.0" font-size="10.5" text-anchor="middle">0.65</text>
+<text class="t1" x="180.0" y="810.0" font-size="12.5" text-anchor="end">R1256 · 127 nt</text>
+<text class="t3" x="180.0" y="824.0" font-size="10.5" text-anchor="end">Bat coronavirus HKU5 SL5</text>
+<text class="t3" x="180.0" y="837.0" font-size="10.5" text-anchor="end">30 conformations</text>
+<line class="span" x1="236.2" x2="353.7" y1="812.0" y2="812.0"/>
+<path class="oth ring" d="M353.7 806.4L359.3 816.5L348.1 816.5Z"><title>R1256 trRosettaRNA: coverage 0.44, spread of the 5 models 0.66</title></path>
+<path class="oth ring" d="M333.3 806.4L338.9 816.5L327.6 816.5Z"><title>R1256 Vfold: coverage 0.41, spread of the 5 models 0.56</title></path>
+<path class="oth ring" d="M343.2 806.4L348.8 816.5L337.5 816.5Z"><title>R1256 GuangzhouRNA: coverage 0.43, spread of the 5 models 0.28</title></path>
+<path class="s2 ring" d="M236.2 805.1L243.1 812.0L236.2 818.9L229.4 812.0Z"><title>R1256 AlphaFold 3: coverage 0.26, spread 0.45</title></path>
+<circle class="s1 ring" cx="316.8" cy="812.0" r="6"><title>R1256 RCV 0.7.3: coverage 0.39, spread 0.74</title></circle>
+<text class="t2" x="316.8" y="801.0" font-size="10.5" text-anchor="middle">0.39</text>
+<text class="t1" x="636.0" y="560.0" font-size="17" text-anchor="start" font-weight="bold">d</text>
+<text class="t1" x="656.0" y="560.0" font-size="14.5" text-anchor="start" font-weight="bold">For an RNA that moves</text>
+<text class="t2" x="656.0" y="578.0" font-size="11.5" text-anchor="start">What each tool provides, from its documentation.</text>
+<rect class="wash" x="832.0" y="610" width="75.6" height="282" rx="6"/>
+<text class="t1" x="869.8" y="628.0" font-size="11.5" text-anchor="middle" font-weight="bold">RCV</text>
+<text class="t1" x="869.8" y="642.0" font-size="11.5" text-anchor="middle" font-weight="bold">0.7.3</text>
+<text class="t1" x="945.4" y="628.0" font-size="11.5" text-anchor="middle">AlphaFold</text>
+<text class="t1" x="945.4" y="642.0" font-size="11.5" text-anchor="middle">3</text>
+<text class="t1" x="1021.0" y="628.0" font-size="11.5" text-anchor="middle">trRosetta-</text>
+<text class="t1" x="1021.0" y="642.0" font-size="11.5" text-anchor="middle">RNA2</text>
+<text class="t1" x="1096.6" y="628.0" font-size="11.5" text-anchor="middle">RhoFold+</text>
+<text class="t1" x="1172.2" y="628.0" font-size="11.5" text-anchor="middle">RoseTTA-</text>
+<text class="t1" x="1172.2" y="642.0" font-size="11.5" text-anchor="middle">Fold2NA</text>
+<line class="sep" x1="656" x2="1206" y1="650.0" y2="650.0"/>
+<text class="t1" x="656.0" y="668.0" font-size="11.5" text-anchor="start">Conformations per run</text>
+<text class="t1" x="869.8" y="668.0" font-size="11" text-anchor="middle">ensemble¹</text>
+<text class="t2" x="945.4" y="668.0" font-size="11" text-anchor="middle">5 per seed²</text>
+<text class="t2" x="1021.0" y="668.0" font-size="11" text-anchor="middle">1³</text>
+<text class="t2" x="1096.6" y="668.0" font-size="11" text-anchor="middle">1</text>
+<text class="t2" x="1172.2" y="668.0" font-size="11" text-anchor="middle">1</text>
+<line class="sep" x1="656" x2="1206" y1="680.0" y2="680.0"/>
+<text class="t1" x="656.0" y="698.0" font-size="11.5" text-anchor="start">Alternative 2D states, populations</text>
+<text class="t1" x="869.8" y="698.0" font-size="12" text-anchor="middle" font-weight="bold">✓</text>
+<text class="t2" x="945.4" y="698.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1021.0" y="698.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1096.6" y="698.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1172.2" y="698.0" font-size="11" text-anchor="middle">–</text>
+<line class="sep" x1="656" x2="1206" y1="710.0" y2="710.0"/>
+<text class="t1" x="656.0" y="728.0" font-size="11.5" text-anchor="start">Temperature, salt, ligand</text>
+<text class="t1" x="869.8" y="728.0" font-size="12" text-anchor="middle" font-weight="bold">✓</text>
+<text class="t2" x="945.4" y="728.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1021.0" y="728.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1096.6" y="728.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1172.2" y="728.0" font-size="11" text-anchor="middle">–</text>
+<line class="sep" x1="656" x2="1206" y1="740.0" y2="740.0"/>
+<text class="t1" x="656.0" y="758.0" font-size="11.5" text-anchor="start">Switching paths, barriers, rates</text>
+<text class="t1" x="869.8" y="758.0" font-size="12" text-anchor="middle" font-weight="bold">✓</text>
+<text class="t2" x="945.4" y="758.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1021.0" y="758.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1096.6" y="758.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1172.2" y="758.0" font-size="11" text-anchor="middle">–</text>
+<line class="sep" x1="656" x2="1206" y1="770.0" y2="770.0"/>
+<text class="t1" x="656.0" y="788.0" font-size="11.5" text-anchor="start">Fit to SHAPE/DMS probing data</text>
+<text class="t1" x="869.8" y="788.0" font-size="12" text-anchor="middle" font-weight="bold">✓</text>
+<text class="t2" x="945.4" y="788.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1021.0" y="788.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1096.6" y="788.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1172.2" y="788.0" font-size="11" text-anchor="middle">–</text>
+<line class="sep" x1="656" x2="1206" y1="800.0" y2="800.0"/>
+<text class="t1" x="656.0" y="818.0" font-size="11.5" text-anchor="start">Interactive ensemble viewer</text>
+<text class="t1" x="869.8" y="818.0" font-size="12" text-anchor="middle" font-weight="bold">✓</text>
+<text class="t2" x="945.4" y="818.0" font-size="11" text-anchor="middle">–⁴</text>
+<text class="t2" x="1021.0" y="818.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1096.6" y="818.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1172.2" y="818.0" font-size="11" text-anchor="middle">–</text>
+<line class="sep" x1="656" x2="1206" y1="830.0" y2="830.0"/>
+<text class="t1" x="656.0" y="848.0" font-size="11.5" text-anchor="start">Runs without a GPU</text>
+<text class="t1" x="869.8" y="848.0" font-size="12" text-anchor="middle" font-weight="bold">✓</text>
+<text class="t2" x="945.4" y="848.0" font-size="11" text-anchor="middle">–</text>
+<text class="t2" x="1021.0" y="848.0" font-size="11" text-anchor="middle">not stated</text>
+<text class="t1" x="1096.6" y="848.0" font-size="12" text-anchor="middle" font-weight="bold">✓</text>
+<text class="t2" x="1172.2" y="848.0" font-size="11" text-anchor="middle">not stated</text>
+<line class="sep" x1="656" x2="1206" y1="860.0" y2="860.0"/>
+<text class="t1" x="656.0" y="878.0" font-size="11.5" text-anchor="start">Sequence databases needed</text>
+<text class="t1" x="869.8" y="878.0" font-size="11" text-anchor="middle">none</text>
+<text class="t2" x="945.4" y="878.0" font-size="11" text-anchor="middle">630 GB</text>
+<text class="t2" x="1021.0" y="878.0" font-size="11" text-anchor="middle">32 GB⁵</text>
+<text class="t2" x="1096.6" y="878.0" font-size="11" text-anchor="middle">~900 GB⁵</text>
+<text class="t2" x="1172.2" y="878.0" font-size="11" text-anchor="middle">≥ 481 GB</text>
+<text class="t3" x="656.0" y="908.0" font-size="10.5" text-anchor="start">¹ structurally distinct conformations from different 2D/template hypotheses (1–30, default 8)</text>
+<text class="t3" x="656.0" y="923.0" font-size="10.5" text-anchor="start">² diffusion samples of one prediction; more seeds give more samples</text>
+<text class="t3" x="656.0" y="938.0" font-size="10.5" text-anchor="start">³ the trRosettaRNA2 paper describes conformers; the default output is one model</text>
+<text class="t3" x="656.0" y="953.0" font-size="10.5" text-anchor="start">⁴ AlphaFold 3 results open in RCV (0.7.3), so RCV's analyses apply to them</text>
+<text class="t3" x="656.0" y="968.0" font-size="10.5" text-anchor="start">⁵ optional: single-sequence mode without databases is less accurate</text>
+<text class="t3" x="24.0" y="994.0" font-size="10.5" text-anchor="start">Sizes and requirements as documented by each tool (checked 7 Nov 2026); weight files measured on the download servers. Accuracy on the 15 CASP16 targets: benchmark/casp16/results.</text>
+</svg>

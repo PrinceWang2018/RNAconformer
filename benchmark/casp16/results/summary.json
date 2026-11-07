@@ -2,14 +2,40 @@
  "targets": 15,
  "methods": {
   "rcv": {
-   "label": "RCV 0.7.2 (rnafold3d, physics-based)",
+   "label": "RCV 0.7.3 (physics + templates)",
+   "n": 15,
+   "mean_top1_tm": 0.49,
+   "mean_best5_tm": 0.511,
+   "median_top1_rmsd": 10.7,
+   "median_best5_rmsd": 5.83,
+   "top1_tm_ge_0.45": 8,
+   "mean_top1_inf_wc": 0.827,
+   "mean_top1_tm_template_targets": 0.641,
+   "mean_top1_tm_other_targets": 0.263
+  },
+  "rcvfree": {
+   "label": "RCV 0.7.3 without templates",
+   "n": 15,
+   "mean_top1_tm": 0.265,
+   "mean_best5_tm": 0.288,
+   "median_top1_rmsd": 17.99,
+   "median_best5_rmsd": 13.64,
+   "top1_tm_ge_0.45": 0,
+   "mean_top1_inf_wc": 0.742,
+   "mean_top1_tm_template_targets": 0.267,
+   "mean_top1_tm_other_targets": 0.263
+  },
+  "rcv072": {
+   "label": "RCV 0.7.2 (physics only)",
    "n": 15,
    "mean_top1_tm": 0.251,
    "mean_best5_tm": 0.283,
    "median_top1_rmsd": 15.35,
    "median_best5_rmsd": 14.88,
    "top1_tm_ge_0.45": 0,
-   "mean_top1_inf_wc": 0.748
+   "mean_top1_inf_wc": 0.748,
+   "mean_top1_tm_template_targets": 0.239,
+   "mean_top1_tm_other_targets": 0.269
   },
   "304": {
    "label": "AlphaFold 3 (AF3-server)",
@@ -19,7 +45,9 @@
    "median_top1_rmsd": 8.58,
    "median_best5_rmsd": 8.29,
    "top1_tm_ge_0.45": 8,
-   "mean_top1_inf_wc": 0.918
+   "mean_top1_inf_wc": 0.918,
+   "mean_top1_tm_template_targets": 0.599,
+   "mean_top1_tm_other_targets": 0.301
   },
   "052": {
    "label": "trRosettaRNA (Yang-Server)",
@@ -29,7 +57,9 @@
    "median_top1_rmsd": 9.38,
    "median_best5_rmsd": 4.97,
    "top1_tm_ge_0.45": 9,
-   "mean_top1_inf_wc": 0.855
+   "mean_top1_inf_wc": 0.855,
+   "mean_top1_tm_template_targets": 0.634,
+   "mean_top1_tm_other_targets": 0.282
   },
   "481": {
    "label": "Vfold",
@@ -39,7 +69,9 @@
    "median_top1_rmsd": 3.51,
    "median_best5_rmsd": 3.09,
    "top1_tm_ge_0.45": 10,
-   "mean_top1_inf_wc": 0.914
+   "mean_top1_inf_wc": 0.914,
+   "mean_top1_tm_template_targets": 0.671,
+   "mean_top1_tm_other_targets": 0.328
   },
   "183": {
    "label": "GuangzhouRNA-human",
@@ -49,14 +81,47 @@
    "median_top1_rmsd": 5.81,
    "median_best5_rmsd": 3.81,
    "top1_tm_ge_0.45": 9,
-   "mean_top1_inf_wc": 0.928
+   "mean_top1_inf_wc": 0.928,
+   "mean_top1_tm_template_targets": 0.675,
+   "mean_top1_tm_other_targets": 0.303
   }
+ },
+ "template_targets": {
+  "n": 9,
+  "targets": [
+   "R1203",
+   "R1211",
+   "R1221s3",
+   "R1224s3",
+   "R1261",
+   "R1262",
+   "R1263",
+   "R1264",
+   "R1271"
+  ]
+ },
+ "other_targets": {
+  "n": 6,
+  "targets": [
+   "R1205",
+   "R1209",
+   "R1212",
+   "R1288",
+   "R1293",
+   "R1296"
+  ]
  },
  "rcv_vs_af3": {
   "targets": 15,
-  "rcv_top1_better_or_within_0.02": 3,
-  "rcv_best5_better_or_within_0.02": 3
+  "rcv_top1_higher": 7,
+  "rcv_top1_better_or_within_0.02": 8,
+  "rcv_best5_better_or_within_0.02": 8
  },
  "casp_median_group_mean_top1_tm": 0.453,
- "rcv_mean_fraction_of_groups_beaten": 0.263
+ "casp_best_model1_mean_tm": 0.588,
+ "rcv_mean_fraction_of_groups_beaten": 0.559,
+ "rcv_wall_time_s": {
+  "median": 127,
+  "max": 433
+ }
 }

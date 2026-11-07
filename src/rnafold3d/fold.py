@@ -583,6 +583,21 @@ class FoldModel:
         if 0 not in free_res:
             self.tor[0, TOR['gamma']] = aform['gamma']
 
+    def apply_torsions(self, torsions):
+        """Starting torsions taken from a template: {residue: [alpha, beta, gamma, delta, epsilon, zeta, chi]}
+        (degrees, None = keep). beta/gamma of the residue that closes a loop stay canonical (CCD target)."""
+        keep = {(L.b, 'beta') for L in self.loop_linkers} | {(L.b, 'gamma') for L in self.loop_linkers}
+        for r, vals in torsions.items():
+            r = int(r)
+            if not 0 <= r < self.n:
+                continue
+            for nm, v in zip(LIB_COLS, vals):
+                if v is None or nm not in TOR or (r, nm) in keep:
+                    continue
+                self.tor[r, TOR[nm]] = float(v)
+            if vals[3] is not None and self.res_body[r] < 0:
+                self.puck[r] = 'C2endo' if vals[3] > 115 else 'C3endo'
+
     # ------------------------------------------------------------------ building
     def _res_atoms(self, r, names):
         return {nm: self.xyz[self.idx[(r, nm)]] for nm in names}

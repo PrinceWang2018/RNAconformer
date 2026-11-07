@@ -30,7 +30,7 @@ datas += collect_data_files('RNA')                    # ViennaRNA energy paramet
 binaries = collect_dynamic_libs('RNA')
 hiddenimports = (collect_submodules('rnafold3d') + collect_submodules('rcv') +
                  collect_submodules('fontTools.subset') + collect_submodules('fontTools.ttLib') +
-                 ['RNA', 'threadpoolctl', 'scipy.optimize', 'scipy.linalg', 'scipy.spatial', 'webview', 'fontTools.ttLib'])
+                 ['RNA', 'threadpoolctl', 'scipy.optimize', 'scipy.linalg', 'scipy.spatial', 'scipy.sparse', 'webview', 'fontTools.ttLib'])
 
 a = Analysis(
     [str(ROOT / 'packaging' / 'rcv_entry.py')],

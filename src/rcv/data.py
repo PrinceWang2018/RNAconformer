@@ -50,6 +50,16 @@ ENGINE_TERMS = {
 }
 
 
+EXTERNAL_METRICS = (
+    ('af3_ranking', 'AF3 ranking score', '', False, 'AlphaFold 3 ranking score of the model (higher is better).'),
+    ('plddt', 'Mean pLDDT', '', False, 'Mean predicted local distance difference test of the nucleotides (0–100, '
+                                       'AlphaFold 3 confidence; above 70 usually reliable).'),
+    ('af3_ptm', 'pTM', '', False, 'AlphaFold 3 predicted TM-score of the whole model (0–1).'),
+    ('af3_iptm', 'ipTM', '', False, 'AlphaFold 3 interface pTM (jobs with several chains).'),
+    ('af3_disordered', 'Fraction disordered', '', True, 'AlphaFold 3 estimate of the disordered fraction.'),
+)
+
+
 # ----------------------------------------------------------------------------- input collection
 class Conformation:
     __slots__ = ('label', 'source', 'model', 'chain', 'residues', 'meta', 'title')
@@ -118,6 +128,12 @@ def collect_paths(paths, chain_id=None):
         name = manifest.get('input', {}).get('name') or root.name
         return name, _package_confs(root, manifest, chain_id, warnings), manifest, warnings, \
             {'kind': 'package', 'path': str(root.resolve())}
+    if len(paths) == 1 and (paths[0].suffix.lower() == '.zip' or _is_af3_dir(paths[0])):
+        from . import alphafold
+        p = paths[0]
+        name, confs, warnings, info = alphafold.collect_zip(p, chain_id) if p.suffix.lower() == '.zip' else \
+            alphafold.collect_dir(p, chain_id)
+        return name, confs, None, warnings, {**info, 'path': str(p.resolve())}
     files = []
     for p in paths:
         if p.is_dir():
@@ -136,6 +152,11 @@ def collect_paths(paths, chain_id=None):
     name = files[0].stem if len(files) == 1 else (paths[0].name if paths[0].is_dir() else f'{files[0].stem} (+{len(files) - 1})')
     return name, confs, None, warnings, {'kind': 'files', 'paths': [str(f.resolve()) for f in files],
                                          'checksums': {f.name: _sha256(f) for f in files[:200]}}
+
+
+def _is_af3_dir(path):
+    from .alphafold import is_af3_dir
+    return is_af3_dir(path)
 
 
 def _sha256(path):
@@ -433,6 +454,7 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
         ev = evaluations[ci]
         values = dict(ev['values'])
         values.update(_engine_values(c.meta))
+        values.update(c.meta.get('values_extra') or {})
         values['rmsd_first'] = round(float(rmsd[0, ci]), 3)
         values['rmsd_mean'] = round(float(np.sqrt(np.mean(np.sum((xyz[ci, c4 or fit_idx] - mean[c4 or fit_idx]) ** 2,
                                                                   axis=1)))), 3)
@@ -468,6 +490,9 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
             'values': values,
             'validation': validation,
             'explored': c.meta.get('explored'),
+            **({'plddt': c.meta['plddt']} if c.meta.get('plddt') else {}),
+            **({'af3': c.meta['af3']} if c.meta.get('af3') else {}),
+            **({'template': c.meta['template']} if c.meta.get('template') else {}),
         })
 
     # --- helix families: helices (>= 2 bp) of all conformations linked by shared pairs
@@ -540,6 +565,10 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
                             'lower_is_better': True,
                             'description': 'ViennaRNA free energy of the secondary-structure hypothesis this '
                                            'conformer was built from.'})
+    for key, label, unit, low, desc in EXTERNAL_METRICS:
+        if any(key in c['values'] for c in conformations):
+            metrics.append({'key': key, 'label': label, 'unit': unit, 'group': 'alphafold', 'lower_is_better': low,
+                            'description': desc})
     metrics.append({**EVAL_TOTAL, 'group': 'evaluator'})
     for k, t in EVAL_TERMS.items():
         terms[k] = {**t, 'group': 'evaluator'}
@@ -566,13 +595,15 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
         'name': name,
         'created': datetime.datetime.now().isoformat(timespec='seconds'),
         'source': source or {},
-        'origin': 'rnafold3d-engine' if engine_run else ('rnafold3d-package' if manifest else 'structures'),
+        'origin': 'rnafold3d-engine' if engine_run else ('rnafold3d-package' if manifest else
+                                                          ('alphafold3' if (source or {}).get('kind') == 'alphafold3' else 'structures')),
         'sequence': seq,
         'residues': residues_out,
         'atoms': {'names': atom_names, 'elements': elements, 'residue': atom_res},
         'bonds': [v for b in bonds for v in b],
         'conformations': conformations,
-        'default_metric': 'score' if engine_run else 'eval_total',
+        'default_metric': 'score' if engine_run else ('af3_ranking' if any('af3_ranking' in c['values'] for c in conformations)
+                                                      else 'eval_total'),
         'metrics': metrics,
         'terms': terms,
         'helix_families': families,

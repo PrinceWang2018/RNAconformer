@@ -13,16 +13,18 @@ public at predictioncenter.org. This script
             that the official numbers are reproduced (so both sides are measured the same way).
 
 Usage (from the repository root, ViennaRNA and US-align installed):
-  python benchmark/casp16/compare.py fetch
-  python benchmark/casp16/compare.py run --workers 16
+  python benchmark/casp16/compare.py fetch --models
+  python benchmark/casp16/compare.py run --workers 16                       # templates on (runs_v073_tmpl)
+  python benchmark/casp16/compare.py run --workers 16 --templates off --runs benchmark/casp16/runs_v073_free
   python benchmark/casp16/compare.py verify
   python benchmark/casp16/compare.py evaluate
 
 Fairness notes (also written to the report): the CASP16 groups predicted blind in 2024; RCV was run
-in 2026 but uses no information from the targets (no templates, no MSA, no training on structures).
-Its geometry parameters were calibrated on 178 PDB entries; none is a CASP16 target (checked by
-release date and sequence). R1255/R1256 (multi-conformation references) and targets above 250 nt
-or in RNA-protein complexes are not part of this set.
+in 2026 with its template library and junction geometry limited to structures released before
+2024-05-01 (the start of the CASP16 RNA season; every target was released later). No MSA, no deep
+learning. Its geometry parameters were calibrated on 178 PDB entries; none is a CASP16 target
+(checked by release date and sequence). R1255/R1256 (multi-conformation references) and targets
+above 250 nt or in RNA-protein complexes are not part of this set.
 """
 from __future__ import annotations
 
@@ -112,7 +114,8 @@ def cmd_run(a):
             continue
         if out.exists():
             shutil.rmtree(out)
-        cfg = PredictConfig(n_models=5, trajectories=a.trajectories, seed=a.seed, workers=a.workers)
+        cfg = PredictConfig(n_models=5, trajectories=a.trajectories, seed=a.seed, workers=a.workers,
+                            templates=a.templates, template_cutoff=a.template_cutoff, motifs=a.motifs)
         print(f"== {t['id']} ({len(t['sequence'])} nt)", flush=True)
         predict(t['sequence'], out, name=t['id'], config=cfg, log=None)
         man = json.loads((out / 'metadata' / 'manifest.json').read_text())
@@ -187,31 +190,62 @@ def group_inf_wc(c, t, ref):
     return out
 
 
+RCV_RUNS = {'rcv': 'RCV 0.7.3 (physics + templates)', 'rcvfree': 'RCV 0.7.3 without templates',
+            'rcv072': 'RCV 0.7.2 (physics only)'}
+
+
+def _rcv_scores(run, t, ref):
+    """{rank: (tm, rmsd)}, INF-WC of model 1, manifest; None if the run is missing."""
+    man_p = run / t['id'] / 'metadata' / 'manifest.json'
+    if not man_p.exists():
+        return None
+    man = json.loads(man_p.read_text())
+    models = {conf['rank']: score(run / t['id'] / conf['files']['pdb'], ref) for conf in man['conformers']}
+    return models, inf_wc(ref, run / t['id'] / man['conformers'][0]['files']['pdb']), man
+
+
+def _release_dates():
+    """{'PDBID': 'YYYY-MM-DD'} of the template library (for the report)."""
+    try:
+        from rnafold3d.templates import Library
+        return {m['pdb'].upper(): m['release'] for m in Library().meta}
+    except Exception:
+        return {}
+
+
 def cmd_evaluate(a):
-    c, runs = cache_dir(a), Path(a.runs)
+    c = cache_dir(a)
+    runs = {'rcv': Path(a.runs), 'rcvfree': Path(a.runs_free) if a.runs_free else None,
+            'rcv072': Path(a.runs_prev) if a.runs_prev else None}
+    runs = {k: v for k, v in runs.items() if v is not None and v.exists()}
     table = official_table(c)
+    released = _release_dates()
     rows = []
     for t in TARGETS:
         ref = c / 'references' / f"{t['id']}.pdb"
-        man_p = runs / t['id'] / 'metadata' / 'manifest.json'
-        if not man_p.exists():
+        got = {k: _rcv_scores(run, t, ref) for k, run in runs.items()}
+        if got.get('rcv') is None:
             print('missing run', t['id'])
             continue
-        man = json.loads(man_p.read_text())
-        rcv = {}
-        for conf in man['conformers']:
-            rcv[conf['rank']] = score(runs / t['id'] / conf['files']['pdb'], ref)
-        infwc = {'rcv': inf_wc(ref, runs / t['id'] / man['conformers'][0]['files']['pdb'])}
+        man = got['rcv'][2]
+        infwc = {k: v[1] for k, v in got.items() if v is not None}
         infwc.update(group_inf_wc(c, t, ref))
         groups = rescore_groups(c, t, ref) or {g: table.get(t['casp_id'], {}).get(g, {}) for g in GROUPS}
         all_top1 = [v[1][0] for g, v in table.get(t['casp_id'], {}).items() if 1 in v]
+        tmpl = man['conformers'][0].get('template')
+        hits = (man.get('input', {}).get('templates') or {}).get('hits') or []
+        first = next((h for h in hits if h.get('label') == tmpl), None)
         row = {'target': t['id'], 'casp_id': t['casp_id'], 'length': len(t['sequence']),
                'resolved': t['resolved'], 'family': t['family'],
                'n_groups': len(all_top1), 'casp_median_top1_tm': round(st.median(all_top1), 3) if all_top1 else None,
                'casp_best_top1_tm': round(max(all_top1), 3) if all_top1 else None,
                'rcv_valid': man['statistics']['valid'], 'rcv_trajectories': man['statistics']['trajectories'],
-               'rcv_wall_time_s': man['statistics']['wall_time_s']}
-        for key, models in [('rcv', rcv)] + list(groups.items()):
+               'rcv_wall_time_s': man['statistics']['wall_time_s'],
+               'rcv_template': tmpl or '', 'rcv_template_coverage': first.get('coverage') if first else None,
+               'rcv_template_identity': first.get('identity') if first else None,
+               'rcv_template_released': ' '.join(released.get(p.split('_')[0].upper(), '?')
+                                                 for p in tmpl.split('+')) if tmpl else ''}
+        for key, models in [(k, v[0] if v else None) for k, v in got.items()] + list(groups.items()):
             if not models:
                 row.update({f'{key}_top1_tm': None, f'{key}_best5_tm': None, f'{key}_top1_rmsd': None, f'{key}_best5_rmsd': None})
                 continue
@@ -224,87 +258,139 @@ def cmd_evaluate(a):
         if row['rcv_top1_tm'] is not None and all_top1:
             row['rcv_top1_beats_groups'] = round(sum(x < row['rcv_top1_tm'] for x in all_top1) / len(all_top1), 3)
         rows.append(row)
-        print(f"{t['id']:8s} RCV top1 TM {row['rcv_top1_tm']}  best5 {row['rcv_best5_tm']}  | AF3 {row['304_top1_tm']}"
-              f"  | CASP median {row['casp_median_top1_tm']}")
+        print(f"{t['id']:8s} RCV top1 TM {row['rcv_top1_tm']}  best5 {row['rcv_best5_tm']}  [{tmpl or 'no template'}]"
+              f"  | no templates {row.get('rcvfree_top1_tm')}  | 0.7.2 {row.get('rcv072_top1_tm')}"
+              f"  | AF3 {row['304_top1_tm']}  | CASP median {row['casp_median_top1_tm']}")
     out = HERE / 'results'
     out.mkdir(exist_ok=True)
+    fields = list(dict.fromkeys(k for r in rows for k in r))
     with (out / 'per_target.csv').open('w', newline='') as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
         w.writerows(rows)
-    summary = summarise(rows)
+    summary = summarise(rows, [k for k in RCV_RUNS if k in runs])
     (out / 'summary.json').write_text(json.dumps(summary, indent=1))
     (out / 'README.md').write_text(report(rows, summary))
     print(json.dumps(summary['methods'], indent=1))
 
 
-def summarise(rows):
-    keys = ['rcv'] + list(GROUPS)
+def _mean(xs, nd=3):
+    xs = [float(x) for x in xs if x not in (None, '')]
+    return round(st.mean(xs), nd) if xs else None
+
+
+def summarise(rows, rcv_keys=('rcv',)):
+    keys = list(rcv_keys) + list(GROUPS)
     s = {'targets': len(rows), 'methods': {}}
+    tmpl = [r for r in rows if r.get('rcv_template')]
+    free = [r for r in rows if not r.get('rcv_template')]
     for k in keys:
         tm1 = [r[f'{k}_top1_tm'] for r in rows if r.get(f'{k}_top1_tm') is not None]
-        tm5 = [r[f'{k}_best5_tm'] for r in rows if r.get(f'{k}_best5_tm') is not None]
+        if not tm1:
+            continue
         rm1 = [r[f'{k}_top1_rmsd'] for r in rows if r.get(f'{k}_top1_rmsd') is not None]
         rm5 = [r[f'{k}_best5_rmsd'] for r in rows if r.get(f'{k}_best5_rmsd') is not None]
-        inf = [float(r[f'{k}_top1_infwc']) for r in rows if r.get(f'{k}_top1_infwc') not in (None, '')]
-        s['methods'][k] = {'label': 'RCV 0.7.2 (rnafold3d, physics-based)' if k == 'rcv' else GROUPS[k], 'n': len(tm1),
-                           'mean_top1_tm': round(st.mean(tm1), 3), 'mean_best5_tm': round(st.mean(tm5), 3),
+        s['methods'][k] = {'label': RCV_RUNS.get(k) or GROUPS[k], 'n': len(tm1),
+                           'mean_top1_tm': _mean(tm1), 'mean_best5_tm': _mean(r.get(f'{k}_best5_tm') for r in rows),
                            'median_top1_rmsd': round(st.median(rm1), 2), 'median_best5_rmsd': round(st.median(rm5), 2),
                            'top1_tm_ge_0.45': sum(x >= 0.45 for x in tm1),
-                           'mean_top1_inf_wc': round(st.mean(inf), 3) if inf else None}
+                           'mean_top1_inf_wc': _mean(r.get(f'{k}_top1_infwc') for r in rows),
+                           'mean_top1_tm_template_targets': _mean(r.get(f'{k}_top1_tm') for r in tmpl),
+                           'mean_top1_tm_other_targets': _mean(r.get(f'{k}_top1_tm') for r in free)}
+    s['template_targets'] = {'n': len(tmpl), 'targets': [r['target'] for r in tmpl]}
+    s['other_targets'] = {'n': len(free), 'targets': [r['target'] for r in free]}
     both = [r for r in rows if r.get('304_top1_tm') is not None]
     s['rcv_vs_af3'] = {'targets': len(both),
+                       'rcv_top1_higher': sum(r['rcv_top1_tm'] > r['304_top1_tm'] for r in both),
                        'rcv_top1_better_or_within_0.02': sum(r['rcv_top1_tm'] >= r['304_top1_tm'] - 0.02 for r in both),
                        'rcv_best5_better_or_within_0.02': sum(r['rcv_best5_tm'] >= r['304_best5_tm'] - 0.02 for r in both)}
-    s['casp_median_group_mean_top1_tm'] = round(st.mean(r['casp_median_top1_tm'] for r in rows), 3)
-    s['rcv_mean_fraction_of_groups_beaten'] = round(st.mean(r.get('rcv_top1_beats_groups', 0) for r in rows), 3)
+    s['casp_median_group_mean_top1_tm'] = _mean(r['casp_median_top1_tm'] for r in rows)
+    s['casp_best_model1_mean_tm'] = _mean(r['casp_best_top1_tm'] for r in rows)
+    s['rcv_mean_fraction_of_groups_beaten'] = _mean(r.get('rcv_top1_beats_groups', 0) for r in rows)
+    times = [r['rcv_wall_time_s'] for r in rows]
+    s['rcv_wall_time_s'] = {'median': round(st.median(times)), 'max': round(max(times))}
     return s
+
+
+AF3_TRAINING_CUTOFF = '2021-09-30'
 
 
 def report(rows, s):
     m = s['methods']
-    L = ['# CASP16 RNA benchmark: RCV versus leading predictors', '',
+    keys = [k for k in list(RCV_RUNS) + list(GROUPS) if k in m]
+    nt, nf = s['template_targets']['n'], s['other_targets']['n']
+    L = ['# CASP16 RNA benchmark: RCV 0.7.3 versus leading predictors', '',
          'Generated by `benchmark/casp16/compare.py evaluate`. Scores: US-align, residue-index superposition on C3\' '
          'atoms, TM-score normalised by the reference (CASP16 "TM_score" column), RMSD in Å over all resolved residues. '
          'All models (RCV and the CASP16 groups\' submitted models) are scored with the same command; it reproduces '
          'the official CASP16 table (`compare.py verify`).', '',
-         '| Method | Mean TM-score, model 1 | Mean TM-score, best of 5 | Median RMSD model 1 (Å) | Median RMSD best of 5 (Å) | Targets with TM ≥ 0.45 (model 1) | Base pairs right (mean INF-WC, model 1) |',
-         '|---|---|---|---|---|---|---|']
-    for k in ['rcv'] + list(GROUPS):
+         f'| Method | Mean TM-score, model 1 | Mean TM-score, best of 5 | Model 1 on the {nt} targets with a template '
+         f'| Model 1 on the other {nf} | Median RMSD model 1 (Å) | Targets with TM ≥ 0.45 (model 1) '
+         '| Base pairs right (mean INF-WC, model 1) |',
+         '|---|---|---|---|---|---|---|---|']
+    g = lambda x, nd=3: '–' if x is None else f'{x:.{nd}f}'
+    for k in keys:
         v = m[k]
-        L.append(f"| {v['label']} | {v['mean_top1_tm']:.3f} | {v['mean_best5_tm']:.3f} | {v['median_top1_rmsd']:.1f} | "
-                 f"{v['median_best5_rmsd']:.1f} | {v['top1_tm_ge_0.45']}/{v['n']} | {v['mean_top1_inf_wc']:.2f} |")
+        name = f"**{v['label']}**" if k == 'rcv' else v['label']
+        L.append(f"| {name} | {g(v['mean_top1_tm'])} | {g(v['mean_best5_tm'])} | {g(v['mean_top1_tm_template_targets'])} | "
+                 f"{g(v['mean_top1_tm_other_targets'])} | {g(v['median_top1_rmsd'], 1)} | {v['top1_tm_ge_0.45']}/{v['n']} | "
+                 f"{g(v['mean_top1_inf_wc'], 2)} |")
     L += ['', f"Median CASP16 group (mean over targets of the per-target median model-1 TM-score): "
-          f"{s['casp_median_group_mean_top1_tm']:.3f}. On average RCV's model 1 scores higher than "
-          f"{100 * s['rcv_mean_fraction_of_groups_beaten']:.0f}% of the CASP16 groups' model 1.", '',
+          f"{s['casp_median_group_mean_top1_tm']:.3f}; best model 1 of any group, per target: "
+          f"{s['casp_best_model1_mean_tm']:.3f} (no single group reaches this). On average RCV's model 1 scores higher "
+          f"than {100 * s['rcv_mean_fraction_of_groups_beaten']:.0f}% of the CASP16 groups' model 1. "
+          f"\"Targets with a template\": RCV found a related structure released before 2024-05-01 "
+          f"({', '.join(s['template_targets']['targets'])}).", '',
           '## Per target (TM-score, model 1 / best of 5)', '',
-          '| Target | nt | Family | RCV | AlphaFold 3 | trRosettaRNA | Vfold | GuangzhouRNA | CASP16 median / best |',
-          '|---|---|---|---|---|---|---|---|---|']
+          '| Target | nt | Family | RCV 0.7.3 | Template (released) | RCV 0.7.3 without templates | RCV 0.7.2 '
+          '| AlphaFold 3 | trRosettaRNA | Vfold | GuangzhouRNA | CASP16 median / best |',
+          '|---|---|---|---|---|---|---|---|---|---|---|---|']
     f = lambda r, k: '–' if r.get(f'{k}_top1_tm') is None else f"{r[f'{k}_top1_tm']:.2f} / {r[f'{k}_best5_tm']:.2f}"
     for r in rows:
-        L.append(f"| {r['target']} | {r['length']} | {r['family']} | {f(r, 'rcv')} | {f(r, '304')} | {f(r, '052')} | "
-                 f"{f(r, '481')} | {f(r, '183')} | {r['casp_median_top1_tm']:.2f} / {r['casp_best_top1_tm']:.2f} |")
+        tp = f"{r['rcv_template']} ({r['rcv_template_released']})" if r.get('rcv_template') else '–'
+        L.append(f"| {r['target']} | {r['length']} | {r['family']} | **{f(r, 'rcv')}** | {tp} | {f(r, 'rcvfree')} | "
+                 f"{f(r, 'rcv072')} | {f(r, '304')} | {f(r, '052')} | {f(r, '481')} | {f(r, '183')} | "
+                 f"{r['casp_median_top1_tm']:.2f} / {r['casp_best_top1_tm']:.2f} |")
+    rcv, af3 = m['rcv'], m.get('304', {})
+    ahead = [r['target'] for r in rows if r['rcv_top1_tm'] > r['304_top1_tm'] + 0.05]
+    behind = [r['target'] for r in rows if r['rcv_top1_tm'] < r['304_top1_tm'] - 0.05]
+    late = sorted({(p, d) for r in rows if r.get('rcv_template')
+                   for p, d in zip(r['rcv_template'].split('+'), r['rcv_template_released'].split())
+                   if d > AF3_TRAINING_CUTOFF})
     L += ['', '## What this shows', '',
-          '* The deep-learning and template-based methods get the global fold right on 8–10 of the 15 targets; RCV on '
-          'none. RCV is a physics-inspired ensemble generator, not a competitor for single-structure accuracy.',
-          '* Most of the gap is the 3D arrangement of correct helices (junction geometry, coaxial stacking, tertiary '
-          'contacts), which RCV does not model yet: on R1203, R1209, R1211 and R1296 RCV\'s base pairs are as '
-          'accurate as AlphaFold 3\'s (INF-WC 0.86–0.98), but its TM-score is about half. Where ViennaRNA misses the '
-          '2D (pre-tRNA R1221s3/R1224s3, ZTP riboswitches R1263/R1264) the gap is larger.',
-          '* On the five targets that the field as a whole found hardest (CASP16 median model below TM-score 0.3: R1205, '
-          'R1209, R1212, R1288, R1293) RCV is close to the median group and scores higher than AlphaFold 3 on three '
-          '(R1209, R1212, R1288) — but at this level all predictions are essentially wrong.',
-          '* Practical advice: for one most-likely structure, use a deep-learning predictor and open its models in RCV; '
-          'use RCV\'s own predictions for alternative folds, switching and pathways, which the single-structure tools '
-          'do not provide.',
-          '', '## Notes', '',
-          '* CASP16 groups predicted blind in 2024 (many with templates, MSAs, deep learning and expert curation). RCV '
-          'was run in 2026 from the sequence alone: ViennaRNA 2D hypotheses + physics-inspired 3D search, no templates, '
-          'no MSA, no deep learning, nothing fitted to these targets. Its geometry parameters come from 178 PDB entries, '
-          'none of which is a CASP16 target (checked by release date and sequence).',
-          '* RCV settings: 5 models, "thorough" sampling (40 trajectories), seed 42, run on a 16-core desktop CPU.',
+          f"* With templates, RCV's model 1 has a mean TM-score of {rcv['mean_top1_tm']:.3f} over the 15 targets: "
+          f"AlphaFold 3 {af3.get('mean_top1_tm', 0):.3f}, trRosettaRNA {m['052']['mean_top1_tm']:.3f}; the expert groups "
+          f"Vfold ({m['481']['mean_top1_tm']:.3f}) and GuangzhouRNA ({m['183']['mean_top1_tm']:.3f}) are higher. "
+          f"RCV 0.7.2 (physics only) had {m['rcv072']['mean_top1_tm']:.3f}." if 'rcv072' in m else '',
+          f"* RCV is more than 0.05 ahead of AlphaFold 3 on {len(ahead)} targets ({', '.join(ahead)}) and more than 0.05 "
+          f"behind on {len(behind)} ({', '.join(behind)}); model 1 is higher on {s['rcv_vs_af3']['rcv_top1_higher']} "
+          f"of {s['rcv_vs_af3']['targets']}.",
+          f"* Where RCV found a template ({nt} targets) its models follow the template closely, so accuracy is set by "
+          f"how similar the template is to the target: mean {rcv['mean_top1_tm_template_targets']:.3f} (AlphaFold 3 "
+          f"{af3.get('mean_top1_tm_template_targets', 0):.3f}). On the other {nf} targets, which the whole field found "
+          f"hard, RCV has {rcv['mean_top1_tm_other_targets']:.3f} (AlphaFold 3 {af3.get('mean_top1_tm_other_targets', 0):.3f}).",
+          (f"* Without templates (physics, ViennaRNA 2D and junction geometry from the library) RCV 0.7.3 has "
+           f"{m['rcvfree']['mean_top1_tm']:.3f}." if 'rcvfree' in m else ''),
+          f"* Speed: median {s['rcv_wall_time_s']['median']} s per target (longest {s['rcv_wall_time_s']['max']} s) "
+          f"for 40 trajectories on a 16-core laptop CPU (Intel Core Ultra 9 285H), no GPU; the structure library is 21.5 MB.",
+          '* RNAs solved in several conformations (R1203, R1255, R1256): [ENSEMBLES.md](ENSEMBLES.md). Size, hardware '
+          'and features next to other predictors: [rcv_comparison.svg](rcv_comparison.svg) (`figure.py`).',
+          '', '## Fairness notes', '',
+          '* The CASP16 groups predicted blind in 2024. RCV was run in 2026; its template library and junction '
+          'geometry were limited to structures released before 2024-05-01 (the start of the CASP16 RNA prediction '
+          'season; all 15 reference structures were released later). The CASP16 groups could use the same structures.',
+          f"* AlphaFold 3 (the AF3 server baseline, group 304) uses no RNA templates and was trained on PDB structures "
+          f"released up to {AF3_TRAINING_CUTOFF}. Templates that RCV used and that were released after that: "
+          + (', '.join(f'{p} ({d})' for p, d in late) or 'none') + '. Vfold and GuangzhouRNA had all of them.',
+          '* Not fully blind for the method choices: the template rules (minimum coverage 45%, the rule for a second '
+          'template covering an insert, ranking by agreement between templates) were set during 0.7.3 development '
+          'with the CASP16 results visible. They are general rules, with no target-specific settings. The development '
+          'benchmark (`benchmark/dev_templates.py`, 26 PDB chains, each with templates limited to structures released '
+          'before it) is the independent check.',
+          '* RCV settings: 5 models, 40 trajectories ("thorough"), seed 42. Geometry parameters come from 178 PDB '
+          'entries, none of them a CASP16 target (checked by release date and sequence). No MSA, no deep learning.',
           '* TM-score above about 0.45 usually means the global fold is right; below 0.3 the fold is essentially random.']
-    return '\n'.join(L) + '\n'
+    return '\n'.join(x for x in L if x is not None) + '\n'
 
 
 # ----------------------------------------------------------------------------------------------- verify
@@ -339,13 +425,20 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('command', choices=['fetch', 'run', 'evaluate', 'verify'])
     ap.add_argument('--cache', default=str(HERE / 'cache'))
-    ap.add_argument('--runs', default=str(HERE / 'runs'))
+    ap.add_argument('--runs', default=str(HERE / 'runs_v073_tmpl'), help='RCV run (templates on)')
+    ap.add_argument('--runs-free', default=str(HERE / 'runs_v073_free'), help='evaluate: RCV run without templates')
+    ap.add_argument('--runs-prev', default=str(HERE / 'runs'), help='evaluate: RCV 0.7.2 run (physics only)')
     ap.add_argument('--models', action='store_true', help='fetch: also download all groups\' models (~150 MB)')
     ap.add_argument('--workers', type=int, default=max(1, (os.cpu_count() or 2) - 1))
     ap.add_argument('--trajectories', type=int, default=40)
     ap.add_argument('--seed', type=int, default=42)
     ap.add_argument('--only', default='')
     ap.add_argument('--force', action='store_true')
+    ap.add_argument('--templates', choices=['auto', 'off'], default='auto',
+                    help='run: experimental structures as templates (only those released before --template-cutoff)')
+    ap.add_argument('--template-cutoff', default='2024-05-01',
+                    help='run: latest release date of library structures (CASP16 targets were released later)')
+    ap.add_argument('--motifs', choices=['auto', 'off'], default='auto', help='run: junction geometry from the library')
     a = ap.parse_args()
     {'fetch': cmd_fetch, 'run': cmd_run, 'evaluate': cmd_evaluate, 'verify': cmd_verify}[a.command](a)
 
