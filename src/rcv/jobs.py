@@ -244,6 +244,16 @@ class PredictJob(Job):
         self.trajectories = int(params.get('trajectories') or max(low, per * self.models))
         self.seed = int(params.get('seed', 42))
         self.templates = 'off' if params.get('templates') in (False, 'off') else 'auto'
+        # optional probing data and alignment of homologs for the 2D hypotheses (checked here, so that a wrong
+        # file is reported before the run starts)
+        self.probing_text = str(params.get('probing_text') or '')[:4_000_000]
+        self.alignment_text = str(params.get('alignment_text') or '')[:4_000_000]
+        if self.probing_text.strip():
+            from rnafold3d.ss import parse_reactivities
+            parse_reactivities(self.probing_text, len(seq))
+        if self.alignment_text.strip():
+            from rnafold3d.ss import parse_alignment
+            parse_alignment(self.alignment_text, seq)
         cpu = os.cpu_count() or 1
         self.cores = max(1, min(cpu, int(params.get('cores') or max(1, cpu - 1))))
         self.out = Path(state.projects_dir) / f'{name}_{time.strftime("%Y%m%d-%H%M%S")}'
@@ -264,6 +274,14 @@ class PredictJob(Job):
                 '--out', str(self.out), '--templates', self.templates]
         if self.structure:
             args += ['--structure', self.structure]
+        else:
+            for text, flag, fname in ((self.probing_text, '--shape', 'probing.txt'), (self.alignment_text, '--alignment', 'alignment.txt')):
+                if text.strip():
+                    (self.out / 'input').mkdir(parents=True, exist_ok=True)
+                    (self.out / 'input' / fname).write_text(text, encoding='utf-8')
+                    args += [flag, str(self.out / 'input' / fname)]
+                    self.note('The 2D structures use your probing data (pseudo-energies).' if flag == '--shape' else
+                              'The 2D structures use your alignment (covariation-supported consensus first).')
         self.run_engine(args)
         if not (self.out / 'metadata' / 'manifest.json').exists():
             raise RuntimeError('the engine finished without producing an ensemble')

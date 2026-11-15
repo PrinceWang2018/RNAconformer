@@ -338,6 +338,7 @@ export function preferencesDialog(app) {
   const elemCol = el('input', { type: 'checkbox', checked: app.viewer.settings.elementColors ? true : null });
   const devMode = el('input', { type: 'checkbox', checked: app.prefs.devMode ? true : null });
   const confModel = el('input', { type: 'checkbox', checked: app.prefs.confidence !== false ? true : null });
+  const autoUpdate = el('input', { type: 'checkbox', checked: app.info?.update?.auto ? true : null, disabled: app.api.online ? null : true });
   const projDir = el('input', { class: 'input', value: app.info?.system?.projects_dir || '', 'aria-label': 'Projects folder', disabled: app.api.online ? null : true });
   const browseDir = el('button', { class: 'btn', type: 'button', hidden: !app.native?.available(), onclick: async () => { const d = await app.native.chooseFolder(); if (d) projDir.value = d; } }, 'Choose…');
   dialog({
@@ -349,6 +350,7 @@ export function preferencesDialog(app) {
       el('div', { class: 'grid2' }, field('Outline colour', outline), field('Uniform colour scheme', uniform)),
       el('label', { class: 'check' }, elemCol, 'Colour N, O, P atoms by element in atom representations'),
       el('label', { class: 'check' }, confModel, 'Confidence model: predict the local accuracy of every nucleotide (small neural network, computed on this computer)'),
+      el('label', { class: 'check' }, autoUpdate, 'Check for updates when RCV starts (asks before downloading; nothing is installed automatically)'),
       el('label', { class: 'check' }, devMode, 'Developer mode (for plugin authors): F12 / Ctrl+Shift+I open the browser developer tools, Shift+right-click shows the browser menu'),
       el('div', { class: 'field', style: { marginTop: '12px' } }, el('label', { text: 'Projects folder (new predictions are saved here)' }),
         el('div', { class: 'row', style: { gap: '8px' } }, projDir, browseDir))),
@@ -357,6 +359,7 @@ export function preferencesDialog(app) {
         app.info.system = await app.api.post('/api/settings', { projects_dir: projDir.value.trim() });
         toast(`New predictions are saved in ${app.info.system.projects_dir}`, 'ok', 'Projects folder');
       }
+      if (app.api.online && autoUpdate.checked !== !!app.info?.update?.auto) app.info.update = await app.api.post('/api/update/settings', { auto: autoUpdate.checked });
       app.setTheme(theme.value);
       if (lang.value !== currentLanguage()) await app.setLanguage(lang.value);
       app.viewer.settings.quality = quality.value;
@@ -414,10 +417,10 @@ export function shortcutsDialog() {
     ['V', 'Select tool'], ['G / Alt+drag', 'Pull tool: drag a residue to switch conformation'], ['B', 'Paint tool: click or drag over residues to colour them'],
     ['T', 'Label tool: click a residue to label it; drag labels; double-click to edit'], ['M', 'Measure: click two atoms'], ['Delete', 'Remove the selected label or note'],
     ['U', 'Molecular surface'], ['D', '2D structure window'], ['`', 'Command console'],
-    ['H', 'Only the 3D view (hide panels)'], ['F11', 'Full screen'], ['Esc', 'Restore a maximised window'], ['F1', 'User guide'],
+    ['H', 'Only the 3D view (hide panels)'], ['F5', 'Presentation mode (3D only, large labels, full screen)'], ['F11', 'Full screen'], ['Esc', 'Restore a maximised window'], ['F1', 'User guide'],
     ['Ctrl+Z / Ctrl+Y', 'Undo / redo'], ['Ctrl+A', 'Select all residues'], ['Ctrl+F', 'Select residues (console)'], ['Ctrl+P', 'Export image'],
     ['Ctrl++ / Ctrl+− / Ctrl+0', 'Zoom the 3D view in / out / reset'], ['Ctrl+Shift+F', 'Fetch a structure from the PDB'],
-    ['Ctrl+O', 'Open .rcv file or structures'], ['Ctrl+S', 'Save as .rcv file'], ['Ctrl+Shift+S', 'Save workspace'], ['Ctrl+E', 'Export image'], ['Ctrl+N', 'New prediction'], ['?', 'This list'],
+    ['Ctrl+O', 'Open .rcv file or structures'], ['Ctrl+L', 'Project library'], ['Ctrl+S', 'Save as .rcv file'], ['Ctrl+Shift+S', 'Save workspace'], ['Ctrl+E', 'Export image'], ['Ctrl+N', 'New prediction'], ['?', 'This list'],
   ];
   const t = el('table', { class: 'table kbd-table' }, el('tbody', {}, ...rows.map(([k, v]) => el('tr', {}, el('td', {}, ...k.split(' / ').flatMap((x, i) => [i ? ' / ' : '', el('kbd', { text: x })])), el('td', { text: v })))));
   dialog({ title: 'Keyboard and mouse', width: 520, body: t, actions: [{ label: 'Close', primary: true, close: true }] });
@@ -465,7 +468,7 @@ export async function methodsDialog(app) {
     body: b => b.append(
       el('div', { class: 'desc', text: 'Built from what this ensemble records (engine version, parameters, seeds, validation, superposition). Check it against your own protocol before use.' }),
       box('Methods', `${r.methods} ${extra.join(' ')}`, 9),
-      box('Software citation', r.citation, 3),
+      box('Software citation', r.citation, 4),
       am.references.length ? box('References for the analyses', am.references.join('\n'), Math.min(8, am.references.length + 1)) : null,
       log.length ? box('Commands used on this ensemble (reproducible figure recipe)', log.join('\n'), Math.min(8, log.length + 1)) : null),
     actions: [{ label: 'Close', primary: true, close: true }],

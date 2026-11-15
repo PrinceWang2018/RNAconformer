@@ -2,16 +2,16 @@
  "targets": 15,
  "methods": {
   "rcv": {
-   "label": "RCV 0.7.3 (physics + templates)",
+   "label": "RCV 0.7.5 (physics + templates)",
    "n": 15,
-   "mean_top1_tm": 0.49,
-   "mean_best5_tm": 0.511,
-   "median_top1_rmsd": 10.7,
-   "median_best5_rmsd": 5.83,
+   "mean_top1_tm": 0.495,
+   "mean_best5_tm": 0.527,
+   "median_top1_rmsd": 7.82,
+   "median_best5_rmsd": 5.87,
    "top1_tm_ge_0.45": 8,
-   "mean_top1_inf_wc": 0.827,
-   "mean_top1_tm_template_targets": 0.641,
-   "mean_top1_tm_other_targets": 0.263
+   "mean_top1_inf_wc": 0.814,
+   "mean_top1_tm_template_targets": 0.639,
+   "mean_top1_tm_other_targets": 0.281
   },
   "rcv072": {
    "label": "RCV 0.7.2 (physics only)",
@@ -101,15 +101,15 @@
  },
  "rcv_vs_af3": {
   "targets": 15,
-  "rcv_top1_higher": 7,
+  "rcv_top1_higher": 8,
   "rcv_top1_better_or_within_0.02": 8,
-  "rcv_best5_better_or_within_0.02": 8
+  "rcv_best5_better_or_within_0.02": 9
  },
  "casp_median_group_mean_top1_tm": 0.453,
  "casp_best_model1_mean_tm": 0.588,
- "rcv_mean_fraction_of_groups_beaten": 0.559,
+ "rcv_mean_fraction_of_groups_beaten": 0.62,
  "rcv_wall_time_s": {
-  "median": 127,
-  "max": 433
+  "median": 140,
+  "max": 526
  }
 }

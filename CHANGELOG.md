@@ -1,5 +1,279 @@
 # Changelog
 
+## Package 0.7.5 — 2026-11-15 — RCV · RNA Conformation Viewer (engine rnafold3d 2.3.0)
+
+First public release since 0.7.3: it also contains everything listed under 0.7.4, which was not released on its own.
+
+Conformation-selective compound screening (`docs/NEXT_STEPS.md` §1), steps 1 to 5: where a compound could
+bind, how those sites differ between two conformations, a scoring function and a docking search for RNA, and
+the screen itself — a compound library ranked by how much better it fits one conformation than the other, in
+its own window and on the command line. It is marked *experimental* and shows what it was measured at,
+because one of its three benchmarks is still missing (`docs/SCREENING_STATUS.md`).
+
+### Added
+- **Pocket finding** (`src/rnafold3d/screening/pockets.py`, a new `rnafold3d.screening` package). A buriedness
+  scan of the free space around the atoms on a 0.8 Å grid (the LIGSITE approach: a point counts as enclosed in
+  a direction when the RNA closes the space on both sides within 12 Å, along the three axes and the four cube
+  diagonals), clustered into sites of at least 100 Å³ enclosed on at least five of the seven directions. Each site has its volume, how enclosed it is, the
+  nucleotides lining it, how much of that lining lies outside a Watson-Crick helix, and a score that ranks the
+  sites (enclosed × outside-a-helix × size). `find()` takes plain coordinates and depends only on numpy and
+  scipy; a 76-nt tRNA takes 0.2 s, a 158-nt structure 1 s.
+- **`benchmark/screening/pocket_sites.py`**: thirty experimental RNA-compound complexes with the compound
+  removed; the site it occupied is the top-ranked pocket in 21 of 30 and among those found in 24. This is
+  what set the threshold: at 6 of 7 enclosing directions it is 9 and 12, because most RNA sites are shallow.
+- **`volume_near()` and `compare()`**: the same site measured in two conformations — the open volume held by
+  the nucleotides that line a pocket — so pockets that merge or split between the conformations are still
+  compared, and the superposition of the two structures does not matter. A site open in one conformation and
+  closed in the other is what a conformation-selective compound would use.
+- **Details tab ▸ *Pockets: where a compound could bind*** (closed *advanced* section, as in 0.7.4): the pocket
+  table of the shown conformation, *Compare with* a second conformation and the sites that differ between the
+  two, *Colour 3D by pocket*, copy as a table. A row selects the nucleotides lining the pocket in 3D and 2D.
+  *only deep pockets (6 of 7)* keeps the closed sites only. Manual: `docs/RCV.md` §8.6.
+- Server: `POST /api/insight/pockets` (`conformation`, `other`, `burial_min`); it does not need ViennaRNA.
+- Tests: `tests/test_v075.py` (15 tests, among them the cavity of a hollow sphere against its analytic volume);
+  GUI smoke test: the `insightpockets` scenario (62 in total).
+- Interface texts of the new section in all 10 languages.
+- **Window layout** (`static/js/windows.js`; `docs/NEXT_STEPS.md` §4). **Panel widths**: drag the inner edge of
+  either side panel (left 190–520 px, right 312–760 px; the 3D view keeps at least 360 px), double-click for the
+  default; widths are remembered per screen size; *Window ▸ Default panel widths*. **Rails**: a hidden side
+  panel folds to a 36-px strip of icons instead of disappearing; one click opens it, on the right on that tab.
+  **Presentation mode** (`F5`, Window menu): only the 3D view, full screen, no menu bar, large labels, title and
+  legend; `Esc`/`F5` or an *Exit presentation* button (shown when the mouse moves) leaves it. Texts in all 10
+  languages; GUI smoke test: `layout1`, `railshot`, `presentshot`.
+- **Project library** (*File ▸ Project library…*, `Ctrl+L`, or the start page; `src/rcv/library.py`,
+  `static/js/library.js`). Every prediction run, `.rcv` file and structure that has been opened, plus what is
+  found in the watched folders, with a thumbnail, the parameters and a search over names and sequences; nothing
+  is copied or moved, the index points to the files where they are (`<user data>/library/index.json`). Manual:
+  `docs/RCV.md` §11.
+- **Plain language in the console** (`static/js/console/plain.js`). A line that is not a command is read as
+  plain English and shown as the commands it stands for ("colour by flexibility" → `color flexibility`), which
+  are then recorded in the command log, so the log stays a reproducible script. Local patterns only: no language
+  model, nothing is sent anywhere; English, like the commands. `help plain`. Manual: `docs/RCV.md` §9.1.
+- **Recipes** (*Tools ▸ Recipes…*; `src/rcv/recipes.py`, `static/js/recipes.js`). A named analysis — prediction
+  settings plus the steps that follow — in a small `.rcvrecipe` file (JSON) that a lab can share, so everyone
+  looks at an RNA the same way. Four built-in recipes; user recipes in `<user data>/recipes/`. Server:
+  `/api/recipes`. Manual: `docs/RCV.md` §9.2.
+- **Check for updates** (*Help ▸ Check for updates…*; `src/rcv/update.py`, `static/js/update.js`). Finds the newest
+  release and the installer for this computer (Windows, macOS Apple Silicon / Intel — also an Intel build under
+  Rosetta —, Linux `.deb` / `.rpm` by how RCV was installed or the distribution) and asks: *Download* opens it in the
+  web browser, *Skip this version*, *Later*, *Release notes*. Nothing is installed automatically. Installed copies
+  check once a day at start-up (off in the update window or Preferences, or with `RCV_NO_UPDATE_CHECK=1`); source
+  runs only when asked. Source: the GitHub release of the website repository, or the website's `stats.json` when
+  GitHub is unreachable. Texts in all 10 languages; tests: `tests/test_update.py` (10), GUI smoke test `update1` (the
+  smoke test turns the start-up check off; 66 scenarios in total).
+- **Zenodo DOI** ([10.5281/zenodo.24163503](https://doi.org/10.5281/zenodo.24163503)): in the software citation
+  of *Export › Methods text*, a DOI badge and a *How to cite* section in the README, and `CITATION.cff` (GitHub's
+  *Cite this repository*).
+
+- **A scoring function for RNA and a docking search** (step 2 of the plan), as a library and two commands:
+  - `screening/chem.py`: compounds from SDF, MOL, MOL2 and PDB entries — rings, aromaticity, rotatable bonds,
+    the torsion tree, and the charge of the groups that are ionised at pH 7 (a carboxylate is −1 whether the
+    file drew it protonated or not, a thiazolium is +1, the N9 of a guanine is not); an SDF writer for poses.
+  - `screening/receptor.py`: the RNA typed from its atom names (which nitrogen donates, which carbon is
+    apolar), one −1 per phosphate, and a plane per base; `read_complex` splits a PDB entry into the RNA and
+    the compounds, keeping modified nucleotides in the chain and joining an aminoglycoside's sugars into one
+    compound.
+  - `screening/score.py`: AutoDock Vina's shape and contact terms (Apache-2.0, used as a reference) plus the
+    three an RNA score needs — stacking against the base planes with the angle between them, screened
+    electrostatics with explicit phosphate charges, and the cost of burying a charge.
+  - `screening/grid.py`: the whole function precomputed on a 0.375 Å grid, so a pose costs one interpolation.
+    Stacking stays directional on the grid by storing Σ w·nnᵀ per point, which gives back cos² of the angle
+    between the compound's ring and each base exactly.
+  - `screening/dock.py`: Monte Carlo with local minimisation over position, orientation and torsions,
+    deterministic for a seed, poses rescored from the atoms rather than from the grid.
+  - `rnafold3d pockets` and `rnafold3d dock` (poses out as SDF); manual: `docs/RCV.md` §17.1.
+  - `benchmark/screening/redock.py`: thirty experimental RNA-ligand complexes downloaded from RCSB, each
+    ligand docked back into its own structure, reported as RMSD to the experimental pose. **Result: median
+    4.24 Å, under 2.5 Å in 10 of 30** — below what the plan asks of a scoring function, which is why the
+    screen is marked experimental and shows this number in its own window. In 24 of the 30 the
+    search found a pose scoring at least as well as the experimental one, so what needs work is the ranking,
+    not the sampling. It redocks small rigid compounds well (2B57 0.27 Å, 1F1T 0.32 Å, 3SKI 0.61 Å,
+    1Y26 0.87 Å, 4NYB 0.89 Å) and large flexible ones in shallow sites badly (every aminoglycoside and
+    every SAM entry is 3.9 to 9.0 Å).
+  - `docs/SCREENING_STATUS.md`: what is measured, what is not, and the weights that are set rather than fitted.
+  - Tests: `tests/test_screening.py` (no network).
+
+- **The screen itself** (steps 3 to 5 of the plan): a compound library against two conformations.
+  - **Tools ▸ Compound screening…** (also a button in the Switch tab): its own page, so the main layout is
+    unchanged — target (the two conformations and a pocket, or the nucleotides selected in the main window),
+    library, parameters, run with live progress, and a sortable, filterable table that exports as CSV or as an
+    SDF of poses. *Show in 3D* draws the pose in the main window with the nucleotides it touches selected.
+    Four example compounds ship with RCV so a first run takes a minute; no library does. Manual: `docs/RCV.md`
+    §8.7. Texts in all 10 languages; GUI smoke test: `screenwindow` (a real run of four compounds against two
+    conformations) and `screenpage`.
+  - `screening/screen.py` and `rnafold3d screen`: the two-state screen. **Selectivity = score(B) − score(A)**
+    for the best pose in each state, with state B measured at the nucleotides that line the site in state A —
+    not at a pocket of its own, because a site that has closed in B has no pocket to match. Compounds with the
+    same selectivity are ranked by the worse of their two scores. One worker per core over compounds, the grids
+    built once and shared; a site wider than 30 Å is cropped to its centre and says so.
+  - `src/rcv/screening.py` and `POST /api/screen` (`/library`, `/site`, `/<id>/results`, `/csv`, `/sdf`,
+    `/pose`): the libraries of a session, the site the user picked, and the run as an ordinary RCV job, so
+    progress and cancelling work as they do for a prediction.
+  - **Benchmark 2 — enrichment** (`benchmark/screening/enrichment.py`): six RNA targets (the FMN, TPP, adenine,
+    guanine and preQ1 riboswitches and the ribosomal A site) with actives collected from the literature and 25
+    property-matched decoys per active drawn from PubChem, everything 2D-similar to an active removed. The raw
+    value of every term is kept for every pose, so `tune` searches the weights by reweighting stored poses
+    (a dot product) and reports leave-one-target-out, never in-sample only.
+    **Result: mean AUC 0.864 over the six targets** (34 actives, 700 decoys, 49 minutes on 12 cores; a random
+    ranking is 0.500 and the plan asks for 0.65). Per target: adenine 0.997, preQ1 0.992, A site 0.972,
+    guanine 0.871, FMN 0.855, and **TPP 0.495, which is exactly chance** — the one ligand in the set whose
+    site holds a diphosphate through two Mg²⁺, i.e. the terms this function treats most crudely. The A site's
+    0.972 is flattered by its decoys sitting 3.38σ from its actives in property space, because PubChem has
+    few 3D records for compounds as large and polar as the aminoglycosides. The screening window shows the
+    mean AUC next to its results.
+    **The weights were tuned against this benchmark and then left alone**: fitting the four RNA terms within a
+    factor of 4 of their defaults gained +0.024 AUC in sample but only +0.010 cross-validated, with three of
+    the four weights pinned to the edge of the allowed range and two of the six targets made worse. That is not a
+    change a 34-active set can justify, so the shipped weights are still the ones set by hand.
+  - Tests: `tests/test_v075_screening.py` (7 tests: library parsing, the site on both conformations, a whole
+    run through the routes, the exports and the pose).
+
+- **Engine accuracy, rnafold3d 2.3.0** (`docs/NEXT_STEPS.md` §2). Every item was measured on the 26 dev chains
+  (`benchmark/dev_templates.py`, 16 trajectories, seed 42) with each feature on and off. What is on by default
+  is what improved the numbers; the rest is there as an option, with the measurement that says why it is off.
+  - **Motif fragments** (`fragments.py`, on by default; `--fragments off`). Hairpin loops of 3–12 nt take their
+    backbone torsions and C4′ distances from library loops with a matching sequence (loop bases weighted double,
+    the closing pair included, homologues of the query excluded), sampled per trajectory; the strands of a grafted
+    junction now carry their torsions as well. Grafted loops are closed in the fragment's shape. **Dev chains
+    without a template: top model TM-score 0.216 → 0.227; all 26: 0.284 → 0.291** (best of five 0.303 → 0.307);
+    no change in run time. Better on 1Y26, 480D, 4L81, 4ENC, 1F1T, 4QLM (+0.03 to +0.05), worse on 2OIU (−0.04),
+    1U9S, 3V7E (−0.02).
+  - **Pseudoknots in the search** (`pseudoknots.py`, off by default; `--pseudoknots auto`). A 2D with one
+    crossing helix, folded jointly with the nested part (each stable helix of ≥ 4 pairs is blocked, the rest
+    refolded by ViennaRNA, and the helix kept when it crosses the result and wins by a 4 kcal/mol initiation
+    penalty). The penalty was calibrated on 1,509 library chains (`benchmark/pseudoknot_calibration.py`): base-pair
+    F1 0.624 → 0.631. In 3D the crossing helix becomes A-form distance and base-pair restraints, its loops are
+    built explicitly from the start. On the dev chains it is found in 8 of 26 and is correct where it can be
+    checked (1RNK 6 of 7 pairs, 4ENC 6/6, 3D0U 6/9), but the helix rarely forms in the models: top model 0.284 →
+    0.287 alone, nothing on top of the fragments (0.291 both ways), and runs that have one take up to twice as
+    long — so it stays off.
+  - **Long RNAs** (`domains.py`, experimental, off; `--domains auto`). Chains of ≥ 240 nt are cut at the exterior
+    loop and at the first multiloop of long helices into domains of ≤ 160 nt, each predicted as its own chain,
+    and the models become a multi-part template for the whole-chain search. On six library chains of 255–393 nt
+    without templates (`benchmark/long_rna.py`) it was **worse** than the whole-chain search: top model 0.091
+    against 0.104, valid trajectories 2.5 against 3.3 of 16, 1.8× the time. Both are near the level of
+    unrelated structures at that length.
+  - **Knowledge-based base–base potential** (`basepot.py`, `data/basepot_v1.npz`, 9 kB; built by
+    `tools/build_base_potential.py` from 3,315 library chains with homologues of the dev chains removed): base
+    centroid distance × relative orientation by nucleotide pair and sequence separation. **Not in the ranking**:
+    refitting the ranking on the saved candidates (`benchmark/rerank_basepot.py`) changes nothing up to a weight of
+    3 and gains 0.007 only at a weight of 40. Random choice among the candidates gives 0.220, the engine's ranking
+    0.221 and the best candidate 0.254 — what limits the targets without a template is sampling, not ranking.
+  - **Speed.** No compiler or numba in the build environment, so numpy only: the motif index of the library is
+    built 10× faster (6.2 → 0.6 s per run, `motifs.nested_greedy`); the clash term avoids square roots it does not
+    need. A 2-trajectory profile of 1Y26 goes from 82 to 76 s; the trajectory inner loop itself is not faster.
+    A compiled inner loop is still to do.
+  - `rnafold3d predict --fragments / --pseudoknots / --domains auto|off`; `benchmark/dev_templates.py --set
+    key=value` (any engine option) and `--candidates`.
+  - Tests: `tests/test_v075_engine.py` (14 tests).
+- **SAXS, FRET and cryo-EM maps** (`src/rcv/expdata.py`, `static/js/expdata.js`; *Tools ▸ Load SAXS, FRET or
+  cryo-EM data…*). The same path as the probing data: what each conformation predicts, its agreement, and a
+  maximum-entropy reweighting of the ensemble, several datasets jointly. SAXS: Debye profile from all heavy atoms
+  with form factors minus displaced solvent, fitted scale and background, χ² and Rg; FRET: distances or
+  efficiencies with R₀; maps: MRC/CCP4, each conformation placed in the map and its simulated density correlated
+  with the map above the contour. Results in a closed section of the Details tab (curve, metrics, data weights);
+  saved in `.rcv` files; Methods text paragraph. Server: `POST /api/expdata/parse`, `/api/expdata/fit`. Texts in
+  all 10 languages; GUI smoke test: `expdata1`, `expdatashot`. Manual: `docs/RCV.md` §8.4.
+
+### Fixed
+- **Charge perception**: an aromatic nitrogen with three bonds was treated as a cation whenever its ring had no
+  pyrrole position, which made every N-methylated ring amide a cation — theophylline came out +2, riboflavin
+  and FMN +1 too high. It is now charged only when it also holds a double bond inside the ring (a pyridinium, a
+  thiazolium), with the old rule kept for files that bring no bond orders at all (a compound out of a PDB
+  entry). An amine on an aromatic ring is left neutral (an aniline is not protonated at pH 7). Benchmark 1 was
+  re-run with the corrected charges: two cases that were being docked as the wrong molecule came right (1F1T
+  malachite green 9.39 → 0.32 Å, 2GDI thiamine pyrophosphate 10.69 → 2.80 Å), four others moved the other way
+  (4TS2, 3D2G, 1J7T, 2TOB), and the median went 3.97 → 4.24 Å. The fix is right on its own terms; a 30-case
+  set cannot resolve a change this small.
+- `rnafold3d pockets --burial-min` defaulted to 6 while everything else used the measured 5.
+
+### Not done yet
+- Benchmark 3 (selectivity): the published conformation-selective compounds, the thing the screen is for and
+  the one with almost no data. Until it is run the screen stays marked *experimental*, and every score in it
+  is a ranking, not an affinity, with nothing in kcal/mol anywhere.
+- Compound libraries: `tools/fetch_library.py`, the `.rcvlib` format and its manifest. Nothing ships but the
+  four example compounds.
+- Tautomers, ring conformers and protonation beyond the groups in `chem.ionised` — a compound is docked as its
+  file draws it.
+- Metals and phosphates: with a 6-point metal term and no explicit ions, a site that holds its ligand through
+  bridging Mg²⁺ ranks no better than random (the TPP riboswitch, AUC 0.495). An explicit-ion model is what
+  benchmark 2 says is missing.
+- Engine: complexes (two chains) as the plan says; a compiled fold-tree inner loop; making pseudoknot helices
+  actually form in 3D; a domain assembly that beats the whole-chain search.
+- Speed: a compound takes seconds, not the 0.3 s the 100,000-compound target needs. The analytic gradient and
+  a compiled inner loop are the next performance step.
+
+## Package 0.7.4 — 2026-11-12 — RCV · RNA Conformation Viewer (engine rnafold3d 2.2.0; not released on its own, part of 0.7.5)
+
+Six advanced analyses inside the existing tabs (the interface is otherwise unchanged), and an engine that finds
+more distant templates, keeps models from different templates, and can use your own probing data or alignment.
+
+### Added
+- **Advanced analyses, as closed sections at the bottom of the Switch, Pathway and Details tabs** (marked
+  *advanced*; nothing is computed until a section is opened and its button pressed; rows select the nucleotides
+  in 3D and 2D; tables copy as tab-separated text). Manual: `docs/RCV.md` §8.6.
+  - *Switch ▸ Experiments that tell A from B*: disrupt-and-rescue double mutants (shift ≥ 1 kcal/mol, rescue
+    ≥ 50%), the segments where SHAPE/DMS reactivity should differ, and the nucleotide pairs whose distance
+    differs most between the 3D models of the two states (FRET, PELDOR/DEER).
+  - *Switch ▸ Variants*: paste substitutions (`G34U`, `A12C+G30C`); change of the pairing profile (the measure
+    of riboSNitch studies), pairs gained and lost, ΔΔG and the A share, with an effect class.
+  - *Pathway ▸ Folding during transcription*: the most stable structure of every nascent transcript, pairs kept
+    or temporary, how much of A and B has formed at each length, and the lengths where the structure rearranges.
+  - *Details ▸ Structural motifs*: hairpin loop types, bulges and internal loops with the bend between helices,
+    junctions with coaxial stacks, pseudoknot helices, non-canonical pairs, base triples and A-minor contacts
+    from the atom positions.
+  - *Details ▸ Target sites*: the free energy to open every 14–25-nt window, the share of conformations in which
+    it is unpaired, GC content and the antisense sequence, for antisense oligonucleotides, siRNAs and probes.
+  - *Details ▸ Compare with another ensemble* of the same RNA open in RCV: superposition weighted towards the
+    part that stays the same, displacement per nucleotide, regions that moved, RMSD, TM-score, local agreement
+    and base-pairing differences.
+  - Server: `POST /api/insight/<experiments|variants|cotranscription|motifs|targets|compare>` (`rcv/insight.py`).
+- **Structure-aware template search** (`rnafold3d/templates.py`, on by default; `PredictConfig.template_structure`).
+  Library chains whose sequence alignment is weak (E-value up to 10) are aligned by sequence and secondary
+  structure together (the query's pairing probabilities from ViennaRNA against the template's base pairs) and
+  kept when the alignment covers ≥ 60% of the query and ≥ 90% of the template pairs it covers can form in the
+  query. The same alignment extends sequence hits that stopped where the sequences diverge; it is skipped when
+  the hit leaves an internal part of ≥ 20 nt uncovered (an insert in a scaffold).
+- **Models from different templates.** The kept models now take the best model of each template in turn before
+  a second model of the same template, so the five models cover the templates found.
+- **Your own data in the prediction** (start page ▸ *Advanced settings*; `rnafold3d predict --shape FILE
+  --alignment FILE`): SHAPE reactivities as pseudo-energies for the 2D hypotheses (Deigan, 1.8 and −0.6
+  kcal/mol), and an alignment of homologs whose consensus structure (RNAalifold) becomes one of the hypotheses.
+- `benchmark/template_selection.py`: leave-one-out benchmark of the template search on 916 library chains;
+  `benchmark/casp16/compare.py paired`: per-target differences between two runs with bootstrap intervals.
+- Tests: `tests/test_v074.py` (19 tests); GUI smoke test: three new scenarios (61 in total).
+- Interface texts of the new sections in all 10 languages.
+
+### Fixed
+- An advanced section closed itself again when the tab was drawn a moment after the click (the Pathway tab
+  finishing its analysis, for instance).
+
+### Changed
+- **Benchmarks, 0.7.4 against 0.7.3.**
+  - Template search (916 chains, each searched against the library without its own class): mean TM-score of
+    the first-ranked template 0.416 → 0.428, of the best template found 0.444 → 0.461; chains with a template
+    642 → 655.
+  - Development benchmark (26 PDB chains, templates released before each one): mean TM-score of model 1
+    0.271 → 0.284, best of 5 0.292 → 0.302; chains with a template 5 → 7.
+  - CASP16 (15 targets): model 1 unchanged (0.489; 0.7.3: 0.490 — the first model comes from the same template
+    on every target); best of 5 0.511 → 0.524, from the tRNA R1271 (0.50 → 0.66) and R1203 (0.49 → 0.52). The
+    95% bootstrap interval of the mean best-of-5 difference is −0.001 to +0.036: with 15 targets this is not
+    established. 1–9 minutes per target on the 16-core laptop CPU.
+- CASP16 report, figures and ensemble page (`benchmark/casp16/results/`) regenerated with 0.7.4.
+- `docs/NEXT_STEPS.md`: the planned functions that are not implemented, in detail — conformation-selective
+  compound screening (its own sub-window, scoring core, pocket finding, validation benchmarks and libraries),
+  engine accuracy, retention features and the remaining layout work.
+
+- **A more compact window.** Menu bar 38 → 32 px, toolbar 46 → 36 px with smaller controls, panel headers
+  36 → 30 px, playback bar 68 → 54 px, narrower tab and list padding, side panels 268/360 → 244/352 px (the
+  panels hold the same content width as before, the padding is what shrank). Above 2,200 px — 27-inch monitors
+  and up — the side panels are 252/372 px, where there is room for them.
+
+### Not changed
+- The rule that ranks templates (identity × coverage × 3D agreement): no alternative tried on the template
+  benchmark was better.
+- Without a template, the 3D arrangement of helices is modelled as in 0.7.3.
+
 ## Package 0.7.3 — 2026-11-07 — RCV · RNA Conformation Viewer (engine rnafold3d 2.1.0)
 
 3D interactions in the engine: related experimental structures (templates) and junction geometry from known

@@ -108,6 +108,25 @@ export class Welcome {
     this.seedIn = el('input', { class: 'input', type: 'number', value: 42, 'aria-label': 'Random seed' });
     this.templatesIn = el('input', { type: 'checkbox', checked: p.templates !== false, 'aria-label': 'Use related experimental structures' });
     this.templatesIn.addEventListener('change', () => { this.prefs.templates = this.templatesIn.checked; savePref('predictForm', this.prefs); });
+    // a recipe (0.7.5): its prediction settings fill the form, its steps run on the result
+    this.recipe = null;
+    this.recipeSel = el('select', { class: 'select', 'aria-label': 'Recipe' }, el('option', { value: '', text: 'None' }));
+    this.recipeSel.addEventListener('change', async () => {
+      const r = this.recipeSel.value ? await app.recipes.find(this.recipeSel.value) : null;
+      this.setRecipe(r, { fromSelect: true });
+    });
+    // optional experimental / evolutionary information for the 2D structures (0.7.4)
+    const filePick = (key, title) => {
+      const input = el('input', { type: 'file', hidden: true, accept: '.txt,.shape,.dat,.csv,.tsv,.map,.react,.fa,.fasta,.afa,.aln,.sto,.stk,text/plain' });
+      const btn = el('button', { class: 'btn small ghost wl-file', type: 'button', title });
+      const show = () => { btn.replaceChildren(this[key] ? `${this[key].name}  ✕` : 'Choose file…'); btn.classList.toggle('on', !!this[key]); };
+      input.addEventListener('change', async () => { const f = input.files[0]; input.value = ''; if (f) { this[key] = { name: f.name, text: (await f.text()).slice(0, 4e6) }; show(); } });
+      btn.addEventListener('click', () => { if (this[key]) { this[key] = null; show(); } else input.click(); });
+      show();
+      return el('span', { class: 'wl-filepick' }, btn, input);
+    };
+    this.probingPick = filePick('probingFile', 'Reactivities (SHAPE, DMS): one value per nucleotide, or "position value" lines. They guide the 2D structures of the prediction as pseudo-energies. Click again to remove the file.');
+    this.alignPick = filePick('alignmentFile', 'Aligned homologous sequences (FASTA with gaps, Stockholm or Clustal) that include this sequence. Base pairs supported by covariation become the first 2D structure. Click again to remove the file.');
     this.estimate = el('div', { class: 'wl-estimate' });
     this.predictBtn = el('button', { class: 'btn primary wl-go', onclick: () => this.startPrediction() }, icon('flask'), el('span', { text: 'Predict conformations' }));
     // engine: the built-in RCV engine (physics + templates) or a local AlphaFold 3 installation
@@ -141,6 +160,14 @@ export class Welcome {
       el('div', { class: 'grid2' },
         el('div', { class: 'field' }, el('label', { text: 'Known secondary structure (dot-bracket)' }), this.ssIn),
         el('div', { class: 'field' }, el('label', { text: 'Random seed' }), this.seedIn)),
+      el('div', { class: 'grid2' },
+        el('div', { class: 'field' }, el('span', { class: 'flabel', text: 'Probing data (SHAPE, DMS), optional' }), this.probingPick),
+        el('div', { class: 'field' }, el('span', { class: 'flabel', text: 'Alignment of homologs, optional' }), this.alignPick)),
+      el('div', { class: 'grid2' },
+        el('div', { class: 'field' }, el('label', { text: 'Recipe: its steps run on the result' }),
+          el('div', { class: 'row', style: { gap: '6px' } }, this.recipeSel,
+            el('button', { class: 'btn ghost icon-only', type: 'button', title: 'Recipes…', 'aria-label': 'Recipes…', onclick: () => import('./recipes.js').then(m => m.recipesDialog(app, this.recipe?.id)) }, icon('book')))),
+        el('div')),
       el('label', { class: 'check wl-templates', title: 'The built-in library holds about 4000 RNA chains from the PDB (21 MB). Related structures (sequence identity, covering at least about half of the sequence) guide the 3D model; switch off for a physics-only prediction.' },
         this.templatesIn, el('span', { text: 'Use related experimental structures (templates) when the library has one' })),
       el('div', { class: 'wl-adv-links' },
@@ -220,7 +247,30 @@ export class Welcome {
       el('span', { class: 'muted', text: `RCV ${app.info?.version || ''}` }));
     this._estimate();
     if (this.job) this._showProgress(true);
+    await this._fillRecipes();
     await this._recent();
+  }
+
+  async _fillRecipes() {
+    let list = [];
+    try { list = await this.app.recipes.list(true); } catch { /* offline */ }
+    const cur = this.recipe?.id || '';
+    this.recipeSel.replaceChildren(el('option', { value: '', text: 'None' }),
+      ...list.filter(r => !r.error).map(r => el('option', { value: r.id, text: r.name })));
+    if (this.recipe && !list.some(r => r.id === cur)) this.recipeSel.append(el('option', { value: cur || '_unsaved', text: this.recipe.name }));
+    this.recipeSel.value = cur || (this.recipe ? '_unsaved' : '');
+  }
+
+  // Chosen here or in Tools > Recipes ("Use for the next prediction"); null clears it.
+  setRecipe(r, { fromSelect = false } = {}) {
+    this.recipe = r || null;
+    const p = r?.prediction || {};
+    if (p.models) this.modelsIn.value = p.models;
+    if (p.sampling) this.sampling = p.sampling;
+    if (p.seed !== undefined && p.seed !== null) this.seedIn.value = p.seed;
+    if (p.templates) this.templatesIn.checked = p.templates !== 'off';
+    if (!fromSelect) { this.adv.open = true; this._fillRecipes(); }
+    this._estimate();
   }
 
   _estimate() {
@@ -328,7 +378,7 @@ export class Welcome {
         icon('cube'), el('div', { class: 'meta' }, el('b', { text: p.name }), el('span', {}, `${p.length ?? '?'} nt · ${p.n_conformations} conformation${p.n_conformations === 1 ? '' : 's'}`, date ? ' · ' : '', date ? el('span', { class: 'nowrap', text: date }) : ''))));
     }
     this.recent.append(el('div', { class: 'section-title' }, 'Recent predictions', el('span', { class: 'grow' }),
-      el('button', { class: 'linkbtn', onclick: () => app.openDialog('library') }, 'All projects…')), list);
+      el('button', { class: 'linkbtn', onclick: () => app.openLibrary() }, 'Project library…')), list);
   }
 
   // ---------------------------------------------------------------- prediction
@@ -347,7 +397,7 @@ export class Welcome {
     const name = this.nameIn.value.trim() || fastaName || 'rna';
     const params = { name: slug(name), sequence: seq, structure: this.ssIn.value.trim(), models: +this.modelsIn.value || 8,
       sampling: this.sampling, cores: +this.coresIn.value, seed: +this.seedIn.value || 42, templates: this.templatesIn.checked ? 'auto' : 'off',
-      ...(af3 ? { engine: 'alphafold3' } : {}) };
+      ...(af3 ? { engine: 'alphafold3' } : { probing_text: this.probingFile?.text || '', alignment_text: this.alignmentFile?.text || '' }) };
     this.prefs = { ...this.prefs, models: params.models, sampling: params.sampling, cores: params.cores };
     savePref('predictForm', this.prefs);
     try {
@@ -363,6 +413,7 @@ export class Welcome {
         this.job = null;
         this._showProgress(false);
         app.showPage('viewer');
+        if (this.recipe?.steps?.length) { const r = this.recipe; setTimeout(() => app.recipes.run(r), 300); }   // the chosen recipe's steps
         toast(j.result?.engine === 'alphafold3' ? `${j.document.n_conformations} AlphaFold 3 models of ${j.document.name}, best ranking score first. Colour by Confidence to see the pLDDT.`
           : `${j.document.n_conformations} conformation${j.document.n_conformations === 1 ? '' : 's'} of ${j.document.name}. Drag a residue with the Pull tool to switch between them.`, 'ok', 'Prediction finished', 7000);
       },

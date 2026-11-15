@@ -231,8 +231,12 @@ class FoldModel:
         list was built; the list is rebuilt automatically otherwise or when atoms appear/disappear."""
         key = (int(self.present.sum()), cutoff, polar_cutoff)
         vl = getattr(self, '_verlet', None)
-        if vl is None or vl['key'] != key or \
-                np.max(np.sum((self.xyz[vl['ids']] - vl['ref']) ** 2, axis=1)) > (skin / 2) ** 2:
+        if vl is not None and vl['key'] == key:
+            dv = self.xyz[vl['ids']] - vl['ref']
+            stale = float(np.max(np.einsum('ij,ij->i', dv, dv))) > (skin / 2) ** 2
+        else:
+            stale = True
+        if stale:
             from scipy.spatial import cKDTree
             ids = np.where(self.present)[0]
             pairs = cKDTree(self.xyz[ids]).query_pairs(cutoff + skin, output_type='ndarray')
@@ -243,15 +247,18 @@ class FoldModel:
             keep = self.nonbonded_mask(i, j)
             i, j = i[keep], j[keep]
             polar = np.isin(self.element[i], ('N', 'O')) & np.isin(self.element[j], ('N', 'O'))
-            vl = {'key': key, 'ids': ids, 'ref': self.xyz[ids].copy(), 'i': i, 'j': j,
-                  'lim': np.where(polar, polar_cutoff, cutoff)}
+            lim = np.where(polar, polar_cutoff, cutoff)
+            vl = {'key': key, 'ids': ids, 'ref': self.xyz[ids].copy(), 'i': i, 'j': j, 'lim': lim, 'lim2': lim * lim}
             self._verlet = vl
         if not len(vl['i']):
             return 0.0
-        d = np.linalg.norm(self.xyz[vl['i']] - self.xyz[vl['j']], axis=1)
-        ov = vl['lim'] - d
-        ov = ov[ov > 0]
-        return float(np.sum(ov * ov))
+        v = self.xyz[vl['i']] - self.xyz[vl['j']]
+        d2 = np.einsum('ij,ij->i', v, v)
+        m = d2 < vl['lim2']                     # square roots only for the few pairs that overlap
+        if not m.any():
+            return 0.0
+        ov = vl['lim'][m] - np.sqrt(d2[m])
+        return float(np.dot(ov, ov))
 
     def atom_clashes(self, cutoff=2.8, polar_cutoff=2.5, subset=None):
         """Non-bonded heavy-atom overlaps among present atoms (excluding pairs inside one stem body).

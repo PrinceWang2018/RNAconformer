@@ -11,7 +11,7 @@ that speed it up or slow it down —, see the whole ensemble on a **topology-awa
 data**, and read a per-nucleotide **confidence** from a small optional neural network; then share the result as one
 `.rcv` file, publication figures, videos or an interactive web page. **Everything runs on your computer**: predictions use your CPU
 cores, the 3D view uses your GPU; no data leave the machine (except *Fetch from the PDB*, which downloads an entry
-only when you ask for it).
+only when you ask for it, and the check for updates, which asks only which version is the newest).
 
 Version 0.7.1, 2026-10-27. Earlier names: RNAconfSwitch (0.4), RNAconformer Viewer (0.3). Free and open-source
 software (GPL-3.0). **Author:** Zixiang Wang (princewang2018@gmail.com).
@@ -95,6 +95,14 @@ Command-line tools (no window) — the same tools are in the **Tools** menu of t
 | Load probing data (SHAPE / DMS)… | console `probing`, `rcv probing` (section 8.4) |
 | Interactive HTML page · Figure panels · Plot studio | `rcv html` · Export menu |
 
+**Updates** *(0.7.5)*. *Help ▸ Check for updates…* asks which version of RCV is the newest. When a newer one exists,
+RCV shows it with the installer for this computer — Windows, macOS (Apple Silicon or Intel) or Linux (`.deb` or
+`.rpm`, from the system you run) — and asks: **Download** opens the installer in your web browser; **Skip this
+version**, **Later** and *Release notes* are the other choices. RCV never downloads or installs anything by itself.
+Installed copies also check once a day when they start (turn it off in the update window or *View ▸ Preferences*;
+`RCV_NO_UPDATE_CHECK=1` turns it off too); copies run from source check only when asked. The check reads the newest
+release from GitHub, or from the website when GitHub cannot be reached, and sends nothing but `RCV/<version>`.
+
 Settings, logs and plugins live in `%APPDATA%\RCV`, `~/Library/Application Support/RCV` or `~/.local/share/rcv`;
 settings, plugins and projects of RNAconfSwitch 0.4 are still found.
 
@@ -117,8 +125,9 @@ The start page shows the **two ways to use RCV**, side by side:
   own AlphaFold 3 installation (section 3.2).
 * **Advanced settings** (closed by default): name, number of conformations to keep, sampling depth (Fast /
   Standard / Thorough = 2 / 4 / 8 trajectories per kept conformation), CPU cores, a known secondary structure
-  (dot-bracket), the random seed, **Use related experimental structures (templates)** (on by default; section
-  3.1), *Fill in the demo sequence*.
+  (dot-bracket), the random seed, optional **probing data** (SHAPE, DMS) and an **alignment of homologs** that
+  guide the 2D structures *(0.7.4, section 3.1)*, **Use related experimental structures (templates)** (on by
+  default; section 3.1), *Fill in the demo sequence*.
 
 **2 · View experimental or predicted structures of one RNA**
 
@@ -164,17 +173,42 @@ Run time grows with length and sampling: on an 8-core laptop a 29-nt hairpin wit
    least 45% of the sequence; templates are ranked by identity × coverage × their 3D agreement with the other
    hits, so a structure in an unusual state (for example a tRNA bent by an enzyme) moves down. When the best
    template leaves a part uncovered (an insert in a scaffold), another template is looked up for that part.
+   *(0.7.4)* **Relatives whose sequence has drifted** are found as well: chains with only a weak sequence match
+   (E-value up to 10) are aligned by sequence and secondary structure together, and kept when the alignment
+   covers ≥ 60% of the sequence, at least 10 of the template's base pairs map onto it, ≥ 90% of those can pair in
+   your sequence and ≥ 45% of the aligned nucleotides are identical (for example a tRNA of another species, a
+   riboswitch of another organism). The same alignment extends sequence hits that stopped where the sequences
+   diverge. In a test on 916 RNAs of the library (each one searched against the structures released before it)
+   this raised the agreement of the first template with the true structure from 0.416 to 0.428 on average, and
+   of templates whose alignment was extended from 0.57 to 0.66 (`benchmark/template_selection.py`).
 2. **3D model from a template.** The template gives the base pairs, distance restraints between the aligned
    nucleotides, starting torsions and atom positions. The fold-tree search satisfies the restraints, loops are
    closed in the template's shape, and a final Cartesian refinement moves every atom onto the template while
    keeping exact bond lengths and angles; parts without a template are modelled by the physics search.
    Notes in the progress panel name the templates; *Details* shows the template of each conformation (with a
    link to the PDB entry). 70% of the trajectories use templates (most of them the best one); the rest explore
-   other folds, so the ensemble still shows alternative conformations.
+   other folds, so the ensemble still shows alternative conformations. *(0.7.4)* The kept conformations start
+   with the best model of each template in turn, so the first models show the different related structures
+   rather than one of them several times.
 3. **No template.** The search runs on ViennaRNA 2D hypotheses as before, and the **3D arrangement of the helices
    at junctions** (internal loops, bulges, multi-way junctions) is now taken from library junctions with the same
    topology and strand lengths (any homologue of the query excluded): one per trajectory, so the ensemble samples
-   the junction geometries seen in experimental structures.
+   the junction geometries seen in experimental structures. *(0.7.5)* **Hairpin loops** of 3–12 nt take their
+   shape from library loops with a matching sequence (a GNRA or UUCG tetraloop from a GNRA or UUCG loop), one
+   per trajectory, and grafted junction strands keep their backbone torsions.
+
+*(0.7.5, command line only)* Two experimental options, off by default because they did not improve the
+benchmark: `rnafold3d predict --pseudoknots auto` adds a 2D hypothesis with one crossing helix (an H-type
+pseudoknot or kissing loop) when it is more stable than the nested structure — the 2D is often right, but the
+crossing helix rarely forms in the 3D models yet; `--domains auto` folds the domains of chains of 240 nt or more
+separately and assembles them. `--fragments off` switches the loop fragments off.
+
+**Your own data in the prediction** *(0.7.4, Advanced settings)*. *Probing data*: a file with SHAPE or DMS
+reactivities (one value per nucleotide, or "position value" lines; negative or `NA` = no data) guides the 2D
+structures as pseudo-energies (Deigan et al. 2009), so the 3D models start from structures that agree with
+the experiment. *Alignment of homologs*: aligned sequences that include yours (FASTA with gaps, Stockholm or
+Clustal); the consensus structure supported by covariation (RNAalifold) becomes the first 2D structure. Both are
+ignored when you give a dot-bracket yourself. Command line: `rnafold3d predict --shape FILE --alignment FILE`.
 
 Switch templates off (*Advanced settings*) for a physics-only prediction, for example to test whether a design
 folds without relying on known structures. `rnafold3d predict --templates off`, `--template-cutoff YYYY-MM-DD`
@@ -194,6 +228,11 @@ run folder keeps the input, the log and the AlphaFold 3 output. AlphaFold 3 runs
 batch); its terms of use apply to its output.
 
 ## 4. The window
+
+The window is laid out to leave as much room as possible for the 3D structure *(0.7.4)*: menu bar, toolbar,
+panel headers, tab bar and playback bar are compact, and the side panels are narrower (on screens wider than
+2,200 px — a 27-inch monitor and up — they are a little wider again, since there the structure has room to
+spare). Panels can be hidden or maximised at any time (section 4.3).
 
 | Area | What it does |
 |---|---|
@@ -260,10 +299,17 @@ for manuscripts, and structure data (residue and file names).
 **Window layout** (Window menu). Every part of the window can be shown or hidden: the ensembles panel, the
 analysis panel, the 2D structure window, the console, the sequence bar, the toolbar, the playback bar, the status
 bar, and the title and legend on the 3D view. Hidden panels also have a × in their title bar; the Window menu
-shows them again (*Show all panels*). The side panels, the 2D window and the console can be **maximised** to
+shows them again (*Show all panels*). A hidden side panel folds to a **rail** of icons along the window edge: click
+one to open the panel again — on the right, each icon opens its tab (Energy, Switch, Pathway, Details, plugin
+tabs). **Panel widths** *(0.7.5)*: drag the inner edge of a side panel to make it wider or narrower (the 3D view
+keeps at least 360 px); double-click the edge for the default width. Widths are remembered for each screen size,
+so a laptop screen and a large monitor each keep their own; *Window ▸ Default panel widths* undoes them. The side panels, the 2D window and the console can be **maximised** to
 fill the window — with the button in their title bar, by double-clicking the title bar or from the Window menu —
 and `Esc` restores them. `H` hides everything around the 3D view (press again to bring it back), `F11` switches
-to full screen, and *Reset window layout* returns to the original arrangement. The layout is remembered between
+to full screen, and *Reset window layout* returns to the original arrangement. **Presentation mode** *(0.7.5,
+`F5` or Window ▸ Presentation mode)* is for a talk or a shared screen: only the 3D view, full screen, without the
+menu bar, with large residue labels, title and legend. The keys keep working (arrows and `Space` to play the
+conformations, `R`, `L`, `S` …); `Esc` or `F5` leaves it, and moving the mouse shows an *Exit presentation* button. The layout is remembered between
 sessions.
 
 ## 5. The 2D structure window
@@ -409,6 +455,29 @@ and normalises it by the 2–8 % rule unless you switch that off (DMS: A and C o
 The profile, the fit and the weights are saved in `.rcv` files. Console: `probing file.shape, SHAPE` ·
 `probing clear`. Command line: `rcv probing x.rcv --data file.shape [--dms]`.
 
+#### SAXS, FRET and cryo-EM maps *(0.7.5)*
+
+Tools ▸ **Load SAXS, FRET or cryo-EM data…** follows the same path for three more kinds of data: RCV computes
+what every conformation predicts, scores its agreement, and reweights the ensemble by maximum entropy so that its
+average fits the data. The results appear in a closed section of the Details tab (*Experimental data*).
+
+* **SAXS profile** — `q I [error]` columns (q in Å⁻¹; a file in nm⁻¹ is recognised and converted). Each
+  conformation's profile is computed from all heavy atoms (Debye formula, atomic form factors minus the
+  displaced solvent; no hydration shell, so a scale and a constant background are fitted, and the fit is most
+  meaningful below q = 0.25 Å⁻¹). Shown: the experimental curve with the shown conformation's and the ensemble's,
+  reduced χ² and Rg. Metric *SAXS χ²*.
+* **FRET distances** — one pair per line: `i j distance [sd]` (Å), or `i j E=0.45 R0=54 [sd=0.05]` for an
+  efficiency (the ensemble average of the efficiency is fitted, as measured); `atom=C5'` names another atom than
+  C4′. Dye linkers are not modelled; the default error is 5 Å. Metric *FRET χ²*.
+* **Cryo-EM map** — MRC/CCP4 file, with its resolution (guessed from the voxel size when not given) and contour
+  level. Every conformation is placed in the map (principal axes, then a local search of rotation and shift), its
+  density is simulated at the map's resolution and compared with the map above the contour. Metric *Map
+  correlation*. A map of a complex should be cut to the RNA first.
+
+Several datasets (SAXS, FRET and a map together) are fitted jointly, from uniform weights; θ sets how far the data
+may move the weights (metric *Data weight (SAXS/FRET/EM)*). The SHAPE reweighting above stays separate. Datasets, fits and weights are saved in `.rcv` files. These data
+reweight the conformations RCV already has; they do not build new ones.
+
 ### 8.5 Confidence model (optional)
 
 When an ensemble opens, RCV predicts the **local accuracy of every nucleotide** of every conformation — the lDDT it
@@ -433,6 +502,132 @@ seen in training, r = 0.75 (test split) and 0.84 (dev split), and native structu
 (better on the test split, worse on the dev split), so the engine's ranking is kept and confidence is shown as an
 additional guide to which parts of a model to trust. Details: `docs/V07_VALIDATION.md`; retraining:
 `tools/qa_model/`.
+
+### 8.6 Advanced analyses inside the tabs *(0.7.4, 0.7.5)*
+
+Seven further analyses sit at the bottom of the Switch, Pathway and Details tabs as closed sections marked
+*advanced*. The interface is otherwise unchanged; nothing is computed until you open a section and press its
+button, and results stay while you work. A click on a row or chip selects the nucleotides in 3D and 2D; every
+table can be copied (tab-separated, pastes into a spreadsheet).
+
+**Switch tab — Experiments that tell A from B.** For the two states chosen in the mutation scan:
+
+* **Disrupt and rescue.** Double mutants for the classic proof that a helix exists and matters: the first
+  mutation breaks a base pair that only one state has (the balance moves to the other state), the second, at the
+  partner, restores the pair (the balance moves back). Only designs that leave the other state's pairs intact,
+  shift ΔG(A) − ΔG(B) by ≥ 1 kcal/mol and are rescued by ≥ 50% are listed, the strongest first, one per pair;
+  *3D* opens the start page with the double mutant.
+* **Chemical probing.** The runs of nucleotides that are paired in one state and unpaired in the other: where
+  SHAPE or DMS reactivity should differ.
+* **Distance labels.** Pairs of nucleotides whose C4′–C4′ distance differs most between the 3D models of the two
+  states, ranked by the difference in FRET efficiency (R₀ = 50 Å) minus the spread inside each state; also a
+  guide for PELDOR/DEER spin labels. Dyes and linkers add their own length.
+
+**Switch tab — Variants.** Paste substitutions (`G34U`, `34U`, several changes joined with `+`: `A12C+G30C`;
+separate variants with commas or spaces). For each variant RCV reports the change of the pairing profile
+(1 − Pearson correlation of the per-nucleotide unpaired probabilities of wild type and variant, the measure used
+in riboSNitch studies), how many base pairs of the most stable structure are gained or lost, the nucleotide
+around which the change is largest and, with two states chosen, ΔΔG and the A share. *Effect* is *small*,
+*moderate* (change ≥ 0.1 or ≥ 3 pairs) or *large* (≥ 0.3 or ≥ 8 pairs). Substitutions only: insertions,
+deletions and modified nucleotides (m⁶A, Ψ) are not modelled.
+
+**Pathway tab — Folding during transcription.** The most stable structure of every nascent transcript, from
+the 5′ end one nucleotide at a time. The chart has one row per transcript length: blue marks a pair that the
+full-length structure keeps, orange a temporary one. The curves show how much of conformations A and B (those
+chosen at the top of the tab) has formed at each length, and the chips list the lengths at which three or more
+pairs break at once (a rearrangement). Each length is at equilibrium: the section shows what the growing RNA
+can form, not how fast; polymerase speed and pausing are not modelled.
+
+**Details tab — Structural motifs** of the shown conformation: hairpin loops by type (GNRA, UNCG, CUUG
+tetraloops, tri-, penta-, hexaloops), bulges and internal loops with the bend between the flanking helices
+(helices of three or more pairs; a 3-nt bulge with a bend ≥ 50° is called *kink-turn-like*), multi-way
+junctions with their coaxial stacks, pseudoknot helices, and contacts found from the atom positions:
+non-canonical pairs and base triples (two or more hydrogen bonds between coplanar bases, with the base edges:
+Watson–Crick, Hoogsteen, sugar) and A-minor contacts (an unpaired adenine reaching the O2′ of a paired
+nucleotide). In tRNA-Phe (1EHZ) this finds, for example, the U8·A14 and U54·A58 reverse-Hoogsteen pairs and the
+acceptor/T-stem stack. cis/trans is not assigned. Predicted models have few tertiary contacts; experimental
+structures show them.
+
+**Details tab — Pockets: where a compound could bind** *(0.7.5)*. Open space on the surface of the shown
+conformation that is enclosed enough to hold a small molecule. The structure is put on a 0.8 Å grid; a grid
+point is free when no atom's van der Waals sphere plus a 1.4 Å probe covers it, and it is *buried* in a
+direction when the RNA closes the space on both sides within 12 Å, along the three axes and the four cube
+diagonals (the LIGSITE scan). Free points buried in at least five of the seven direction pairs are clustered,
+and a cluster of at least 100 Å³ is a pocket. The threshold was chosen by measuring: on thirty experimental
+RNA–compound complexes with the compound removed (`benchmark/screening/pocket_sites.py`), the site it
+occupied is the top-ranked pocket in 21 of them and among those found in 24; at six of seven it is 9 and 12,
+because most RNA sites are shallow. For each: the volume, how enclosed it is, how much of the lining
+lies **outside a Watson–Crick helix** (compounds bind loops, bulges and junctions; the groove of an A-form
+helix is where docking programs collect their false positives), the nucleotides lining it, and a **score**
+(enclosed × outside-a-helix × size, 0 to 1) that ranks the sites. *only deep pockets (6 of 7)* keeps the
+closed sites only: tidier, better separated, and missing the shallow ones that most RNA binders use.
+
+Choose a conformation under *Compare with* and the same sites are measured in both: for the nucleotides that
+line a pocket, how much open volume they hold in each conformation (`screening.pockets.volume_near`, so a
+pocket that merges with its neighbour or splits in two is still compared, and the superposition of the two
+structures does not matter). *Sites that differ between the two conformations* lists them, largest change
+first: a site open in one conformation and closed in the other is what a conformation-selective compound
+would use. *Colour 3D by pocket* colours each nucleotide by the score of the best pocket it lines.
+
+This is geometry and nothing else: a ranking of sites, not an affinity, and a pocket in a predicted model is
+only as reliable as the model — the numbers above come from experimental structures of complexes, where the
+compound itself shaped the site. Docking compounds into these pockets is the screening window of §8.7, which
+takes its pockets from here. The analysis is also available without the interface:
+`from rnafold3d.screening import pockets; pockets.find(xyz, elements=..., residue_of=...)`, and as
+`POST /api/insight/pockets` (`conformation`, `other`, `burial_min`).
+
+**Details tab — Target sites.** For antisense oligonucleotides, siRNAs and hybridisation probes: the free
+energy needed to open every window of 14–25 nt (ensemble free energy with the window single-stranded minus the
+unconstrained one, ViennaRNA), the share of the conformations in which the window is unpaired, GC content and
+the antisense DNA sequence (click to copy). The best non-overlapping windows are listed; *Colour 3D by
+accessibility* colours every nucleotide by its unpaired probability. Binding strength of the oligonucleotide,
+off-targets and chemistry are outside this ranking.
+
+**Details tab — Compare with another ensemble** of the same RNA that is open in RCV (wild type and mutant,
+with and without ligand, RCV and AlphaFold 3, a prediction and the experiment; sequences of different length
+are matched). The shown conformation is superposed on the first conformation of the other ensemble with weights
+that follow the part that stays the same, so a moving domain stands out: displacement per nucleotide, the regions
+that moved, RMSD and TM-score, the **local agreement** (share of the distances to neighbours within 15 Å that
+agree within 0.5, 1, 2 and 4 Å; insensitive to domain movements — where two independent predictions agree
+locally, the region is more trustworthy), the regions whose base pairing differs across the two ensembles, and
+the closest pair of conformations between them. Two buttons colour the 3D view by displacement or by local
+agreement.
+
+### 8.7 Compound screening window *(0.7.5, experimental)*
+
+**Tools ▸ Compound screening…**, or the button in the Switch tab. A screen is a long job with many
+settings, so it opens as a window of its own and the main interface stays exactly as it was. The question
+it answers is the one an ensemble with two states makes possible and a docking program cannot ask: *which
+compounds fit conformation A much better than conformation B* — the ones that would hold the switch in A.
+
+Four cards, then the table:
+
+1. **Target.** The two conformations (A, the one to stabilise; B, the one to block; B may be left out, and
+   then the list is ranked by score alone) and the site: a pocket from §8.6, or the nucleotides selected in
+   the main window. Under the site the window says how big the box is, how many nucleotides line it, and
+   warns when the site is so wide that only its centre can be screened.
+2. **Library.** An SDF, MOL or MOL2 file with 3D coordinates; it says how many compounds were read, how
+   many records were rejected and why, and the range of size, weight and charge. **No library ships with
+   RCV**; four small compounds (adenine, theophylline, caffeine and preQ1, 3D conformers from PubChem,
+   public domain) are included as an example so that a first run takes a minute. A compound is
+   docked as the file draws it, so the file has to be prepared (3D, hydrogens, one conformer per record).
+3. **Parameters.** Search depth (quick / standard / thorough), poses kept per compound and state, how many
+   compounds keep their coordinates, cores, and a limit. Compounds are ionised at pH 7.
+4. **Run.** Start and stop, progress with compounds per second and time left, and the table filling from
+   the top. Stopping keeps what is already done.
+
+The table is sortable and filterable (selectivity, weight, name) and exports as CSV, or as an SDF of the
+kept poses with the scores in it. **Show in 3D** draws the pose in the main window and selects the
+nucleotides it touches. *Selectivity* is score(B) − score(A), positive when the compound prefers A; ties
+go to the compound whose worse score is better, because a compound that binds neither state selectively is
+of no use.
+
+**What the numbers are.** A ranking to choose a few compounds to test. Not an affinity, never kcal/mol, and
+not a claim that a compound will bind or block anything. The window itself shows what the scoring function
+was measured at, and `docs/SCREENING_STATUS.md` has the benchmarks, including the cases where it fails.
+The RNA is rigid in both conformations, so an induced fit is invisible here; what the two-state difference
+buys is that the error of the model is largely the same in A and in B.
+
 
 ## 9. Command console
 
@@ -483,6 +678,31 @@ Atoms (measurements) are written `residue/atom`, e.g. `34/N1`, `12/C4'`, `pos 5/
 (`.rcvs`, `.cmd` or `.txt`) with one command per line (`#` comments); `examples/scripts/tar_switch_figure.rcvs` is an example. Every command run on an ensemble is kept
 with it and saved in its `.rcv` file — the *Methods text* dialog shows it as a reproducible figure recipe.
 
+### 9.1 Plain language *(0.7.5)*
+
+When a line is not a command, the console tries to read it as plain English and shows the commands it stands
+for before running them: *colour by flexibility* → `color flexibility`; *show the switch at 25 degrees with
+150 mM salt* → `conditions 25, 150 mM` and `tab switch`; *compare models 1 and 3* → `align 1, 3`; *make the
+guanines orange*, *show sticks for residues 22 to 25*, *label every 10th residue*, *how does conformation 1 turn
+into 3*, *zoom in on helix H2*, *save a picture*, *make a video of the transition from 1 to 4*. Several requests
+can share a line (*colour by flexibility and show the 2D structure*). It works with patterns on this computer —
+no language model, nothing is sent anywhere — so it understands common requests, not everything; `help plain`
+lists examples. The command log keeps the commands, not the sentence, so it stays a script that reproduces the
+figure. A command that takes no arguments followed by words (*reset the colours*, *stop rotating*) is read as a
+sentence, never run with the words ignored.
+
+### 9.2 Recipes *(0.7.5)*
+
+A **recipe** is a named analysis — prediction settings plus the steps that follow (console commands or plain
+English: conditions, colours, tabs, views, comparisons) — kept as a small `.rcvrecipe` file (JSON) that a lab can
+share, so everyone looks at an RNA the same way. *Tools ▸ Recipes…* lists the built-in recipes (*Riboswitch
+report*, *Pull and compare*, *Flexibility overview*, *Publication figure*) and your own: **Run on this
+ensemble**, **Use for the next prediction** (its settings fill the start page and its steps run on the result —
+also chosen under *Advanced settings ▸ Recipe*), *Save*, *Duplicate* (to change a built-in one), *Export file…*,
+*Import file…*, and **From this ensemble's commands**, which turns what you did by hand into a recipe. The
+console runs one with `recipe name` (`recipe list`). Your recipes are files in the `recipes` folder of RCV's
+settings folder.
+
 ## 10. Measurements, named selections and scenes
 
 * **Measure** (`M`, ruler button): click two atoms for a distance; the console adds angles and dihedrals.
@@ -506,6 +726,13 @@ All of these, plus custom colours, labels and hidden or highlighted residues, ar
   when the sequences are identical, else by author numbering).
 * **Workspace** (`Ctrl+Shift+S`): every open ensemble in one JSON file (larger; opens without the engine).
   RNAconfSwitch sessions (`.rnaconf.json`) and older `.rnaview.json` files still open.
+* **Project library** *(0.7.5, File ▸ Project library…, `Ctrl+L`, or the start page)* — every prediction run,
+  `.rcv` file and structure you have opened, plus the runs and `.rcv` files in the **watched folders** (the
+  projects folder and any folder you add), each with a thumbnail of the structure, its length and number of
+  conformations, and the run parameters (engine, models, trajectories, seed, templates). Search by name,
+  sequence (paste a stretch of it), folder or parameter; filter by kind; sort by last use, name, length or how
+  often opened; one click opens it. Nothing is copied: the library points to the files where they are, and a
+  file that was moved or deleted is marked so (× removes it from the library, not from the disk).
 
 ### The .rcv format (`rcv/1`)
 
@@ -674,12 +901,46 @@ rnafold3d engine (numpy, scipy, ViennaRNA)                 src/rnafold3d/
    ├─ templates.py   structure library (data/pdb_rna_v2.npz), alignment, template hypotheses
    ├─ motifs.py      junction geometry from library structures (template-free)
    ├─ cartesian.py   restrained Cartesian refinement and regularisation
-   └─ qa.py          optional confidence model (small neural network, numpy; weights data/qa_v1.npz)
+   ├─ qa.py          optional confidence model (small neural network, numpy; weights data/qa_v1.npz)
+   └─ screening/     pockets, compounds, the RNA as a receptor, the scoring function, its grid, the search
 rcv/alphafold.py     AlphaFold Server results and local AlphaFold 3 runs (optional, AlphaFold 3 not included)
 ```
 
 The engine uses the CPU cores you allow; the GPU renders the view and exports. GPU acceleration of the engine
 itself is not implemented.
+
+### 17.1 Compound screening on the command line *(0.7.5, experimental)*
+
+Everything the screening window (§8.7) does is also a command, because a hundred-thousand-compound screen
+belongs on a workstation or a cluster as often as on a laptop, and because a command can be put in a script
+and repeated. The numbers these commands produce are rankings, and `docs/SCREENING_STATUS.md` says what
+they were measured at:
+
+```
+rnafold3d pockets structure.pdb [--burial-min 5] [--json p.json] [--out-map points.pdb]
+rnafold3d dock --receptor rna.pdb --ligand compounds.sdf [--pocket 1 | --centre x,y,z | --site-of RES]
+               [--exhaustiveness quick|standard|thorough] [--seed 1] [--poses 5] [--out poses.sdf]
+rnafold3d screen --state-a A.pdb --state-b B.pdb --library compounds.sdf
+               [--pocket 1 | --centre x,y,z | --site-of RES] [--own-pocket] [--jobs 0]
+               [--exhaustiveness quick] [--keep-poses 200] [--top 20] [--out ranked.json]
+```
+
+`screen` is the two-state screen: it docks every compound into the site in both conformations and ranks
+them by score(B) − score(A). By default state B is measured **at the nucleotides that line the site in
+state A**, wherever they have moved to, which is the question a switch asks; `--own-pocket` uses the pocket
+ranking of state B in its own right instead. Conformations of an ensemble come out as PDB files with
+*Tools ▸ Extract conformations as PDB…* or `rnafold3d export-view`.
+
+`--out-map` writes the pocket points as pseudo-atoms, which RCV opens next to the structure; `--site-of
+RES` docks into the site of a compound that is already in the file, which is how the redocking benchmark
+runs. The poses come out as an SDF with the score of each pose, and `--ligand` reads SDF, MOL, MOL2 and
+the compounds of a PDB entry.
+
+The scoring function has the shape and contact terms of AutoDock Vina (Apache-2.0, used as a reference)
+plus the three an RNA score needs: stacking against the plane of each base, screened electrostatics with
+one −1 per phosphate, and the cost of burying a charge. **The number it gives is a ranking, not an
+affinity, and never a kcal/mol.** A compound is docked as the file draws it (no tautomers, no ring
+conformers) and the RNA is rigid.
 
 ## 18. Testing
 
@@ -691,7 +952,7 @@ itself is not implemented.
   in each node against hand-solved and simulated networks, traps, the φ-value scan, rigid modules against a known rotation, the ensemble map's guarantees, probing
   data, the confidence features and the mechanism morph (exact end points, chain kept).
 * `python tools/viewer_smoketest.py` — drives the real application in a headless Edge/Chrome (temporary
-  profile) through 57 scenarios, among them the 2D window, console commands and an example script, the residue
+  profile) through 73 scenarios, among them the 2D window, console commands and an example script, the residue
   menu, the switch tab, figure panels (preview and export identical), transition videos, `.rcv` save and reopen,
   HTML export, empty-input demo, a FASTA batch, the Tools menu dialogs, embedded PDF fonts, every plot-studio
   plot, the molecular surface and transparency, the plugin template and guide, desktop behaviour (own right-click
@@ -699,7 +960,9 @@ itself is not implemented.
   interface languages (every menu translated, English restored exactly), the in-app user guide, a real
   prediction and a real pull exploration, and (RCV 0.7) the Pathway tab with the φ-value scan and the
   mechanism morph, two models of one basin, probing data saved and restored, conditions, the confidence model, the 0.7 plots and the
-  interactive page with the pathway.
+  interactive page with the pathway, and (0.7.5) the compound screening window, where `screenwindow` runs a
+  real screen of four compounds against two conformations and checks the ranked table and the pose it puts
+  back into the 3D view.
 
 ## 19. Desktop builds
 
@@ -717,6 +980,8 @@ Silicon, macOS Intel) on GitHub's machines.
   illustration, not a simulated trajectory.
 * The probing forward model treats unpaired nucleotides as reactive and paired ones as protected; it does not
   model flexibility within loops or protection by tertiary contacts or proteins.
+* The advanced sections (8.6) are 2D-level estimates (rescue designs, variants, transcription, target sites) or
+  geometric annotations of the given models (motifs, comparison). They suggest experiments; they do not replace them.
 * Pull switching chooses among computed conformations; explorations take minutes; helices are rigid.
 * Non-canonical base-pair annotation and multi-chain complexes are not supported yet. The molecular surface is a
   smooth Gaussian surface for figures, not a solvent-excluded surface for area calculations.

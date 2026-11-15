@@ -3,12 +3,14 @@ import { el, fmt, fmtVal, fmtSigned } from '../util.js';
 import { icon } from '../icons.js';
 import { direction } from './energy.js';
 import { askText } from '../ui.js';
+import { motifsSection, pocketsSection, targetsSection, compareSection } from './insight.js';
+import { expdataSection } from '../expdata.js';
 
 export class DetailsPanel {
   constructor(app, root) {
     this.app = app;
     this.root = root;
-    for (const ev of ['ensemble', 'conformation', 'metric', 'selection', 'values', 'order', 'measurements', 'named', 'scenes', 'probing']) app.on(ev, () => this.render());
+    for (const ev of ['ensemble', 'conformation', 'metric', 'selection', 'values', 'order', 'measurements', 'named', 'scenes', 'probing', 'expdata']) app.on(ev, () => this.render());
   }
 
   render() {
@@ -113,7 +115,8 @@ export class DetailsPanel {
       el('div', { class: 'section-title', style: { marginTop: '10px' } }, 'Sequence'),
       el('div', { class: 'seq', text: ens.sequence }),
       ...(prov?.notes || []).map(n => el('div', { class: 'desc', text: n })));
-    root.append(selBox, this._objects(), app.measure ? app.measure.renderSection() : null, app.probing ? app.probing.renderSection() : null, conf, values, allSec, ensSec);
+    root.append(selBox, this._objects(), app.measure ? app.measure.renderSection() : null, app.probing ? app.probing.renderSection() : null, conf, values, allSec, ensSec,
+      ...(app.api.online ? [motifsSection(app, ens), pocketsSection(app, ens), app.info?.capabilities?.vienna ? targetsSection(app, ens) : null, compareSection(app, ens), app.expdata ? expdataSection(app, ens) : null] : []));
   }
 }
 

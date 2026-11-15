@@ -599,9 +599,11 @@ def final_relief(model, rng, prior, relax_steps=120):
     return report
 
 
-def finish_closure(model, L, rng, prior, tol=0.03):
+def finish_closure(model, L, rng, prior, tol=0.03, **fallback):
     """Close an explicit (already sampled) loop exactly with CCD from its current torsions;
-    fall back to regrowth (close_linker) if CCD does not converge or leaves severe clashes."""
+    fall back to regrowth (close_linker, with `fallback` as its keyword arguments: e.g. a restrained closure that
+    starts from the current torsions for a loop holding a pseudoknot strand or a fragment) if CCD does not
+    converge or leaves severe clashes."""
     close_at = getattr(L, 'close_at', 'p')
     frozen = {(L.b, 'beta'), (L.b, 'gamma')} if close_at == 'p' else set()
     start_cb = model.chainbreak(L)
@@ -630,7 +632,7 @@ def finish_closure(model, L, rng, prior, tol=0.03):
             return report
         model.tor[:], model.puck[:] = saved
         _apply(model, L, model.tor, model.puck)
-    rep = close_linker(model, L, rng, prior)
-    rep['method'] = 'regrow'
+    rep = close_linker(model, L, rng, prior, **fallback)
+    rep['method'] = 'restrained' if rep.get('method') == 'template' else 'regrow'
     rep['chainbreak_before_A'] = report['chainbreak_before_A']
     return rep

@@ -1,6 +1,6 @@
 # RNAfold3D v2 engine — validation and modification report
 
-**Date:** 2026-11-07 · **Engine:** `rnafold3d-v2-foldtree` 2.1.0 (current; templates and junction geometry, §4.00) ·
+**Date:** 2026-11-13 · **Engine:** `rnafold3d-v2-foldtree` 2.3.0 (current; motif fragments, §4.0000; structure-aware template search, §4.000; templates and junction geometry, §4.00) ·
 **Geometry parameters:** `geometry_v1.json` 1.0.0 · **Structure library:** `pdb_rna_v2.npz` (3,964 PDB RNA chains)
 
 **Summary.** The archived pipeline could not turn a sequence into a structure (0/26 benchmark
@@ -9,7 +9,11 @@ targets). The reworked engine produces validated all-atom ensembles from sequenc
 RNAs reach random-arrangement accuracy in the top-ranked model and modestly better in best-of-5.
 Tertiary physics, pseudoknots and ranking — not chemistry — now limit accuracy. v2.1.0 adds related
 experimental structures (templates) and junction geometry from a built-in PDB library: mean TM-score of model 1
-on the 26 chains 0.214 → 0.271, and on the blind CASP16 targets 0.251 → 0.490 (AlphaFold 3: 0.480).
+on the 26 chains 0.214 → 0.271, and on the blind CASP16 targets 0.251 → 0.490 (AlphaFold 3: 0.480). v2.2.0 adds a
+template search that also aligns by secondary structure and keeps models from different templates: 0.271 → 0.284
+on the 26 chains; CASP16 model 1 unchanged (0.489), best of 5 0.511 → 0.524 (within the noise of 15 targets). v2.3.0 grafts
+hairpin-loop fragments from the library: 0.284 → 0.291 on the 26 chains (0.216 → 0.227 without a template), CASP16
+model 1 0.489 → 0.495 (within the noise); pseudoknot hypotheses and domain assembly are options, off (§4.0000).
 
 ## 1. Why the prediction engine was reworked
 
@@ -83,10 +87,71 @@ Success thresholds fixed in advance: best-of-K C4' RMSD ≤ 5 Å / ≤ 10 Å, eR
 Two complete runs were made with identical settings: **v2.0.0** (the frozen engine, run once on all
 targets) and **v2.0.1** (after failure analysis: stem refinement for compressed pairs, BLAS
 thread fix; see `CHANGELOG.md`); both are reported in §4.0–4.1. Reports are copied to `docs/benchmark_v1/`.
-The current engine, v2.1.0 (templates and junction geometry), was measured on the same 26 chains with a
-development benchmark that limits every target to structures released before it (§4.00).
+The engine v2.1.0 (templates and junction geometry) and the current engine v2.2.0 were measured on the same 26 chains with a
+development benchmark that limits every target to structures released before it (§4.00, §4.000).
 
-### 4.00 v2.1.0 (current engine): templates and junction geometry
+### 4.0000 v2.3.0 (current engine): motif fragments; pseudoknots, domains and a base–base potential measured
+
+What changed (details in `CHANGELOG.md`, package 0.7.5): hairpin loops of 3–12 nt take torsions and C4′
+distances from library loops with a matching sequence, and grafted junction strands keep their torsions (on).
+Three more items were built and measured with the feature on and off on the same 26 chains (16 trajectories,
+seed 42; runs `ctl075`, `frag075`, `pk075`, `all075` of `benchmark/dev_templates.py`) and are off by default:
+
+| Dev benchmark, mean TM-score | model 1, 26 chains | model 1, 20 without template | best of 5 | run time, 26 chains |
+|---|---|---|---|---|
+| 2.2.0 code, features off (`ctl075`) | 0.284 | 0.216 | 0.303 | 2,108 s |
+| + fragments (`frag075`, the 2.3.0 default) | **0.291** | **0.227** | **0.307** | 2,092 s |
+| + pseudoknot hypothesis (`pk075`) | 0.287 | 0.219 | 0.303 | 2,273 s |
+| + both (`all075`) | 0.291 | 0.225 | 0.306 | 2,277 s |
+
+* **Pseudoknot hypothesis** (`--pseudoknots auto`): 2D base-pair F1 on 1,509 library chains 0.624 → 0.631
+  (`benchmark/pseudoknot_calibration.py`, penalty 4 kcal/mol best of 3–6); correct crossing pairs on the dev chains
+  where checkable (1RNK 6/7, 4ENC 6/6, 3D0U 6/9), but the crossing helix rarely forms in the 3D models — the
+  stated limit "pseudoknots" stands, now at the 3D-building step rather than the 2D step.
+* **Domain assembly** (`--domains auto`, `benchmark/long_rna.py`, six library chains of 255–393 nt, templates off):
+  model 1 0.091 against 0.104 for the whole-chain search, 2.5 against 3.3 valid trajectories of 16, 1.8× the time.
+* **Base–base potential** (`basepot.py`): offline re-ranking of the saved candidates (`benchmark/rerank_basepot.py`)
+  gains nothing at a usable weight. On the chains without a template, random choice among the candidates 0.220,
+  engine ranking 0.221, the best candidate 0.254: sampling, not ranking, is the limit.
+* **Speed**: numpy-level changes only; a 2-trajectory profile of 1Y26 82 → 76 s (the library motif index), the
+  trajectory inner loop unchanged.
+* **Template search** (`benchmark/template_selection.py`): unchanged code, unchanged numbers (0.428 / 0.461).
+
+CASP16, 15 targets (`runs_v075`, results in `benchmark/casp16/results/`), paired against 2.2.0 (`compare.py
+paired`, bootstrap): model 1 0.489 → **0.495**, difference +0.006 (95% interval −0.016 to +0.026); best of 5 0.524 →
+0.527, +0.003 (−0.007 to +0.016). The six targets without a template: model 1 0.263 → 0.281 (R1209 +0.09, R1296
++0.04, R1205 −0.02, R1293 −0.02). Template targets move because the fragments change the trajectories of the
+uncovered parts (R1203 +0.05, R1271 −0.11 in model 1, best of 5 unchanged). Not established with 15 targets.
+
+### 4.000 v2.2.0: structure-aware template search
+
+What changed (details in `CHANGELOG.md`, package 0.7.4): library chains with a weak sequence alignment (E-value
+up to 10) are aligned by sequence and secondary structure together (pairing probabilities of the query against
+the base pairs of the template) and kept when ≥ 60% of the query is covered and ≥ 90% of the covered template
+pairs can form; the same alignment extends sequence hits, except across an uncovered internal part of ≥ 20 nt;
+the kept models take the best model of each template in turn; SHAPE reactivities and a user alignment
+(RNAalifold consensus) can enter the 2D hypotheses. The template ranking rule is unchanged: no alternative was
+better on the template benchmark.
+
+| | 2.1.0 | 2.2.0 |
+|---|---|---|
+| Template search, 916 library chains, own class excluded (`benchmark/template_selection.py`): mean TM-score of the first-ranked template | 0.416 | **0.428** |
+| … of the best template found | 0.444 | **0.461** |
+| … chains with a template | 642 | 655 |
+| Development benchmark, 26 chains: mean TM-score, model 1 | 0.271 | **0.284** |
+| … best of 5 | 0.292 | **0.302** |
+| … targets with a template | 5 | 7 |
+| CASP16, 15 targets: mean TM-score, model 1 | 0.490 | 0.489 |
+| … best of 5 | 0.511 | 0.524 |
+
+CASP16, paired over targets (`compare.py paired`, bootstrap): model 1 difference −0.000 (95% interval −0.001 to
++0.000), the first model comes from the same template on every target; best of 5 +0.012 (−0.001 to +0.036),
+from R1271 (0.50 → 0.66) and R1203 (0.49 → 0.52), not established with 15 targets. The search parameters were
+set on the template benchmark; an intermediate version that mis-aligned a non-homologous insert in a shared
+scaffold (R1203) led to the uncovered-part rule, so CASP16 is not blind for that rule. Still open: without a
+template the 3D arrangement of helices is as in 2.1.0.
+
+### 4.00 v2.1.0: templates and junction geometry
 
 What changed (details in `CHANGELOG.md`, package 0.7.3): a search of the built-in PDB library (Smith–Waterman,
 E-values, ranking by 3D agreement between hits); template 2D, C4′ distance restraints, torsions and atom

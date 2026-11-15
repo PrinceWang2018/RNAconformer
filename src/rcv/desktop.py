@@ -126,11 +126,12 @@ class Bridge:
     def choose_open_files(self, kind='structures'):
         types = {'fasta': ('FASTA (*.fa;*.fasta;*.fna;*.txt)', 'All files (*.*)'),
                  'rcv': ('RCV ensembles (*.rcv)', 'All files (*.*)'),
+                 'compounds': ('Compound libraries (*.sdf;*.sd;*.mol;*.mol2)', 'All files (*.*)'),
                  'any': ('All files (*.*)',)}.get(kind, (
             'RCV files and structures (*.rcv;*.pdb;*.cif;*.mmcif;*.ent;*.zip)', 'RCV ensembles (*.rcv)',
             'Structures (*.pdb;*.cif;*.mmcif;*.ent)', 'AlphaFold Server results (*.zip)', 'Workspaces (*.json)',
             'All files (*.*)'))
-        res = self._window.create_file_dialog(_dialog('OPEN'), allow_multiple=kind not in ('fasta', 'rcv', 'any'), file_types=types)
+        res = self._window.create_file_dialog(_dialog('OPEN'), allow_multiple=kind not in ('fasta', 'rcv', 'any', 'compounds'), file_types=types)
         return [str(p) for p in (res or [])]
 
     def read_text_file(self, path):

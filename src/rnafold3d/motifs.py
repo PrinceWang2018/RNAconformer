@@ -25,22 +25,38 @@ MAX_DEPTH = 3
 
 
 def nested_greedy(pairs):
-    """Nested subset by removing the pair with most crossings until none cross (fast for large chains)."""
+    """Nested subset by removing the pair with most crossings until none cross (fast for large chains).
+
+    The crossing matrix is built once and the counts are updated as pairs are removed (same result as
+    recomputing them after every removal: ties go to the first pair in sorted order)."""
     p = np.array(sorted(pairs), int).reshape(-1, 2)
     if len(p) < 2:
         return [tuple(map(int, x)) for x in p]
     i, j = p[:, 0], p[:, 1]
+    cr = ((i[:, None] < i[None, :]) & (i[None, :] < j[:, None]) & (j[:, None] < j[None, :]))
+    cr = cr | cr.T
+    cnt = cr.sum(axis=1)
     keep = np.ones(len(p), bool)
     while True:
-        ii, jj = i[keep], j[keep]
-        cr = ((ii[:, None] < ii[None, :]) & (ii[None, :] < jj[:, None]) & (jj[:, None] < jj[None, :]))
-        cr = cr | cr.T
-        cnt = cr.sum(axis=1)
-        if not cnt.any():
+        c = np.where(keep, cnt, 0)
+        k = int(np.argmax(c))
+        if c[k] == 0:
             break
-        idx = np.where(keep)[0]
-        keep[idx[int(np.argmax(cnt))]] = False
+        keep[k] = False
+        cnt -= cr[k]
     return [tuple(map(int, x)) for x in p[keep]]
+
+
+_NESTED = {}
+
+
+def library_nested(lib, k):
+    """Nested canonical pairs of library chain k (cached: used by the junction and the fragment indexes)."""
+    key = (id(lib), k)
+    v = _NESTED.get(key)
+    if v is None:
+        v = _NESTED[key] = nested_greedy(lib.chain_pairs(k))
+    return v
 
 
 def junctions(pairs):
@@ -96,10 +112,9 @@ def library_index(lib_path=None):
     entries = []
     index = {}
     for k in range(lib.n_chains):
-        pairs = lib.chain_pairs(k)
-        if len(pairs) < 2:
+        if len(lib.chain_pairs(k)) < 2:
             continue
-        nested = nested_greedy(pairs)
+        nested = library_nested(lib, k)
         for J in junctions(nested):
             if min(J['depth']) < 1:
                 continue
@@ -148,8 +163,11 @@ def candidates(seq, Jq, lib, allowed, max_n=40):
     return out[:max_n]
 
 
-def junction_restraints(seq, pairs, lib, allowed, rng, beta=4.0, weight=0.5, cache=None):
-    """Distance restraints for one trajectory: one library junction drawn for every junction of the 2D."""
+def junction_restraints(seq, pairs, lib, allowed, rng, beta=4.0, weight=0.5, cache=None, torsions=None):
+    """Distance restraints for one trajectory: one library junction drawn for every junction of the 2D.
+
+    torsions: a dict to fill with the library torsions of the strands and of the residues where the chain leaves
+    and enters the helices ({query residue: [alpha..chi] with None = keep}), to graft the junction (fragments.py)."""
     I, J, D, T, W = [], [], [], [], []
     used = []
     for Jq in junctions(pairs):
@@ -179,6 +197,18 @@ def junction_restraints(seq, pairs, lib, allowed, rng, beta=4.0, weight=0.5, cac
                 D.append(round(d, 2))
                 T.append(round(1.0 + 0.05 * d, 2))
                 W.append(weight)
+        if torsions is not None:
+            from .fragments import _torsion_row, ALL
+            tor = lib.chain_tor(k)
+            h = len(Jq['ports'])
+            for q, t in mp.items():
+                kind, mm = unit[q]
+                if kind == 's':
+                    torsions[q] = _torsion_row(tor[t], ALL)
+                elif q == Jq['ports'][mm][1] and t == Jl['ports'][(mm + r) % h][1]:
+                    torsions[q] = _torsion_row(tor[t], {'epsilon', 'zeta'})          # leaves the helix
+                elif q == Jq['ports'][mm][0] and t == Jl['ports'][(mm + r) % h][0]:
+                    torsions[q] = _torsion_row(tor[t], {'alpha', 'beta', 'gamma'})  # enters the helix
         m = lib.meta[k]
         used.append({'junction': [(a + 1, b + 1) for a, b in Jq['ports']], 'strands': Jq['strands'],
                      'source': f"{m['pdb']}_{m['chain']}", 'identity': round(float(sim), 2)})

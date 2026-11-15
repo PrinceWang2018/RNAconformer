@@ -163,6 +163,7 @@ class TestDesktop06(unittest.TestCase):
         self.assertEqual(__author__, 'Zixiang Wang')
         self.assertIn('Zixiang Wang', citation_text())
         self.assertIn(__version__, citation_text())
+        self.assertIn('https://doi.org/10.5281/zenodo.24163503', citation_text())
         self.assertNotIn('deep learning', (P.static_dir() / 'js' / 'welcome.js').read_text())
 
 

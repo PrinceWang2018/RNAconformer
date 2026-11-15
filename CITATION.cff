@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use RCV in your work, please cite it as below."
+type: software
+title: "RCV: RNA Conformation Viewer"
+authors:
+  - family-names: Wang
+    given-names: Zixiang
+version: 0.7.5
+date-released: 2026-11-15
+doi: 10.5281/zenodo.24163503
+url: "https://doi.org/10.5281/zenodo.24163503"
+repository-code: "https://github.com/PrinceWang2018/RNAconformer"
+license: GPL-3.0-only
+keywords:
+  - RNA 3D structure
+  - RNA conformational ensemble
+  - RNA conformational switching
+  - molecular visualization
+  - bioinformatics

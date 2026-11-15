@@ -25,9 +25,9 @@ sys.path.insert(0, str(ROOT / 'src'))
 from rcv.desktop import find_browser, _is_wsl  # noqa: E402
 
 SCREENSHOT = ['overview', 'morph', 'dark', 'overlay', 'welcome', 'welcomedark', 'welcomebatch', 'ss2d', 'console1', 'switchtab', 'panels', 'transitionframe',
-              'tools2', 'plots', 'plotsall', 'surface1', 'pathwayshot', 'pathwayshot2', 'landmap', 'plots07', 'confshot', 'pathwayzh', 'docpathway', 'plugindev', 'panelsize', 'winmax', 'langzh', 'langde', 'langja', 'guide1']
+              'tools2', 'plots', 'plotsall', 'surface1', 'pathwayshot', 'pathwayshot2', 'landmap', 'plots07', 'confshot', 'pathwayzh', 'docpathway', 'plugindev', 'panelsize', 'winmax', 'langzh', 'langde', 'langja', 'guide1', 'insightswitch', 'insightpathway', 'insightdetails', 'insightpockets', 'update1', 'railshot', 'presentshot', 'libraryshot', 'recipeshot', 'expdatashot', 'screenpage']
 REALTIME = ['pull', 'plugins', 'trackersave', 'pathway1', 'pathwaybasin', 'probing1', 'conditions1', 'htmlpage07', 'confidence1', 'i18n07', 'exports', 'video', 'transition', 'rcvsave', 'htmlexport', 'ctxmenu', 'script1', 'tools1', 'pdffont', 'native1', 'perf',
-            'welcomedemo', 'batchui', 'windows1', 'lang1',
+            'welcomedemo', 'batchui', 'windows1', 'lang1', 'layout1', 'workflow1', 'expdata1', 'screenwindow',
             'predict', 'explore']   # pull needs real time
 LAST = ['empty']            # closes every ensemble; must run last
 
@@ -48,6 +48,7 @@ class Server:
         env['RCV_DEVDIR'] = str(ROOT / 'tools' / 'viewer_harness')
         env['RCV_HOME'] = str(Path(projects).parent / 'apphome')
         env['PYTHONUNBUFFERED'] = '1'
+        env['RCV_NO_UPDATE_CHECK'] = '1'          # an installed build (--app) must not ask about updates mid-test
         cmd = [str(Path(app).resolve())] if app else [sys.executable, '-m', 'rcv']   # --app: a built RCV program
         self.proc = subprocess.Popen(cmd + ['--shell', 'none', '--demo', '--port', '0', '--projects-dir', str(projects)],
                                      cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -141,7 +142,7 @@ def run(args):
                 kill_browser(p, profile, browser)
             else:
                 p = subprocess.Popen(common + ['--remote-debugging-port=0', url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                limit = args.timeout * (6 if name in ('predict', 'explore', 'batchui') else 1)
+                limit = args.timeout * (6 if name in ('predict', 'explore', 'batchui', 'screenwindow') else 1)
                 while time.time() - t0 < limit:
                     logs = server.logs(name)
                     if any(l.startswith(('DONE', 'ERROR')) for l in logs):

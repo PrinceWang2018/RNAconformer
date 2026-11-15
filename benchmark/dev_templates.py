@@ -52,6 +52,15 @@ def tm(model, ref):
     return float(row[3]), float(row[4])
 
 
+def _extra(a):
+    """Engine options under test (key=value,...), e.g. --set fragments=off,pk_search=off."""
+    out = {}
+    for kv in filter(None, (a.set or '').split(',')):
+        k, v = kv.split('=', 1)
+        out[k] = {'true': True, 'false': False}.get(v.lower(), int(v) if v.lstrip('-').isdigit() else v)
+    return out
+
+
 def cmd_run(a):
     from rnafold3d.predict import predict, PredictConfig
     dates = release_dates()
@@ -70,7 +79,8 @@ def cmd_run(a):
             cutoff = json.loads(urllib.request.urlopen(req, timeout=60).read())['data']['entry'][
                 'rcsb_accession_info']['initial_release_date'][:10]
         cfg = PredictConfig(n_models=5, trajectories=a.trajectories, seed=a.seed, workers=a.workers,
-                            templates=a.templates, template_cutoff=cutoff, motifs=a.motifs)
+                            templates=a.templates, template_cutoff=cutoff, motifs=a.motifs,
+                            save_candidates=a.candidates, **_extra(a))
         print(f"== {t['id']} ({len(t['sequence'])} nt, cutoff {cutoff})", flush=True)
         man = predict(t['sequence'], out, name=t['id'], config=cfg, log=None)
         print('   ', man['statistics'], [h['label'] for h in man['input']['templates'].get('hits', [])], flush=True)
@@ -123,6 +133,8 @@ def main():
     r.add_argument('--seed', type=int, default=42)
     r.add_argument('--only', default='')
     r.add_argument('--force', action='store_true')
+    r.add_argument('--candidates', action='store_true', help='also write every valid trajectory model')
+    r.add_argument('--set', default='', help='PredictConfig fields, key=value,...')
     p = sub.add_parser('report')
     p.add_argument('--labels', required=True)
     a = ap.parse_args()

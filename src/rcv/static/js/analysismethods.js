@@ -57,6 +57,20 @@ export function analysisMethods(app, ens) {
       (w ? `, and the ensemble was reweighted by maximum entropy to fit them (forward model: reactivity linear in the unpaired fraction; θ = ${fmt(w.theta, 2)}, σ = ${w.sigma}; χ²/n ${fmt(w.chi2_prior, 2)} → ${fmt(w.chi2, 2)}; effective number of conformations ${fmt(w.n_eff_conformations, 1)} of ${ens.n}).` : '.'));
     if (cond.useProbing) { refs.add('deigan'); paras.push(`Data-informed state populations used the ${p.kind} reactivities as pseudo-energies (Deigan et al. 2009; m = 1.8, b = −0.6 kcal/mol).`); }
   }
+  const xd = ens.expdata;
+  if (xd?.fit?.datasets?.length) {
+    refs.add('bme');
+    const what = { saxs: 'SAXS profile', fret: 'FRET distances', map: 'cryo-EM map' };
+    const part = d => {
+      const s = xd.sets.find(z => z.kind === d.kind) || {};
+      if (d.kind === 'saxs') return `a SAXS profile (${s.n_points} points, q ${s.q_range?.[0]}–${s.q_range?.[1]} Å⁻¹; Debye formula over the heavy atoms with Cromer–Mann form factors and a Gaussian excluded-volume term, scale and constant background fitted; no hydration shell)`;
+      if (d.kind === 'fret') return `${s.n_points} FRET distance${s.n_points === 1 ? '' : 's'} (between the labelled atoms; dye linkers not modelled)`;
+      return `a cryo-EM map (${s.voxel_A?.[0]} Å voxels; each conformation placed by principal axes and a local rigid-body search, density simulated at ${s.resolution} Å and correlated over the voxels above the contour ${s.contour})`;
+    };
+    const w = xd.fit.reweighting;
+    paras.push(`Each conformation was compared with ${xd.fit.datasets.map(part).join(', ')}` +
+      (w ? `, and the ensemble was reweighted by maximum entropy to fit ${xd.fit.datasets.length > 1 ? 'these data together' : 'them'} (θ = ${fmt(w.theta, 2)}; χ²/n ${xd.fit.datasets.map((d, i) => `${what[d.kind]} ${fmt(w.chi2_prior[i], 2)} → ${fmt(w.chi2[i], 2)}`).join(', ')}; effective number of conformations ${fmt(w.n_eff_conformations, 1)} of ${ens.n}).` : '.'));
+  }
   if (ens._confidence?.info) {
     refs.add('lddt');
     const i = ens._confidence.info;

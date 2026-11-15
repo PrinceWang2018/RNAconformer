@@ -62,9 +62,9 @@ export function installNativeFeel(app) {
     if (k === 'f' && !e.shiftKey) { block(); app.console?.setVisible(true); if (app.console) app.console.input.value = 'select '; return; }   // find = select
     if (k === 'p' && !e.shiftKey) { block(); if (app.ens) app.action('export-image'); return; }                                                  // print = export image
     // keys the application uses itself (it handles them outside text fields): only suppress the browser default
-    if (['n', 'o', 's', 'e', 'h'].includes(k)) { e.preventDefault(); return; }
+    if (['n', 'o', 's', 'e', 'h', 'l'].includes(k)) { e.preventDefault(); return; }
     if (['a', 'c', 'v', 'x', 'z', 'y'].includes(k) && inField) return;                                                       // normal text editing
-    if (['r', 'u', 'g', 'd', 'j', 'l', 'k', 't', 'm', 'b', 'i'].includes(k) && !e.shiftKey) return block();
+    if (['r', 'u', 'g', 'd', 'j', 'k', 't', 'm', 'b', 'i'].includes(k) && !e.shiftKey) return block();
     if (e.shiftKey && ['i', 'j', 'c', 'delete', 'r', 'n', 'b', 'o', 't'].includes(k)) return block();
     if (k === '+' || k === '=' || k === '-' || k === '0') {           // page zoom -> view zoom
       block();

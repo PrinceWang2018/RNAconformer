@@ -8,6 +8,7 @@ import { SCHEMES } from '../colors.js';
 import { fmt, slug, saveBlob } from '../util.js';
 import { conditionsOf, conditionsText, setConditions, LIGANDS, STANDARD_SALT } from '../conditions.js';
 import { fmtTime } from '../panels/pathway.js';
+import { PLAIN_EXAMPLES } from './plain.js';
 
 export const COLOR_NAMES = {
   red: '#e34948', green: '#1baf7a', darkgreen: '#008300', blue: '#2a78d6', navy: '#184f95', orange: '#eb6834', yellow: '#eda100',
@@ -100,6 +101,9 @@ export class CommandSet {
       const near = this.names().filter(n => n.startsWith(name.slice(0, 2)));
       throw new CommandError(`unknown command "${name}"${near.length ? ` — did you mean ${near.slice(0, 4).join(', ')}?` : ''} (type help)`);
     }
+    // a command without arguments followed by words is a sentence ("reset the colours", "stop rotating"):
+    // refuse it, so the console can read it as plain language instead of doing something else
+    if (!cmd.args && m[2].trim()) throw new CommandError(`"${name}" takes no arguments`);
     const out = await cmd.run(splitArgs(m[2]), m[2], name);
     if (out === undefined || out === null) return [];
     return [].concat(out).map(x => (typeof x === 'string' ? { text: x, kind: 'out' } : x));
@@ -112,6 +116,10 @@ export class CommandSet {
     const need = (args, n, usage) => { if (args.filter(a => a !== '').length < n) throw new CommandError(`usage: ${usage}`); };
 
     this.def(['help', '?'], { args: '[command]', help: 'List the commands, or explain one.', run: args => {
+      if ((args[0] || '').toLowerCase() === 'plain') {
+        return [say('Plain language: type what you want in English when you do not know the command; RCV shows the commands it runs. Examples:'),
+          ...PLAIN_EXAMPLES.map(e => say(`  ${e}`))];
+      }
       if (args[0]) {
         const c = this.commands.get(args[0].toLowerCase());
         if (!c) throw new CommandError(`no command "${args[0]}"`);
@@ -119,7 +127,8 @@ export class CommandSet {
       }
       const rows = this.names().map(n => { const c = this.commands.get(n); return say(`${(c.name + ' ' + c.args).padEnd(38)} ${c.help}`); });
       return [say('Commands (arguments separated by commas; selections like: resi 5-12, resn G and paired, helix H2, switching, rmsf > 3, within 5 of resi 20):'), ...rows,
-        say('Keys: ↑/↓ history · Tab completes · Esc closes · several lines can be pasted at once (a script).')];
+        say('Keys: ↑/↓ history · Tab completes · Esc closes · several lines can be pasted at once (a script).'),
+        say('Plain English works too, e.g. "colour by flexibility" or "compare models 1 and 3" (help plain for more).')];
     } });
 
     // -------- selections
@@ -572,6 +581,14 @@ export class CommandSet {
         try { out.push(...await this.execute(l)); } catch (e) { out.push({ text: e.message, kind: 'err' }); break; }
       }
       return out;
+    } });
+    this.def(['tab'], { args: 'energy | switch | pathway | details | plugin tab', help: 'Open a tab of the analysis panel (and show the panel).', run: args => {
+      const want = (args[0] || '').trim().toLowerCase();
+      const t = (app._tabs || []).find(x => x.id.toLowerCase() === want || x.btn.textContent.trim().toLowerCase() === want);
+      if (!t) throw new CommandError(`tabs: ${(app._tabs || []).map(x => x.id).join(', ')}`);
+      if (!app.wm.isShown('right')) app.wm.set('right', true);
+      app.showTab(t.id);
+      return say(`${t.id} tab`);
     } });
     this.def(['echo', 'print'], { args: 'text', help: 'Print text (useful in scripts).', run: (a, raw) => say(raw) });
   }

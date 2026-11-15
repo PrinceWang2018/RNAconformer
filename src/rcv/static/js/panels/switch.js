@@ -7,6 +7,7 @@ import { tooltip, tipRow, toast, select } from '../ui.js';
 import { registerScheme, sampleRamp, BLUE_RAMP, ORANGE_RAMP, SLOTS } from '../colors.js';
 import { conditionsDialog, conditionsOf, conditionsParts, requestConditions, setConditions } from '../conditions.js';
 import { linear, yAxis, xAxis } from './charts.js';
+import { experimentsSection, variantsSection } from './insight.js';
 
 const SAT = 4.0;            // kcal/mol at which the diverging colour saturates
 const NEUTRAL_LIGHT = '#e7e5de', NEUTRAL_DARK = '#3a3a37';
@@ -109,6 +110,7 @@ export class SwitchPanel {
     root.append(scanSec);
     if (r.states.length < 2) {
       scanSec.append(el('div', { class: 'desc', text: 'All conformations share one 2D state, so there is no 2D switch to shift. Explore new conformations with the Pull tool, or open an ensemble with several 2D states.' }));
+      root.append(variantsSection(app, ens, r));
       return;
     }
     const opts = r.states.map((s, i) => ({ value: String(i), label: `S${i + 1} · ${fmt(s.energy, 1)} kcal/mol` }));
@@ -117,7 +119,7 @@ export class SwitchPanel {
     selA.addEventListener('change', reload); selB.addEventListener('change', reload);
     scanSec.append(el('div', { class: 'sw-ab' }, el('span', { class: 'sw-key a', text: 'A' }), selA, el('span', { class: 'sw-key b', text: 'B' }), selB));
     const sc = r.scan;
-    if (!sc) return;
+    if (!sc) { root.append(variantsSection(app, ens, r)); return; }
     scanSec.append(el('div', { class: 'desc', text: `Wild type: ΔG(A) − ΔG(B) = ${fmtSigned(sc.ddg_wt, 1)} kcal/mol → ${pct(sc.frac_a_wt)} A in the two-state A/B equilibrium. Each cell shows ΔΔG of a point mutation: blue favours A, orange favours B.` }));
     scanSec.append(this._heatmap(sc));
     this.detail = el('div', { class: 'sw-detail' });
@@ -131,8 +133,10 @@ export class SwitchPanel {
     scanSec.append(list('Strongest shifts towards A', sc.towards_a), list('Strongest shifts towards B', sc.towards_b),
       el('div', { class: 'row', style: { marginTop: '10px', gap: '8px', flexWrap: 'wrap' } },
         el('button', { class: 'btn small', onclick: () => this.colorBySensitivity() }, icon('layers'), 'Colour 3D by mutation sensitivity'),
-        el('button', { class: 'btn small ghost', onclick: () => this.copyTable() }, icon('copy'), 'Copy scan as table')),
+        el('button', { class: 'btn small ghost', onclick: () => this.copyTable() }, icon('copy'), 'Copy scan as table'),
+        el('button', { class: 'btn small ghost', title: 'Screen a compound library against these two conformations (its own window)', onclick: () => app.openScreening() }, icon('flask'), 'Compound screening…')),
       el('div', { class: 'desc', text: 'P(A), P(B): probabilities of the two structures in the full ViennaRNA ensemble of the mutant (other structures can dominate). A share: two-state A/B equilibrium only. A mutation that breaks a pair removes it from that state.' }));
+    root.append(experimentsSection(app, ens, r), variantsSection(app, ens, r));
   }
 
   _heatmap(sc) {

@@ -84,4 +84,4 @@ def methods_text(doc, vienna_version=None):
 def citation_text():
     return (f'{__author__}. RCV — RNA Conformation Viewer, version {__version__} (software). Open-source software '
             '(GPL-3.0) for predicting, exploring and presenting RNA conformational ensembles with the physics-inspired '
-            'rnafold3d engine.')
+            'rnafold3d engine. Zenodo. https://doi.org/10.5281/zenodo.24163503')

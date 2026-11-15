@@ -9,6 +9,11 @@
 # For a tag, the installers are also attached to a release of the website repository (where the download
 # links of www.rnaconfviewer.com point) when the secret WEBSITE_RELEASE_TOKEN is set: a fine-grained token with
 # "Contents: read and write" permission on PrinceWang2018/RNAconfViewer_website.
+#
+# For a tag, a release of this repository is also created (source code only, no installers, so the download
+# statistics of the website stay the only ones). Zenodo's GitHub integration archives every release of this
+# repository as a new version of the concept DOI 10.5281/zenodo.24163503, which is the DOI RCV is cited by;
+# the metadata (title, author, licence) comes from CITATION.cff.
 name: Build installers
 
 on:
@@ -149,3 +154,23 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: RCV ${{ github.ref_name }}
           files: installers/*
+
+  source-release:
+    # The release of this repository that Zenodo archives (citation DOI). Runs after the installers are built
+    # and tested, so a version that fails to build gets no DOI.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: RCV ${{ github.ref_name }}
+          body: |
+            RCV (RNA Conformation Viewer) ${{ github.ref_name }}, source code.
+
+            Installers for Windows, macOS and Linux, release notes and checksums: https://www.rnaconfviewer.com/#download
+            Changelog: https://github.com/PrinceWang2018/RNAconformer/blob/master/CHANGELOG.md
+            Cite: https://doi.org/10.5281/zenodo.24163503

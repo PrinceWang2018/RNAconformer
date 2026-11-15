@@ -2,7 +2,9 @@
 // Every command run on an ensemble is kept with it (saved in .rcv files), so a figure can be reproduced.
 import { el, loadPref, savePref } from '../util.js';
 import { icon } from '../icons.js';
-import { CommandSet, COLOR_NAMES } from './commands.js';
+import { CommandSet, CommandError, COLOR_NAMES } from './commands.js';
+import { translatePlain } from './plain.js';
+import { LIGANDS } from '../conditions.js';
 import { SELECTION_KEYWORDS } from './selection.js';
 import { SCHEMES } from '../colors.js';
 
@@ -34,7 +36,7 @@ export class ConsolePanel {
       save: ens => (ens?.commandLog || []).slice(-500),
       load: (ens, list) => { ens.commandLog = Array.isArray(list) ? list.slice() : []; },
     });
-    this.print('RCV console — type help for the list of commands. Selections: resi 5-12, resn G and paired, helix H2, switching, rmsf > 3, within 5 of resi 20, sele.', 'hint');
+    this.print('RCV console — type help for the list of commands, or plain English ("colour by flexibility", "compare models 1 and 3"). Selections: resi 5-12, resn G and paired, helix H2, switching, rmsf > 3, within 5 of resi 20, sele.', 'hint');
   }
 
   setVisible(on) {
@@ -65,17 +67,28 @@ export class ConsolePanel {
       savePref('consoleHistory', this.history);
       this.hpos = this.history.length;
     }
+    this.app.history?.commit();
     try {
-      this.app.history?.commit();
-      const out = await this.cmds.execute(src);
-      for (const o of out) this.print(o.text, o.kind);
-      const ens = this.app.ens;
-      if (ens && !/^(help|\?|info|ls|list|count|pairs|measurements|echo|print)\b/i.test(src)) (ens.commandLog ||= []).push(src);
+      await this._exec(src);
       return true;
     } catch (err) {
-      this.print(err.message || String(err), 'err');
-      return false;
+      // not a command: perhaps plain language ("colour by flexibility"); the commands it stands for are shown,
+      // run and recorded, so the command log stays a script that reproduces the figure
+      const plain = err instanceof CommandError && /\s/.test(src) ? translatePlain(src, { schemes: SCHEMES, ligands: LIGANDS }) : null;
+      if (!plain) { this.print(err.message || String(err), 'err'); if (err instanceof CommandError && /\s\S+\s/.test(src)) this.print('Plain English works for common requests too: help plain shows examples.', 'hint'); return false; }
+      this.print(`→ ${plain.commands.join('  ·  ')}`, 'hint');
+      for (const c of plain.commands) {
+        try { await this._exec(c); } catch (e2) { this.print(`${c}: ${e2.message || e2}`, 'err'); return false; }
+      }
+      return true;
     }
+  }
+
+  async _exec(src) {
+    const out = await this.cmds.execute(src);
+    for (const o of out) this.print(o.text, o.kind);
+    const ens = this.app.ens;
+    if (ens && !/^(help|\?|info|ls|list|count|pairs|measurements|echo|print|recipe)\b/i.test(src)) (ens.commandLog ||= []).push(src);
   }
 
   async runScript(text) {

@@ -1324,3 +1324,425 @@ export async function docpathway(app, w, log, sleep) {
   await sleep(400);
   log('A', app.ens.shortId(app.pathway.result.a), 'B', app.ens.shortId(app.pathway.result.b), '| barrier', app.pathway.result.effective_barrier);
 }
+
+// ---------------------------------------------------------------- RCV 0.7.4: advanced sections inside the tabs
+const openAdv = async (w, sleep, tabBody, title) => {
+  const det = await (async () => { for (let i = 0; i < 100; i++) { const d = [...tabBody.querySelectorAll('details.adv')].find(x => x.querySelector('summary').textContent.includes(title)); if (d) return d; await sleep(100); } return null; })();
+  if (!det) throw new Error(`section "${title}" not found`);
+  if (!det.open) det.querySelector('summary').click();
+  await sleep(150);
+  return () => [...tabBody.querySelectorAll('details.adv')].find(x => x.querySelector('summary').textContent.includes(title));
+};
+const clickBtn = (root, re) => { const b = [...root.querySelectorAll('button')].find(x => re.test(x.textContent)); if (!b) throw new Error(`button ${re} not found`); b.click(); };
+
+// Switch tab: experiments (rescue mutants, probing, label pairs) and variants.
+export async function insightswitch(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  app.showTab('switch');
+  if (!await waitFor(sleep, () => app.switchPanel.result?.scan)) throw new Error('switch analysis did not load');
+  const body = app.tabBody('switch');
+  if ([...body.querySelectorAll('details.adv')].some(d => d.open)) throw new Error('advanced sections must start closed');
+  const exp = await openAdv(w, sleep, body, 'Experiments that tell A from B');
+  clickBtn(exp(), /Suggest experiments/);
+  if (!await waitFor(sleep, () => exp()?.querySelectorAll('table tbody tr').length > 0)) throw new Error('no experiments: ' + exp()?.textContent.slice(0, 200));
+  const rows = exp().querySelectorAll('table')[0].querySelectorAll('tbody tr');
+  rows[0].click();
+  await sleep(200);
+  if (app.state.selection.size !== 2) throw new Error(`a rescue row should select its base pair, selected ${app.state.selection.size}`);
+  const chips = exp().querySelectorAll('.chip-btn').length;
+  const va = await openAdv(w, sleep, body, 'Variants');
+  const input = va().querySelector('input');
+  input.value = 'G1C, G10A+C25U';
+  input.dispatchEvent(new w.Event('input'));
+  clickBtn(va(), /Analyse/);
+  if (!await waitFor(sleep, () => va()?.querySelectorAll('table tbody tr').length === 2)) throw new Error('variants: ' + va()?.textContent.slice(0, 300));
+  // the sections keep their content when the tab is drawn again
+  app.switchPanel.render();
+  await sleep(200);
+  if (!exp().open || !exp().querySelector('table') || va().querySelectorAll('table tbody tr').length !== 2) throw new Error('sections lost their content on redraw');
+  await sleep(300);
+  for (let e = exp().parentElement; e; e = e.parentElement) if (e.scrollHeight > e.clientHeight + 4) { e.scrollTop = exp().offsetTop - e.offsetTop - 8; break; }
+  await sleep(300);
+  log('rescue designs', rows.length, '| probing segments', chips, '| variants', [...va().querySelectorAll('tbody tr')].map(t => t.children[0].textContent + ':' + t.children[1].textContent).join(' '));
+}
+
+// Pathway tab: folding during transcription.
+export async function insightpathway(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  app.showTab('pathway');
+  const body = app.tabBody('pathway');
+  const sec = await openAdv(w, sleep, body, 'Folding during transcription');
+  clickBtn(sec(), /Fold the growing transcript/);
+  if (!await waitFor(sleep, () => sec()?.querySelector('canvas.adv-growth'))) throw new Error('no growth chart: ' + sec()?.textContent.slice(0, 300));
+  const cv = sec().querySelector('canvas.adv-growth');
+  const px = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+  let blue = 0, orange = 0;
+  for (let i = 0; i < px.length; i += 4) { if (px[i] === 0x2f && px[i + 1] === 0x6f && px[i + 2] === 0xbd) blue++; else if (px[i] === 0xe0 && px[i + 1] === 0x8a && px[i + 2] === 0x2b) orange++; }
+  if (!blue) throw new Error('the growth chart shows no base pairs');
+  sec().scrollIntoView();
+  await sleep(200);
+  log('growth chart', `${cv.width}x${cv.height}`, '| kept-pair pixels', blue, 'temporary', orange, '| rearrangements', sec().querySelectorAll('.chip-btn').length);
+}
+
+// Details tab: pockets for a compound, and the difference between two conformations (0.7.5).
+export async function insightpockets(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  app.goTo(0);
+  app.showTab('details');
+  const body = app.tabBody('details');
+  const po = await openAdv(w, sleep, body, 'Pockets: where a compound could bind');
+  clickBtn(po(), /Find pockets/);
+  if (!await waitFor(sleep, () => po()?.querySelectorAll('table tbody tr').length > 0)) throw new Error('no pockets: ' + po()?.textContent.slice(0, 300));
+  const first = [...po().querySelectorAll('tbody tr')][0];
+  const volume = first.children[1].textContent;
+  first.click();
+  await sleep(200);
+  if (!app.state.selection.size) throw new Error('a pocket row should select the nucleotides lining it');
+  clickBtn(po(), /Colour 3D by pocket/);
+  await sleep(300);
+  if (app.state.colorScheme !== 'pockets') throw new Error('colour scheme not applied');
+  const sel = po().querySelector('select');                     // compare with a second conformation
+  const other = [...sel.options].find(o => o.value !== '');
+  if (!other) throw new Error('no second conformation offered');
+  sel.value = other.value;
+  sel.dispatchEvent(new w.Event('change'));
+  await sleep(200);
+  clickBtn(po(), /Find pockets/);
+  if (!await waitFor(sleep, () => po()?.querySelectorAll('table').length > 0 && /More open in/.test(po().textContent))) throw new Error('no comparison: ' + po()?.textContent.slice(0, 300));
+  po().scrollIntoView();
+  await sleep(300);
+  log('pockets', po().querySelectorAll('table')[0].querySelectorAll('tbody tr').length, '| first', volume,
+      '| compared with', other.textContent, '| tables', po().querySelectorAll('table').length);
+}
+
+// Details tab: motifs, target sites, comparison of two ensembles.
+export async function insightdetails(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR \(sequence|TAR.*prediction/i));
+  app.showTab('details');
+  const body = app.tabBody('details');
+  const mo = await openAdv(w, sleep, body, 'Structural motifs');
+  clickBtn(mo(), /Find motifs/);
+  if (!await waitFor(sleep, () => mo()?.querySelectorAll('table tbody tr').length > 0)) throw new Error('no motifs: ' + mo()?.textContent.slice(0, 300));
+  const motifs = [...mo().querySelectorAll('tbody tr')].map(t => t.children[0].textContent);
+  mo().querySelector('tbody tr').click();
+  await sleep(200);
+  if (!app.state.selection.size) throw new Error('a motif row should select its residues');
+  const ta = await openAdv(w, sleep, body, 'Target sites');
+  clickBtn(ta(), /Find accessible sites/);
+  if (!await waitFor(sleep, () => ta()?.querySelectorAll('table tbody tr').length > 0)) throw new Error('no target sites: ' + ta()?.textContent.slice(0, 300));
+  clickBtn(ta(), /Colour 3D by accessibility/);
+  await sleep(300);
+  if (app.state.colorScheme !== 'accessibility') throw new Error('colour scheme not applied');
+  const co = await openAdv(w, sleep, body, 'Compare with another ensemble');
+  const sel = co().querySelector('select');
+  const nmr = [...sel.options].find(o => /NMR|1ANR/i.test(o.textContent));
+  if (!nmr) throw new Error('the NMR ensemble is not offered: ' + [...sel.options].map(o => o.textContent).join(','));
+  sel.value = nmr.value;
+  sel.dispatchEvent(new w.Event('change'));
+  clickBtn(co(), /^Compare$/);
+  if (!await waitFor(sleep, () => co()?.querySelector('dl.kv'))) throw new Error('no comparison: ' + co()?.textContent.slice(0, 300));
+  const rmsd = [...co().querySelectorAll('dl.kv dd')][1].textContent;
+  co().scrollIntoView();
+  await sleep(200);
+  log('motifs', motifs.join(', '), '| target windows', ta().querySelectorAll('tbody tr').length, '| compare', rmsd);
+}
+
+// Help > Check for updates: the window shown when a newer version exists (a made-up release, no network), in
+// German (translated texts) and then in English for the screenshot. Nothing may be downloaded by itself.
+export async function update1(app, w, log, sleep) {
+  const D = w.document;
+  const items = [];
+  [...D.querySelectorAll('.menu-btn')].find(b => /Help/.test(b.textContent))?.click();
+  await sleep(200);
+  for (const e of D.querySelectorAll('.menu-pop .menu-item, .menu [role="menuitem"], .menu-pop button')) items.push(e.textContent.trim());
+  D.body.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  D.body.click();
+  await sleep(100);
+  const fake = { current: '0.7.4', latest: '0.8.0', date: '2026-12-01', newer: true, platform: 'windows-x64',
+    platform_label: 'Windows (64-bit)', installed: true, file: 'RCV-0.8.0-Windows-x64-Setup.exe',
+    download: 'https://www.rnaconfviewer.com/download/v0.8.0/RCV-0.8.0-Windows-x64-Setup.exe',
+    page: 'https://www.rnaconfviewer.com/#download', notes: 'https://www.rnaconfviewer.com/#releases' };
+  await app.setLanguage('de');
+  let d = app.showUpdate(fake);
+  await sleep(400);
+  const de = d.dlg.querySelector('h2').textContent;
+  const deBtns = [...d.dlg.querySelectorAll('.dlg-foot button')].map(b => b.textContent);
+  d.close();
+  await app.setLanguage('en');
+  d = app.showUpdate(fake);
+  await sleep(400);
+  const btns = [...d.dlg.querySelectorAll('.dlg-foot button')].map(b => b.textContent);
+  const body = d.dlg.querySelector('.dlg-body').textContent;
+  if (de !== 'Update verfügbar') throw new Error('German title: ' + de);
+  if (!deBtns.includes('Herunterladen')) throw new Error('German buttons: ' + deBtns.join('|'));
+  if (btns.join('|') !== 'Skip this version|Release notes|Later|Download') throw new Error('buttons: ' + btns.join('|'));
+  if (!body.includes('RCV-0.8.0-Windows-x64-Setup.exe') || !body.includes('RCV 0.8.0 is available. You have version 0.7.4.')) throw new Error('body: ' + body);
+  if (!items.some(t => t.startsWith('Check for updates'))) log('note: Help menu items not read:', items.slice(0, 12).join(' | '));
+  log('de', de, '|', deBtns.join(' · '), '| en', btns.join(' · '), '| help menu has it:', items.some(t => t.startsWith('Check for updates')));
+}
+
+// 0.7.5 layout: drag the side panels' inner edge (limits, saved per screen size, double-click = default), a hidden
+// panel folds to a rail whose icons open it on that tab, presentation mode (no chrome, large labels, Esc leaves).
+export async function layout1(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR_NMR|1ANR/i));
+  await sleep(300);
+  const D = w.document, wm = app.wm, out = [];
+  const width = sel => Math.round(D.querySelector(sel).getBoundingClientRect().width);
+  const drag = async (side, dx) => {
+    const h = D.querySelector(`.splitter.${side}`), r = h.getBoundingClientRect();
+    const x0 = r.left + r.width / 2, y = r.top + 200;
+    const ev = (type, x) => h.dispatchEvent(new w.PointerEvent(type, { bubbles: true, clientX: x, clientY: y, pointerId: 41, button: 0, isPrimary: true }));
+    ev('pointerdown', x0);
+    for (let i = 1; i <= 6; i++) { ev('pointermove', x0 + dx * i / 6); await sleep(30); }
+    ev('pointerup', x0 + dx);
+    await sleep(150);
+  };
+  const r0 = width('.sidebar.right'), l0 = width('.sidebar.left'), canvas0 = width('#gl');
+  await drag('right', -120);                                // wider right panel
+  const r1 = width('.sidebar.right');
+  if (Math.abs(r1 - (r0 + 120)) > 4) throw new Error(`right panel ${r0} -> ${r1}, expected +120`);
+  if (width('#gl') >= canvas0 - 100) throw new Error('3D view did not get narrower');
+  await drag('left', 80);
+  const l1 = width('.sidebar.left');
+  if (Math.abs(l1 - (l0 + 80)) > 4) throw new Error(`left panel ${l0} -> ${l1}, expected +80`);
+  const saved = JSON.parse(w.localStorage.getItem('rcv.windows') || '{}');
+  const key = `${w.screen.width}x${w.screen.height}`;
+  if (saved.widths?.[key]?.right !== r1) throw new Error('width not saved for this screen: ' + JSON.stringify(saved.widths));
+  out.push(`drag right ${r0}->${r1}, left ${l0}->${l1}, saved for ${key}`);
+  await drag('right', 2000);                                // limits: at least 312 px
+  const rMin = width('.sidebar.right');
+  await drag('right', -3000);                               // and the 3D view keeps at least 360 px
+  const rMax = width('.sidebar.right'), stage = width('.stage');
+  if (rMin !== 312 || stage < 358) throw new Error(`limits: min ${rMin}, stage ${stage}`);
+  out.push(`limits min ${rMin}, max ${rMax} (3D view ${stage})`);
+  D.querySelector('.splitter.right').dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true }));
+  await sleep(150);
+  if (width('.sidebar.right') !== r0 || wm.widthOf('right') !== null) throw new Error('double-click did not restore the default width');
+  // rails
+  wm.set('right', false); wm.set('left', false);
+  await sleep(150);
+  const railR = D.querySelector('.rail.right'), railL = D.querySelector('.rail.left');
+  const btns = [...railR.querySelectorAll('.rail-btn')];
+  if (width('.rail.right') !== 36 || width('.rail.left') !== 36) throw new Error(`rails ${width('.rail.left')} / ${width('.rail.right')}`);
+  if (btns.length < 5) throw new Error('right rail buttons: ' + btns.length);
+  btns.find(b => b.title === 'Switch').click();
+  await sleep(200);
+  const onTab = app._tabs.find(t => t.btn.classList.contains('on'))?.id;
+  if (!wm.isShown('right') || onTab !== 'switch' || getComputedStyle(railR).display !== 'none') throw new Error(`rail click: shown ${wm.isShown('right')} tab ${onTab}`);
+  railL.querySelector('.rail-btn').click();
+  await sleep(150);
+  if (!wm.isShown('left')) throw new Error('left rail did not open the panel');
+  out.push(`rails 36 px, ${btns.length} buttons on the right; click opened Switch`);
+  // presentation mode
+  app.setLabelMode?.('every10');
+  await wm.setPresent(true);
+  await sleep(300);
+  const menuH = D.querySelector('.menubar').getBoundingClientRect().height;
+  const lab = D.querySelector('.res-label');
+  const fs = lab ? parseFloat(getComputedStyle(lab).fontSize) : 0;
+  if (menuH !== 0 || width('#gl') < w.innerWidth - 2) throw new Error(`presentation: menu bar ${menuH}, 3D ${width('#gl')} of ${w.innerWidth}`);
+  if (lab && fs < 19) throw new Error('labels not enlarged: ' + fs);
+  D.body.dispatchEvent(new w.PointerEvent('pointermove', { bubbles: true, clientX: 50, clientY: 50 }));
+  await sleep(50);
+  const exitShown = !D.querySelector('.present-exit').hidden;
+  D.body.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await sleep(300);
+  if (wm.present || D.querySelector('.menubar').getBoundingClientRect().height < 20) throw new Error('Esc did not leave presentation mode');
+  out.push(`presentation: no menu bar, 3D ${width('#gl')} px, labels ${fs || '-'} px, exit button ${exitShown}, Esc leaves`);
+  log(out.join(' | '));
+}
+
+// Screenshot: left panel folded to its rail, right panel dragged wider.
+export async function railshot(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  app.wm.set('left', false);
+  app.wm.setWidth('right', 480);
+  app.showTab('switch');
+  await sleep(800);
+  log('left', app.wm.isShown('left'), '| right width', app.wm.widthOf('right'));
+}
+
+// Screenshot: presentation mode with residue labels.
+export async function presentshot(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR_NMR|1ANR/i));
+  app.setLabelMode?.('every10');
+  await app.wm.setPresent(true);
+  await sleep(800);
+  log('present', app.wm.present);
+}
+
+// 0.7.5 workflow: plain-language console lines, recipes (run, save) and the project library (opened items,
+// thumbnails, search, open with one click).
+export async function workflow1(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR_NMR|1ANR/i));
+  await sleep(400);
+  const D = w.document, out = [], C = app.console;
+  C.setVisible(true);
+  // plain language
+  const ok1 = await C.run('colour by flexibility');
+  if (!ok1 || app.state.colorScheme !== 'flexibility') throw new Error('plain: colour by flexibility -> ' + app.state.colorScheme);
+  await C.run('show the switch at 25 degrees with 150 mM salt');
+  const cond = app.ens.conditions || {};
+  const tabOn = app._tabs.find(t => t.btn.classList.contains('on'))?.id;
+  if (cond.temperature !== 25 || Math.abs((cond.sodium || 0) - 0.15) > 1e-6 || tabOn !== 'switch') throw new Error(`plain: conditions ${JSON.stringify(cond)} tab ${tabOn}`);
+  const cam = JSON.stringify(app.viewer.controls.state);
+  await C.run('reset the colours');
+  if (JSON.stringify(app.viewer.controls.state) !== cam) throw new Error('"reset the colours" moved the view');
+  const logged = app.ens.commandLog.slice(-4);
+  if (!logged.includes('color flexibility') || !logged.includes('tab switch') || logged.some(l => /colour by|degrees/.test(l))) throw new Error('command log: ' + logged.join(' | '));
+  const bad = await C.run('the weather is nice');
+  out.push(`plain language: ${logged.join(' · ')}; nonsense refused ${!bad}`);
+  // recipes
+  const list = await app.recipes.list(true);
+  const flex = list.find(r => r.id === 'builtin-flexibility');
+  app.setColorScheme('nucleotide'); if (app.state.putty) app.togglePutty();
+  if (!(await app.recipes.run(flex))) throw new Error('built-in recipe failed');
+  if (app.state.colorScheme !== 'flexibility' || !app.state.putty) throw new Error('recipe did not apply: ' + app.state.colorScheme + ' putty ' + app.state.putty);
+  for (const r of list.filter(x => x.builtin)) { if (!(await app.recipes.run(r))) throw new Error('built-in recipe failed: ' + r.name); }
+  const saved = await app.api.post('/api/recipes', { recipe: { name: 'Smoke recipe', steps: ['color helix', 'tab details'], prediction: { models: 6 } } });
+  const d = await app.openRecipes(saved.id);
+  await sleep(300);
+  const items = d.dlg.querySelectorAll('.rc-item').length;
+  const nameShown = d.dlg.querySelector('.rc-detail input').value;
+  d.close();
+  if (items < 5 || nameShown !== 'Smoke recipe') throw new Error(`recipes window: ${items} items, shows ${nameShown}`);
+  out.push(`recipes: ${list.filter(x => x.builtin).length} built-in run, saved ${saved.id}, window lists ${items}`);
+  // library: the demo documents were opened from files; thumbnails are drawn when shown
+  for (const re of [/1EHZ|tRNA/i, /TAR_NMR|1ANR/i]) { app.selectEnsemble(byName(app, re)); await sleep(2600); }
+  const L = await app.openLibrary();
+  await sleep(500);
+  const cards = [...L.dlg.querySelectorAll('.lib-card')];
+  const imgs = [...L.dlg.querySelectorAll('img.lib-thumb')];
+  await sleep(500);
+  const loaded = imgs.filter(i => i.complete && i.naturalWidth > 0).length;
+  const search = L.dlg.querySelector('input[type="search"]');
+  search.value = 'GGCAGAUC'; search.dispatchEvent(new w.Event('input'));
+  await sleep(100);
+  const hits = L.dlg.querySelectorAll('.lib-card').length;
+  if (cards.length < 3 || loaded < 2 || hits < 1 || hits >= cards.length) throw new Error(`library: ${cards.length} cards, ${loaded}/${imgs.length} thumbnails, ${hits} hits for the TAR sequence`);
+  const before = app.ensembles.size;
+  L.dlg.querySelector('.lib-card .lib-open').click();
+  await sleep(1200);
+  if (D.querySelector('dialog[open] .lib-grid')) throw new Error('library window still open after a click');
+  out.push(`library: ${cards.length} items, ${loaded} thumbnails, sequence search ${hits}, click opened (${before} -> ${app.ensembles.size} ensembles)`);
+  log(out.join(' | '));
+}
+
+// Screenshot: the project library window.
+export async function libraryshot(app, w, log, sleep) {
+  for (const re of [/1EHZ|tRNA/i, /prediction|sequence/i, /TAR_NMR|1ANR/i]) { app.selectEnsemble(byName(app, re)); await sleep(2600); }
+  await app.openLibrary();
+  await sleep(1200);
+  log('cards', w.document.querySelectorAll('.lib-card').length);
+}
+
+// Screenshot: the recipes window on a built-in recipe.
+export async function recipeshot(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR_NMR|1ANR/i));
+  await sleep(300);
+  await app.openRecipes('builtin-riboswitch-report');
+  await sleep(600);
+  log('recipes', w.document.querySelectorAll('.rc-item').length);
+}
+
+// SAXS, FRET and cryo-EM data (0.7.5): a Guinier-like SAXS curve and two FRET distances are parsed and fitted
+// together; agreement metrics, joint reweighting, the Details section and the .rcv round trip.
+async function loadExpData(app) {
+  const ens = app.ens;
+  const q = [...Array(60).keys()].map(i => 0.01 + i * 0.005);
+  const text = q.map(x => `${x.toFixed(4)} ${(1000 * Math.exp(-x * x * 15 * 15 / 3) + 2).toFixed(4)} ${(30 * Math.exp(-x * x * 50) + 0.5).toFixed(4)}`).join('\n');
+  const saxs = await app.api.post('/api/expdata/parse', { kind: 'saxs', text, name: 'guinier.dat' });
+  const fret = await app.api.post('/api/expdata/parse', { kind: 'fret', text: `1 ${ens.nRes} 40 4\n5 ${ens.nRes - 6} E=0.5 R0=54`, n: ens.nRes, name: 'fret.txt' });
+  await app.expdata.add(ens, saxs);
+  await app.expdata.add(ens, fret);
+  return ens;
+}
+
+export async function expdata1(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR \(sequence|TAR.*prediction/i));
+  await sleep(200);
+  const ens = await loadExpData(app);
+  const fit = ens.expdata?.fit;
+  if (!fit || fit.datasets.length !== 2 || !fit.reweighting) throw new Error('no joint fit: ' + JSON.stringify(ens.expdata?.error || fit).slice(0, 300));
+  const chi = ens.value(0, 'saxs_chi2');
+  if (!(chi > 0) || ens.value(0, 'fret_chi2') === null || ens.value(0, 'exp_weight') === null) throw new Error('metrics missing');
+  app.showTab('details');
+  const body = app.tabBody('details');
+  const sec = await openAdv(w, sleep, body, 'Experimental data');
+  if (!await waitFor(sleep, () => sec()?.querySelectorAll('table tbody tr').length === 2)) throw new Error('section rows: ' + sec()?.textContent.slice(0, 300));
+  if (!sec().querySelector('svg.chart polyline')) throw new Error('no SAXS chart');
+  const { blob } = await app.packRcv();
+  await app.closeEnsemble(ens.id);
+  await app.openRcvFile(new w.File([blob], 'expdata.rcv'));
+  await sleep(1200);
+  if (app.ens.expdata?.sets?.length !== 2 || app.ens.value(0, 'saxs_chi2') !== chi) throw new Error('data not restored from .rcv');
+  app.expdata.remove(app.ens, 'fret');
+  await sleep(600);
+  if (app.ens.expdata.sets.length !== 1 || app.ens.value(0, 'fret_chi2') !== undefined && app.ens.value(0, 'fret_chi2') !== null) throw new Error('remove failed');
+  log('SAXS chi2 conf_001', chi, '| reweighting chi2', fit.reweighting.chi2_prior.join(','), '->', fit.reweighting.chi2.join(','), '| restored from .rcv, remove ok');
+}
+
+// Screenshot: the Experimental data section with SAXS and FRET data and the load dialog.
+export async function expdatashot(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR \(sequence|TAR.*prediction/i));
+  await sleep(200);
+  await loadExpData(app);
+  app.showTab('details');
+  const body = app.tabBody('details');
+  const sec = await openAdv(w, sleep, body, 'Experimental data');
+  sec().scrollIntoView();
+  await sleep(300);
+  app.expdata.dialog('fret');
+  await sleep(500);
+  log('rows', sec().querySelectorAll('table tbody tr').length);
+}
+
+// Compound screening window: target, the example compound file, a tiny run, the ranked table and the pose
+// back in the main window. Runs a real docking job (four small compounds, quick), so it takes a minute.
+export async function screenwindow(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR_NMR|1ANR/i));          // 29 nt: a small grid, so the run is a minute
+  const scr = await app.openScreening();
+  if (!scr) throw new Error('the screening window did not open');
+  if (app.page !== 'screen') throw new Error('the screening page is not shown');
+  if (w.document.querySelectorAll('#screenpage .wl-card').length < 4) throw new Error('four cards are expected');
+  if (!await waitFor(sleep, () => scr.selPocket.options.length && !/looking/.test(scr.selPocket.options[0].text)))
+    throw new Error('the pocket list did not fill: ' + scr.selPocket.textContent);
+  if (!await waitFor(sleep, () => /box of/.test(scr.siteInfo.textContent))) throw new Error('no site info: ' + scr.siteInfo.textContent);
+  const pockets = scr.selPocket.options.length;
+  await scr.loadExample();
+  if (!await waitFor(sleep, () => scr.library?.count === 4)) throw new Error('the example file did not load: ' + scr.libInfo.textContent);
+  scr.exh.value = 'quick';
+  scr.poses.value = '2';
+  scr.cores.value = String(Math.min(4, w.navigator.hardwareConcurrency || 2));
+  scr.selB.value = '1';
+  scr._estimate();
+  if (!/about /.test(scr.estimate.textContent)) throw new Error('no time estimate: ' + scr.estimate.textContent);
+  await scr._start();
+  if (!await waitFor(sleep, () => scr.job && ['done', 'failed', 'cancelled'].includes(scr.job.status), 420000))
+    throw new Error('the run did not finish: ' + JSON.stringify(scr.job?.status));
+  if (scr.job.status !== 'done') throw new Error('the run ' + scr.job.status + ': ' + (scr.job.error || ''));
+  if (!await waitFor(sleep, () => scr.summary && scr.rows.length === 4)) throw new Error(`${scr.rows.length} rows, 4 expected`);
+  const rows = [...w.document.querySelectorAll('.scr-tbl tbody tr')];
+  if (rows.length !== 4) throw new Error(`${rows.length} rows in the table, 4 expected`);
+  if (scr.rows.some(r => r.selectivity === null || r.selectivity === undefined))
+    throw new Error('a compound has no selectivity: ' + JSON.stringify(scr.rows));
+  // the selectivity column as shown, with the typographic signs of fmtSigned turned back into numbers
+  const sel = rows.map(tr => Number(tr.children[8].textContent.replace('\u2212', '-').replace('\u00b1', '')));
+  if (!sel.every((v, i) => i === 0 || sel[i - 1] >= v)) throw new Error('the table is not sorted by selectivity: ' + JSON.stringify(sel));
+  clickBtn(rows[0], /3D/);                        // the pose goes back into the main window
+  if (!await waitFor(sleep, () => app.page === 'viewer' && app.state.selection.size > 0))
+    throw new Error('showing the pose did not select the nucleotides it touches');
+  if (!app.viewer.overlays.has('screen-pose')) throw new Error('the pose overlay is missing');
+  log('pockets', pockets, '| compounds', scr.rows.length, '| selectivity shown', JSON.stringify(sel),
+      '| selected', app.state.selection.size);
+}
+
+// Screenshot: the compound screening window with a target and the example compounds chosen, before a run.
+export async function screenpage(app, w, log, sleep) {
+  app.selectEnsemble(byName(app, /TAR_NMR|1ANR/i));
+  const scr = await app.openScreening();
+  await waitFor(sleep, () => /box of/.test(scr.siteInfo.textContent));
+  await scr.loadExample();
+  await sleep(400);
+  log('cards', w.document.querySelectorAll('#screenpage .wl-card').length, '| library', scr.library?.count);
+}

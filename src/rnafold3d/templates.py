@@ -176,8 +176,12 @@ def align(query, target):
     """Smith-Waterman (Gotoh) alignment with traceback. Returns (score, [(qi, ti), ...] aligned positions)."""
     q = CODE[np.frombuffer(query.encode(), np.uint8)]
     t = CODE[np.frombuffer(target.encode(), np.uint8)]
-    n, m = len(q), len(t)
-    S = _score_rows(q)[:, t]                         # n x m
+    return _sw_matrix(_score_rows(q)[:, t])
+
+
+def _sw_matrix(S):
+    """Local alignment (affine gaps, traceback) for an integer score matrix S (query x target)."""
+    n, m = S.shape
     NEG = -10 ** 9
     H = np.zeros((n + 1, m + 1), np.int64)
     E = np.full((n + 1, m + 1), NEG, np.int64)       # gap in query (consume target)
@@ -259,15 +263,119 @@ def homologs(query, lib: Library, scan=None, max_evalue=1e-2):
 
 
 FULL_LENGTH_EVALUE, FULL_LENGTH_COVERAGE = 10.0, 0.6
+# structure-confirmed (remote) homologs: weak sequence hits kept when the template's base pairs fit the query
+TWILIGHT_EVALUE = 10.0          # sequence E-value up to which a chain is tested
+TWILIGHT_MAX = 60               # chains tested per query
+STRUCT_WEIGHT, UNPAIRED_WEIGHT = 3, 1
+STRUCT_MIN_COVERAGE, STRUCT_MIN_PAIRS, STRUCT_MIN_COMPAT, STRUCT_MIN_IDENTITY = 0.6, 10, 0.9, 0.45
+STRUCT_LENGTH_RATIO = (0.6, 1.6)
+
+
+def pair_profile(query, temperature=37.0):
+    """Per residue: probability of pairing with a downstream residue, an upstream residue, or of being unpaired
+    (ViennaRNA partition function). None without ViennaRNA."""
+    try:
+        import RNA
+    except Exception:
+        return None
+    md = RNA.md()
+    md.temperature = temperature
+    fc = RNA.fold_compound(query, md)
+    _s, mfe = fc.mfe()
+    fc.exp_params_rescale(mfe)
+    fc.pf()
+    n = len(query)
+    P = np.array(fc.bpp())[1:n + 1, 1:n + 1]        # upper triangle: P[i, j], i < j
+    down, up = P.sum(axis=1), P.sum(axis=0)
+    return np.clip(np.stack([down, up, 1.0 - down - up], axis=1), 0.0, 1.0)
+
+
+def chain_states(lib, k):
+    """0 = paired with a downstream residue, 1 = with an upstream residue, 2 = unpaired, per template residue."""
+    st = np.full(int(lib.off[k + 1] - lib.off[k]), 2, np.int64)
+    for a, b in lib.chain_pairs(k):
+        st[min(a, b)], st[max(a, b)] = 0, 1
+    return st
+
+
+def align_structure(query, profile, tseq, states):
+    """Local alignment scored by sequence and by secondary structure: the pairing direction of every template
+    residue against the query's pairing probabilities (finds homologs whose sequences have diverged)."""
+    q = CODE[np.frombuffer(query.encode(), np.uint8)]
+    t = CODE[np.frombuffer(tseq.encode(), np.uint8)]
+    S = _score_rows(q)[:, t].copy()
+    w = np.where(states == 2, UNPAIRED_WEIGHT, STRUCT_WEIGHT)
+    S += np.rint(w[None, :] * (2.0 * profile[:, states] - 1.0)).astype(np.int64)
+    S[:, t == SEP] = -10 ** 6
+    return _sw_matrix(S)
+
+
+def _hit(query, lib, k, score, aln, e, how='sequence'):
+    """Hit record for an alignment (positions without template coordinates removed)."""
+    xyz = lib.chain_xyz(k)
+    aln = [(int(qi), int(ti)) for qi, ti in aln if not np.isnan(xyz[ti, 0])]
+    tseq = lib.chain_seq(k)
+    tpairs = lib.chain_pairs(k)
+    tmap = {ti: qi for qi, ti in aln}
+    mapped = [(tmap[a], tmap[b]) for a, b in tpairs if a in tmap and b in tmap]
+    meta = lib.meta[k]
+    return {'chain_index': k, 'pdb': meta['pdb'], 'chain': meta['chain'], 'model': meta['model'],
+            'class': lib.class_of[k], 'release': meta['release'], 'method': meta['method'],
+            'resolution': meta['resolution'], 'title': meta['title'], 'template_length': meta['length'],
+            'score': int(score), 'bits': round(bits(score), 1), 'evalue': float(f'{e:.3g}'),
+            'identity': round(sum(query[qi] == tseq[ti] for qi, ti in aln) / max(1, len(aln)), 3),
+            'coverage': round(len(aln) / len(query), 3), 'aligned': aln, 'pairs_mapped': len(mapped),
+            'pairs_compatible': sum(query[i] + query[j] in CANON for i, j in mapped),
+            'template_pairs': len(tpairs), 'found_by': how}
+
+
+def structure_hits(query, lib, per, allowed_classes_seen, profile, max_hits=8):
+    """Remote homologs: chains with a weak sequence match (E <= 10) whose secondary structure fits the query.
+
+    Each candidate is aligned by sequence and structure together (align_structure); it is kept when the
+    alignment covers >= 60% of the query, >= 10 template base pairs map onto query residues, >= 90% of them
+    can pair in the query, and >= 45% of the aligned residues are identical. A family member that sequence
+    alone cannot prove (a tRNA of another species, a riboswitch of another organism) passes; an unrelated RNA
+    with a similar shape does not."""
+    n_db = int(lib.off[-1])
+    m = len(query)
+    lens = np.diff(lib.off)
+    out, seen = [], set(allowed_classes_seen)
+    tested = 0
+    for k in np.argsort(-per, kind='stable'):
+        k = int(k)
+        if per[k] <= 0 or tested >= TWILIGHT_MAX:
+            break
+        e = evalue(int(per[k]), m, n_db)
+        if e > TWILIGHT_EVALUE:
+            break
+        if lib.class_of[k] in seen or not (STRUCT_LENGTH_RATIO[0] * m <= lens[k] <= STRUCT_LENGTH_RATIO[1] * m):
+            continue
+        tested += 1
+        score, aln = align_structure(query, profile, lib.chain_seq(k), chain_states(lib, k))
+        if not aln:
+            continue
+        h = _hit(query, lib, k, per[k], aln, e, 'sequence + structure')
+        h['structure_score'] = int(score)
+        if (h['coverage'] < STRUCT_MIN_COVERAGE or h['pairs_mapped'] < STRUCT_MIN_PAIRS
+                or h['pairs_compatible'] < STRUCT_MIN_COMPAT * h['pairs_mapped']
+                or h['identity'] < STRUCT_MIN_IDENTITY):
+            continue
+        seen.add(lib.class_of[k])
+        out.append(h)
+        if len(out) >= max_hits:
+            break
+    return out
 
 
 def search(query, lib: Library | None = None, cutoff=None, exclude=(), max_hits=5, max_evalue=1e-3,
-           min_coverage=0.45, scan=None):
+           min_coverage=0.45, scan=None, structure=False, profile=None):
     """Significant template hits (best first), one per non-redundant class.
 
     A hit needs E <= max_evalue, or E <= 10 x max_evalue when it covers >= 60% of the query (a full-length
     homolog with scattered differences, e.g. a tRNA of another species), and must cover >= 45% of the query
-    (a template that covers less does not define the fold; parts are added by segment_hits)."""
+    (a template that covers less does not define the fold; parts are added by segment_hits).
+    structure=True also returns remote homologs confirmed by their secondary structure (structure_hits)."""
     lib = lib or load_library()
     if lib is None:
         return []
@@ -288,30 +396,34 @@ def search(query, lib: Library | None = None, cutoff=None, exclude=(), max_hits=
         if cls in seen:
             continue
         seen.add(cls)
-        tseq = lib.chain_seq(k)
-        score, aln = align_segments(query, tseq)
+        score, aln = align_segments(query, lib.chain_seq(k))
         if not aln:
             continue
-        xyz = lib.chain_xyz(k)
-        aln = [(qi, ti) for qi, ti in aln if not np.isnan(xyz[ti, 0])]
-        cov = len(aln) / m
-        if cov < min_coverage or (e > max_evalue and cov < FULL_LENGTH_COVERAGE):
+        h = _hit(query, lib, k, score, aln, evalue(score, m, n_db))
+        if h['coverage'] < min_coverage or (e > max_evalue and h['coverage'] < FULL_LENGTH_COVERAGE):
+            if structure:
+                seen.discard(cls)           # the structure-aware alignment may still confirm it
             continue
-        ident = sum(query[qi] == tseq[ti] for qi, ti in aln) / max(1, len(aln))
-        tpairs = lib.chain_pairs(k)
-        tmap = {ti: qi for qi, ti in aln}
-        mapped = [(tmap[a], tmap[b]) for a, b in tpairs if a in tmap and b in tmap]
-        compat = sum(query[i] + query[j] in CANON for i, j in mapped)
-        meta = lib.meta[k]
-        hits.append({'chain_index': k, 'pdb': meta['pdb'], 'chain': meta['chain'], 'model': meta['model'],
-                     'class': cls, 'release': meta['release'], 'method': meta['method'],
-                     'resolution': meta['resolution'], 'title': meta['title'], 'template_length': meta['length'],
-                     'score': score, 'bits': round(bits(score), 1), 'evalue': float(f'{evalue(score, m, n_db):.3g}'),
-                     'identity': round(ident, 3), 'coverage': round(cov, 3), 'aligned': aln,
-                     'pairs_mapped': len(mapped), 'pairs_compatible': compat})
+        hits.append(h)
         if len(hits) >= max_hits:
             break
     hits.sort(key=lambda h: (h['evalue'], -h['coverage']))
+    if structure:
+        profile = pair_profile(query) if profile is None else profile
+        if profile is not None:
+            # a sequence alignment often stops where the sequences diverge: extend it with the structure-aware
+            # alignment when that maps more residues and more base pairs that can form in the query
+            for x, h in enumerate(hits):
+                k = h['chain_index']
+                qs = sorted(a for a, _ in h['aligned'])
+                if any(s > qs[0] and e <= qs[-1] for s, e in uncovered_segments(m, h['aligned'], 20)):
+                    continue            # a different RNA inserted in a shared scaffold: segment_hits covers it
+                score, aln = align_structure(query, profile, lib.chain_seq(k), chain_states(lib, k))
+                g = _hit(query, lib, k, h['score'], aln, h['evalue'], 'sequence, aligned with structure')
+                if (g['coverage'] > h['coverage'] and g['pairs_compatible'] > h['pairs_compatible']
+                        and g['pairs_compatible'] >= STRUCT_MIN_COMPAT * g['pairs_mapped']):
+                    hits[x] = g
+            hits += structure_hits(query, lib, per, {h['class'] for h in hits}, profile, max_hits=max_hits)
     return hits
 
 

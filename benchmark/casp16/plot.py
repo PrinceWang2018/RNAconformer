@@ -9,7 +9,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 RES = HERE / 'results'
 
-SERIES = [('rcv', 'RCV 0.7.3', 'circle'),
+SERIES = [('rcv', 'RCV 0.7.5', 'circle'),
           ('304', 'AlphaFold 3', 'diamond'),
           ('best', 'Best CASP16 group', 'triangle')]
 CLS = {'rcv': 'rcv', '304': 'af3', 'best': 'best'}

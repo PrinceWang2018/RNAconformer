@@ -136,6 +136,11 @@ class AppState:
         self.invalidate_library()
         with self.lock:
             self.entries[entry.doc['id']] = entry
+        try:                                    # File > Project library remembers everything opened from a file
+            from . import library
+            library.record(entry.doc, entry.manifest)
+        except Exception as exc:                # noqa: BLE001 - the library must never stop a document from opening
+            sys.stderr.write(f'library: {exc}\n')
         return summary(entry.doc)
 
     def open_paths(self, paths, chain=None, name=None):
@@ -364,6 +369,11 @@ def doc_file(rel):
     return None
 
 
+def _update_settings():
+    from . import update
+    return update.settings()
+
+
 def system_info(state):
     return {'app': APP_NAME, 'version': __version__, 'cpus': os.cpu_count() or 1,
             'platform': f'{platform.system()} {platform.release()}', 'machine': platform.machine(),
@@ -531,7 +541,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._static(path)
         query = parse_qs(url.query)
         token = self.headers.get('X-Viewer-Token', '')
-        if not token and path == '/api/bye':           # sendBeacon cannot set headers
+        if not token and (path == '/api/bye' or (method == 'GET' and path.startswith('/api/library/thumb/'))):
+            # sendBeacon and <img> cannot set headers
             token = (query.get('token') or [''])[0]
         if not secrets.compare_digest(token, self.state.token):
             return self._error(401, 'missing or invalid session token')
@@ -563,7 +574,7 @@ class Handler(BaseHTTPRequestHandler):
                 'python_plugins': [{'id': p.id, 'name': p.name, 'path': p.path} for p in st.py_plugins],
                 'plugin_errors': st.plugin_errors,
                 'plugin_dirs': [str(p) for p in st.plugin_dirs],
-                'demo': bool(P.demo_dir()), 'website': WEBSITE})
+                'demo': bool(P.demo_dir()), 'website': WEBSITE, 'update': _update_settings()})
         if parts and parts[0] == 'documents':
             if method == 'GET' and len(parts) == 1:
                 return self._json([summary(e.doc) for e in st.entries.values()])
@@ -662,6 +673,25 @@ class Handler(BaseHTTPRequestHandler):
             if not body.get('files'):
                 raise ValueError('no files uploaded')
             return self._json(st.open_uploads(body['files'], body.get('chain') or None, body.get('name') or None))
+        if parts[:1] == ['library'] and len(parts) > 1:
+            from . import library
+            if method == 'GET' and parts == ['library', 'index']:
+                return self._json(library.items(st.library_roots, find_packages))
+            if method == 'GET' and len(parts) == 3 and parts[1] == 'thumb':
+                return self._send(200, library.thumbnail(parts[2]), 'image/jpeg')
+            if method == 'POST' and parts == ['library', 'thumb']:
+                # thumbnail of an open document (drawn by the viewer), stored for its library entry
+                body = self._body()
+                entry = st.entries.get(str(body.get('document') or ''))
+                info = library.describe_doc(entry.doc, entry.manifest) if entry else None
+                if not info:
+                    return self._json({'key': None})
+                return self._json(library.save_thumbnail(info['path'], body.get('image') or ''))
+            if method == 'POST' and parts == ['library', 'forget']:
+                return self._json(library.forget(str(self._body().get('path') or '')))
+            if method == 'POST' and parts == ['library', 'folders']:
+                body = self._body()
+                return self._json({'folders': library.set_folder(str(body.get('path') or ''), bool(body.get('add', True)))})
         if method == 'GET' and parts == ['library']:
             now = time.time()
             cache = getattr(st, '_library_cache', None)
@@ -681,6 +711,28 @@ class Handler(BaseHTTPRequestHandler):
                     st.library_roots.insert(0, d)
                 P.save_settings({'projects_dir': str(d)})
             return self._json(system_info(st))
+        if parts and parts[0] == 'recipes':
+            # recipes: named analyses (prediction settings + console steps), shared as .rcvrecipe files
+            from . import recipes
+            if method == 'GET' and len(parts) == 1:
+                return self._json({'recipes': recipes.list_recipes(), 'folder': str(recipes.recipes_dir())})
+            if method == 'POST' and len(parts) == 1:
+                body = self._body()
+                return self._json(recipes.save(body.get('recipe') or {}, body.get('id')))
+            if method == 'POST' and parts == ['recipes', 'import']:
+                return self._json(recipes.import_text(str(self._body().get('text') or '')))
+            if method == 'DELETE' and len(parts) == 2:
+                return self._json(recipes.delete(parts[1]))
+        if parts and parts[0] == 'update':
+            # check for a newer RCV (Help > Check for updates, and once a day at start-up in installed builds)
+            from . import update
+            if method == 'GET' and parts == ['update']:
+                if (query.get('auto') or [''])[0]:
+                    return self._json({'checked': False} if (r := update.auto_check()) is None else {'checked': True, **r})
+                return self._json({'checked': True, **update.check()})
+            if method == 'POST' and parts == ['update', 'settings']:
+                body = self._body()
+                return self._json(update.save(body.get('auto'), body.get('skip')))
         if parts and parts[0] == 'af3':
             from . import alphafold
             if method == 'GET' and parts == ['af3', 'settings']:
@@ -784,6 +836,110 @@ class Handler(BaseHTTPRequestHandler):
                 res = transition_analyse(doc, a, b, cond, k0=k0, intermediates=inter, coords=rcvfile.doc_coords(doc))
                 st.cache_put(key, res)
             return self._json(res)
+        if method == 'POST' and len(parts) == 2 and parts[0] == 'insight':
+            # advanced analyses shown as sections inside the Switch, Pathway and Details tabs (insight.py)
+            from . import insight
+            from .switch import ensemble_states
+            body, doc = self._doc_body()
+            what = parts[1]
+            if what not in ('motifs', 'pockets') and vienna_version() is None:
+                raise ValueError('this analysis needs ViennaRNA (pip install ViennaRNA)')
+            cond = self._conditions(body, doc, probing=False) if what not in ('motifs', 'pockets') else None
+            ab = tuple(None if body.get(x) is None else int(body[x]) for x in ('a', 'b'))
+            if what == 'cotranscription':             # the Pathway tab works with conformations: use their 2D states
+                sts = ensemble_states(doc)
+                ab = tuple(next((i for i, s in enumerate(sts) if body.get(x) is not None and int(body[x]) in s['conformations']), None)
+                           for x in ('conf_a', 'conf_b'))
+            if what == 'compare':
+                other = st.entries.get(body.get('other') or '')
+                doc_b = other.doc if other else body.get('other_doc')
+                if not doc_b or 'conformations' not in doc_b:
+                    raise ValueError('choose a second ensemble to compare with')
+                ka, kb = int(body.get('ka') or 0), int(body.get('kb') or 0)
+                return self._json(insight.compare(doc, rcvfile.doc_coords(doc), doc_b, rcvfile.doc_coords(doc_b), ka, kb))
+            if what == 'motifs':
+                k = int(body.get('conformation') or 0)
+                if not 0 <= k < len(doc['conformations']):
+                    raise ValueError('conformation index out of range')
+                key = ('motifs', doc['id'], k)
+                run = lambda: insight.motifs(doc, k, rcvfile.doc_coords(doc))
+            elif what == 'pockets':
+                k = int(body.get('conformation') or 0)
+                other = body.get('other')
+                other = None if other is None or other == '' else int(other)
+                bmin = body.get('burial_min')
+                bmin = None if bmin is None else max(4, min(7, int(bmin)))
+                key = ('pockets', doc['id'], k, other, bmin)
+                run = lambda: insight.pockets(doc, k, rcvfile.doc_coords(doc), other, burial_min=bmin)
+            elif what == 'experiments':
+                key = ('experiments', doc['id'], ab, cond.key())
+                run = lambda: insight.experiments(doc, ensemble_states(doc), ab[0], ab[1], cond, rcvfile.doc_coords(doc))
+            elif what == 'variants':
+                text = str(body.get('text') or '')[:4000]
+                key = ('variants', doc['id'], ab, cond.key(), text)
+                run = lambda: insight.variants(doc['sequence'], ensemble_states(doc), cond, text, ab[0], ab[1])
+            elif what == 'cotranscription':
+                key = ('cotranscription', doc['id'], ab, cond.key())
+                run = lambda: insight.cotranscriptional(doc['sequence'], cond, ensemble_states(doc), ab[0], ab[1])
+            elif what == 'targets':
+                width = int(body.get('width') or 18)
+                key = ('targets', doc['id'], cond.key(), width)
+                run = lambda: insight.target_sites(doc, cond, width)
+            else:
+                return self._error(404, 'unknown analysis')
+            res = st.cache_get(key)
+            if res is None:
+                res = run()
+                st.cache_put(key, res)
+            return self._json(res)
+        if parts and parts[0] == 'screen':
+            # Compound screening (its own window): a library against one or two conformations. The engine is
+            # rnafold3d.screening; screening.py holds the parsed libraries and the job. Experimental: the
+            # window shows the measured limits of the scoring function next to every number.
+            from . import screening
+            if method == 'POST' and parts == ['screen', 'library']:
+                path = unquote(self.headers.get('X-Path', ''))
+                ph = float(self.headers.get('X-Ph', '') or 7.0)
+                if path:
+                    return self._json(screening.library_from_path(path, ph=ph))
+                data = self._raw_body()
+                if not data:
+                    raise ValueError('no compound file was sent')
+                name = unquote(self.headers.get('X-Name', '')) or 'library'
+                return self._json(screening.parse_library(data, name=name, ph=ph))
+            if method == 'POST' and parts == ['screen', 'site']:
+                body, doc = self._doc_body()
+                k = int(body.get('conformation') or 0)
+                site, info = screening.site_of(doc, rcvfile.doc_coords(doc), k, body.get('site'),
+                                               body.get('burial_min'))
+                return self._json(dict(site.as_dict(), **info))
+            if method == 'POST' and len(parts) == 1:
+                job = screening.ScreenJob(st, self._body())
+                with st.lock:
+                    st.jobs[job.id] = job
+                job.start()
+                return self._json(job.info())
+            job = st.jobs.get(parts[1]) if len(parts) >= 2 else None
+            if job is None or getattr(job, 'kind', '') != 'screen':
+                return self._error(404, 'unknown screening run')
+            if method == 'GET' and len(parts) == 2:
+                return self._json(job.info())
+            if method == 'GET' and parts[2:] == ['results']:
+                limit = int((query.get('limit') or [0])[0])
+                offset = int((query.get('offset') or [0])[0])
+                return self._json(job.table(limit=limit or None, offset=offset))
+            if method == 'GET' and parts[2:] == ['csv']:
+                return self._send(200, screening.to_csv(job).encode('utf-8'), 'text/csv')
+            if method == 'GET' and parts[2:] == ['sdf']:
+                state = (query.get('state') or ['a'])[0]
+                text = screening.to_sdf(job, state if state in ('a', 'b') else 'a')
+                if not text:
+                    raise ValueError('this run kept no poses: raise "poses kept" and run it again')
+                return self._send(200, text.encode('utf-8'), 'chemical/x-mdl-sdfile')
+            if method == 'POST' and parts[2:] == ['pose']:
+                body = self._body()
+                return self._json(screening.pose_for(job, int(body.get('index', 0)),
+                                                     str(body.get('state') or 'a')))
         if method == 'POST' and parts == ['transition', 'scan']:
             # in-silico phi-value scan along a route of 2D structures
             from .transition import phi_scan
@@ -846,6 +1002,33 @@ class Handler(BaseHTTPRequestHandler):
             if len(doc['conformations']) > 1:
                 out['reweighting'] = probing.reweight(doc, vals, kind, theta=body.get('theta'), prior=body.get('prior'))
             return self._json(out)
+        if method == 'POST' and parts == ['expdata', 'parse']:
+            # SAXS profile, FRET distances or a cryo-EM map (base64) -> parsed data for /api/expdata/fit
+            from . import expdata
+            body = self._body()
+            kind = str(body.get('kind') or '')
+            name = str(body.get('name') or kind)[:120]
+            if kind == 'saxs':
+                out = expdata.parse_saxs(str(body.get('text') or ''))
+            elif kind == 'fret':
+                out = expdata.parse_fret(str(body.get('text') or ''), int(body.get('n') or 0))
+            elif kind == 'map':
+                if not body.get('data'):
+                    raise ValueError('no map data')
+                res, cont = body.get('resolution'), body.get('contour')
+                out = expdata.parse_map(str(body['data']), name, resolution=float(res) if res else None,
+                                        contour=float(cont) if cont not in (None, '') else None)
+            else:
+                raise ValueError(f'unknown data type {kind!r}')
+            return self._json({**out, 'kind': kind, 'name': name})
+        if method == 'POST' and parts == ['expdata', 'fit']:
+            # agreement of every conformation with SAXS / FRET / cryo-EM data and joint maximum-entropy reweighting
+            from . import expdata
+            body, doc = self._doc_body()
+            sets = body.get('datasets') or []
+            if not sets:
+                raise ValueError('no data')
+            return self._json(expdata.fit(doc, rcvfile.doc_coords(doc), sets, theta=body.get('theta')))
         if method == 'POST' and parts == ['plugins', 'new']:
             # Plugins > New plugin: write a commented template into the user plugin folder
             body = self._body()

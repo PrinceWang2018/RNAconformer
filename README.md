@@ -1,5 +1,7 @@
 # RCV: RNA Conformation Viewer
 
+[![DOI](https://zenodo.org/badge/1428242301.svg)](https://doi.org/10.5281/zenodo.24163503)
+
 ![RCV](docs/images/rcv-wordmark.svg)
 
 **Predict, explore and present RNA conformations on your own computer.** RCV is a free, open-source desktop application for RNA 3D conformation prediction, interactive molecular visualization, conformational ensemble analysis, and RNA conformational switching studies.
@@ -12,11 +14,26 @@ RCV supports Windows, macOS, and Linux. It is designed for researchers in RNA bi
 
 **Author:** Zixiang Wang · princewang2018@gmail.com
 
+* **Conformation-selective compound screening** *(0.7.5, experimental)* — find the pockets of each
+  conformation, then screen a compound file against two of them and rank the compounds by how much better
+  they fit one than the other (*Tools ▸ Compound screening…*, or `rnafold3d screen`). Pocket finding, an
+  RNA scoring function (stacking against the base planes, screened electrostatics with explicit phosphate
+  charges, desolvation) and a docking search, all local and all measured: the benchmarks, including where
+  it fails, are in [docs/SCREENING_STATUS.md](docs/SCREENING_STATUS.md). The result is a ranking to choose
+  compounds to test, never an affinity ([manual §8.7](docs/RCV.md)).
+* **Advanced analyses inside the tabs** *(0.7.4)* — closed sections at the bottom of the Switch, Pathway and
+  Details tabs, computed only when opened: experiments that tell two states apart (disrupt-and-rescue double
+  mutants, probing segments, FRET/DEER label pairs), effects of variants on the structure, folding during
+  transcription, structural motifs and tertiary contacts, target sites for antisense oligonucleotides, and
+  comparison with another ensemble of the same RNA ([manual §8.6](docs/RCV.md)).
+* **More templates, and your own data** *(0.7.4)* — the template search also aligns by secondary structure, so
+  it finds related structures whose sequence has diverged; the five models cover the different templates found;
+  SHAPE reactivities and an alignment of homologs can be given on the start page (*Advanced settings*).
 * **3D models from related experimental structures** *(0.7.3)* — the engine searches a built-in library of
   3,964 RNA chains from the PDB (21.5 MB, no network) and builds on related structures (templates): base pairs,
   3D restraints, loop shapes and atom positions, with the rest of the RNA folded by physics. Without a template,
   junctions take geometries seen in experimental structures. No deep learning, no GPU: on the blind CASP16
-  targets RCV's model 1 is as accurate as AlphaFold 3's on average, in 1–7 minutes per target on a laptop CPU
+  targets RCV's model 1 is as accurate as AlphaFold 3's on average, in 1–9 minutes per target on a laptop CPU
   ([comparison](#comparison-with-leading-predictors-casp16)).
 * **AlphaFold 3 inside RCV** *(0.7.3, optional)* — run your own AlphaFold 3 installation from the start page
   (*Engine: AlphaFold 3 (local)*), or open the `.zip` downloaded from AlphaFold Server: all sampled models open
@@ -93,7 +110,7 @@ FASTA ──► template search: Smith–Waterman against 3,964 PDB RNA chains (
       ──► ranked, structurally distinct ensemble: PDB + mmCIF + manifest.json
 ```
 
-**Status (v2.1.0, 2026-11-07):** valid all-atom ensembles from sequence for 26/26 pilot benchmark targets
+**Status (v2.3.0, 2026-11-13):** valid all-atom ensembles from sequence for 26/26 pilot benchmark targets
 (14–192 nt). With a related experimental structure in the built-in library the models follow it closely (CASP16
 ZTP riboswitch: TM-score 0.93); without one, large multi-branched RNAs stay near random-arrangement accuracy. On
 the blind CASP16 targets RCV with templates is as accurate as AlphaFold 3 on average and behind the best expert
@@ -102,6 +119,22 @@ Details, benchmark results and limitations: **[docs/V2_STATUS.md](docs/V2_STATUS
 `docs/benchmark_v1/`, and
 `RNAFold3D_Project_Progress_and_Next_Steps.md`. Earlier milestone notes (M0-M4, guide-site
 engine) are in `docs/milestones/`; the original archives (`*.zip`) are kept unchanged.
+
+## Download
+
+Desktop installers for **RCV 0.7.5** (15 November 2026). They include Python, the prediction engine, ViennaRNA and
+the demo data; nothing else needs to be installed.
+
+| Platform | Installer | Notes |
+|---|---|---|
+| Windows 10/11 (64-bit) | [RCV-0.7.5-Windows-x64-Setup.exe](https://www.rnaconfviewer.com/download/v0.7.5/RCV-0.7.5-Windows-x64-Setup.exe) | Installer with Start-menu entries and optional `.rcv` file association |
+| macOS 14+ (Apple Silicon) | [RCV-0.7.5-macOS-arm64.dmg](https://www.rnaconfviewer.com/download/v0.7.5/RCV-0.7.5-macOS-arm64.dmg) | Macs with an M-series chip (M1 and later) |
+| macOS 14+ (Intel) | [RCV-0.7.5-macOS-x86_64.dmg](https://www.rnaconfviewer.com/download/v0.7.5/RCV-0.7.5-macOS-x86_64.dmg) | Intel-based Macs |
+| Linux: Debian, Ubuntu, Linux Mint | [RCV-0.7.5-Linux-amd64.deb](https://www.rnaconfviewer.com/download/v0.7.5/RCV-0.7.5-Linux-amd64.deb) | Ubuntu 20.04, Debian 11 or newer; adds the `rcv` command and a menu entry |
+| Linux: Fedora, RHEL, Rocky, AlmaLinux, openSUSE | [RCV-0.7.5-Linux-x86_64.rpm](https://www.rnaconfviewer.com/download/v0.7.5/RCV-0.7.5-Linux-x86_64.rpm) | Fedora 32, RHEL 9, openSUSE Leap 15.6 or newer |
+
+File sizes, SHA-256 checksums, release notes and earlier versions: [www.rnaconfviewer.com](https://www.rnaconfviewer.com/#download).
+To run from source instead, see [Install](#install).
 
 ## Install
 
@@ -159,8 +192,8 @@ Runs are deterministic for a given seed and package version (independent of work
 
 ## Comparison with leading predictors (CASP16)
 
-CASP16 (2024) is the latest community-wide blind test of RNA 3D structure prediction. RCV 0.7.3 predicted its
-15 single-chain RNA targets up to 250 nt from the sequence (5 models, *thorough* sampling, 1–7 minutes per target
+CASP16 (2024) is the latest community-wide blind test of RNA 3D structure prediction. RCV 0.7.5 predicted its
+15 single-chain RNA targets up to 250 nt from the sequence (5 models, *thorough* sampling, 1–9 minutes per target
 on a laptop CPU with 16 cores, Intel Core Ultra 9 285H, no GPU), using as templates only structures released
 before 2024-05-01, the start of the CASP16 season. RCV's models and the models submitted to CASP16 by AlphaFold 3, the
 trRosettaRNA server and two of the top expert groups (Vfold, GuangzhouRNA) were all scored the same way, with
@@ -171,19 +204,23 @@ alt="TM-score of model 1 per CASP16 RNA target for RCV, AlphaFold 3 and the best
 
 | Method | Mean TM-score, model 1 | Mean TM-score, best of 5 | Median RMSD, model 1 (Å) | Correct global fold (TM ≥ 0.45) | Base pairs right (INF-WC) |
 |---|---|---|---|---|---|
-| **RCV 0.7.3, physics + templates, no deep learning** | **0.490** | **0.511** | 10.7 | 8 of 15 | 0.83 |
+| **RCV 0.7.5, physics + templates, no deep learning** | **0.495** | **0.527** | 7.8 | 8 of 15 | 0.81 |
+| RCV 0.7.3 | 0.490 | 0.511 | 10.7 | 8 of 15 | 0.83 |
 | RCV 0.7.2, physics only | 0.251 | 0.283 | 15.3 | 0 of 15 | 0.75 |
 | AlphaFold 3 (AF3-server) | 0.480 | 0.501 | 8.6 | 8 of 15 | 0.92 |
 | trRosettaRNA (Yang-Server) | 0.493 | 0.539 | 9.4 | 9 of 15 | 0.85 |
 | Vfold | 0.534 | 0.565 | 3.5 | 10 of 15 | 0.91 |
 | GuangzhouRNA-human | 0.526 | 0.548 | 5.8 | 9 of 15 | 0.93 |
 
-**What it means.** With templates, RCV's first model is on average as accurate as AlphaFold 3's (0.490 vs
-0.480) and has the right global fold on 8 of 15 targets, like AlphaFold 3 (0.7.2: none); the two expert groups
-remain ahead. Where a related structure exists (9 targets) RCV's models follow it closely: 0.64 on average
-(AlphaFold 3 0.60), e.g. ZTP riboswitch R1263 0.93 (0.66), CVB3 cloverleaf R1211 0.67 (0.44); RCV is behind
-on R1203, R1261/R1262 and the tRNA R1271, where the closest earlier structure differs more. On the 6 targets
-without a template, which the whole field found hard, RCV has 0.26 (AlphaFold 3 0.30).
+**What it means.** With templates, RCV's first model is on average as accurate as AlphaFold 3's (0.495 vs
+0.480; best of 5 0.527 vs 0.501) and has the right global fold on 8 of 15 targets, like AlphaFold 3 (0.7.2: none);
+the two expert groups remain ahead. Where a related structure exists (9 targets) RCV's models follow it closely:
+0.64 on average (AlphaFold 3 0.60), e.g. ZTP riboswitch R1263 0.93 (0.66), CVB3 cloverleaf R1211 0.67 (0.43); RCV
+is behind on R1203, R1261/R1262 and the tRNA R1271, where the closest earlier structure differs more. On the 6
+targets without a template, which the whole field found hard, RCV has 0.28 (0.7.3: 0.26; AlphaFold 3 0.30): in
+0.7.5 hairpin loops take their shape from library loops with a matching sequence (R1209 0.25 → 0.34). Against the
+engine without these fragments the change in mean model-1 TM-score is +0.006 (95% interval −0.016 to +0.026), so
+15 targets cannot establish it; the median RMSD of model 1 fell from 10.7 to 7.8 Å.
 
 **RNAs that move.** Three CASP16 RNAs were solved in several conformations (R1203: 2, R1255: 10, R1256: 30).
 How well the five models cover all of them, and the size, hardware and features of RCV next to AlphaFold 3,
@@ -211,8 +248,32 @@ python benchmark/legacy_baseline.py            # legacy M1-M3 pipeline on the sa
 
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests     # engine + app (+ JS units if Node.js is installed)
-python tools/viewer_smoketest.py                          # 42 GUI scenarios in headless Edge/Chrome, with screenshots
+python tools/viewer_smoketest.py                          # 71 GUI scenarios in headless Edge/Chrome, with screenshots
 ```
+
+## How to cite
+
+If you use RCV in your work, please cite it through its Zenodo DOI
+([10.5281/zenodo.24163503](https://doi.org/10.5281/zenodo.24163503), which always resolves to the latest release):
+
+```text
+Wang Z. RCV: RNA Conformation Viewer (2026). Zenodo. https://doi.org/10.5281/zenodo.24163503
+```
+
+```bibtex
+@software{wang_rcv_2026,
+  author    = {Wang, Zixiang},
+  title     = {{RCV: RNA Conformation Viewer}},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.24163503},
+  url       = {https://doi.org/10.5281/zenodo.24163503}
+}
+```
+
+GitHub's *Cite this repository* button (from [CITATION.cff](CITATION.cff)) gives the same reference in APA and
+BibTeX. Please also cite ViennaRNA when you use predictions from sequence: Lorenz R. et al. ViennaRNA Package 2.0.
+*Algorithms for Molecular Biology* 6, 26 (2011).
 
 ## Layout
 
@@ -223,6 +284,9 @@ src/rnafold3d/
   templates.py (template library and search), motifs.py (junction geometry), cartesian.py (Cartesian
              refinement); data/pdb_rna_v2.npz (3,964 PDB RNA chains, built by tools/build_template_library.py)
   evaluate.py  model-independent conformation energy terms (used by the app)
+  screening/   compound screening: pockets.py (where a compound could bind), chem.py (compounds),
+             receptor.py (the RNA as a receptor), score.py + grid.py (the scoring function), dock.py
+             (the search), screen.py (a library against two conformations)
 src/rcv/
   app.py (entry point, CLI tools, `engine` passthrough), server.py (local API), jobs.py (predictions, batches,
   pull explorations), alphafold.py (AlphaFold 3 runs and AlphaFold Server results), data.py (ensemble
@@ -236,7 +300,8 @@ tools/      calibrate_geometry.py, refine_aform.py, loop_reach.py (parameter der
             build_template_library.py (PDB RNA library);
             viewer_smoketest.py + viewer_harness/ (GUI test scenarios)
 benchmark/  manifest, dataset builder, runner, legacy baseline, data/ (raw mmCIF git-ignored),
-            dev_templates.py (template development benchmark), casp16/ (CASP16 comparison)
+            dev_templates.py (template development benchmark), casp16/ (CASP16 comparison),
+            screening/ (redocking, pocket sites and enrichment; they download their own data)
 schemas/    ensemble manifest JSON schema (viewer contract)
 tests/      legacy suite + test_v2_engine.py + test_app.py + test_pull_engine.py + test_rcv05.py + test_rcv06.py
             + test_v072.py + test_v073.py

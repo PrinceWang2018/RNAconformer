@@ -109,6 +109,15 @@ export function dialog({ title, width = 560, body, actions = [], onClose }) {
   return { dlg, body: bodyEl, close, buttons: btns };
 }
 
+// Yes/no question (window.confirm is not available in every desktop web view). Resolves true or false.
+export function askConfirm(title, message, okLabel = 'OK') {
+  return new Promise(resolve => {
+    let result = false;
+    const d = dialog({ title, width: 420, body: el('p', { text: message }),
+      actions: [{ label: 'Cancel', close: true }, { label: okLabel, primary: true, action: () => { result = true; d.close(); } }], onClose: () => resolve(result) });
+  });
+}
+
 // Small text prompt (window.prompt is not available in every desktop web view).
 export function askText(title, label, value = '', { pattern = null, hint = '' } = {}) {
   return new Promise(resolve => {

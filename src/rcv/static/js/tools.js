@@ -200,13 +200,16 @@ export function toolsMenuItems(app) {
     { label: 'Fetch a structure from the PDB…', kbd: 'Ctrl+Shift+F', action: () => fetchDialog(app), disabled: !online },
     { sep: true },
     { label: 'Pathway A → B (barriers, bottleneck, motions)', action: () => app.showTab('pathway'), disabled: !has || app.ens.n < 2 },
+    { label: 'Compound screening (experimental)…', action: () => app.openScreening(), disabled: !has || !online },
     { label: 'Conditions (temperature, Na⁺, ligand)…', action: () => app.conditionsDialog(), disabled: !has },
     { label: 'Load probing data (SHAPE / DMS)…', action: () => app.probing.dialog(), disabled: !has || !online },
+    { label: 'Load SAXS, FRET or cryo-EM data…', action: () => app.expdata.dialog(), disabled: !has || !online },
     { sep: true },
     { label: 'Interactive HTML page of this ensemble…', action: () => app.exportHTML(), disabled: !has || !online },
     { label: 'Figure panels…', action: () => app.openPanels(), disabled: !has },
     { label: 'Plot studio (RMSD, RMSF, energy)…', action: () => app.openPlotStudio?.(), disabled: !has },
     { sep: true },
+    { label: 'Recipes…', action: () => import('./recipes.js').then(m => m.recipesDialog(app)), disabled: !online },
     { label: 'Command console', kbd: '`', action: () => app.action('console') },
   ];
 }

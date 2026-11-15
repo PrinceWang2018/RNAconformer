@@ -16,6 +16,7 @@ import { divergingColor } from './switch.js';
 import { drawMap, landscapeOf, loadLandscape } from '../landscape.js';
 import { conditionsDialog, conditionsParts, conditionsOf, requestConditions } from '../conditions.js';
 import { buildMechanism } from '../mechmorph.js';
+import { cotranscriptionSection } from './insight.js';
 
 const K0S = [1e4, 1e5, 1e6, 1e7, 1e8];
 const ROUTE_COLORS = ['var(--series-2)', 'var(--series-1)', '#1baf7a', '#6250d6'];
@@ -158,10 +159,11 @@ export class PathwayPanel {
         el('span', { class: 'sw-key b', text: 'B' }), selB),
         el('div', { class: 'pw-prev' }, el('button', { class: 'linkbtn', title: 'Use the previous and the shown conformation', onclick: () => { const p = app.state.prev, c = app.state.conf; if (p === null || p === c) { toast('Show another conformation first: the previous one becomes A.', 'info'); return; } this.a = p; this.b = c; this.result = this.scan = null; this.load(); } }, 'previous → shown')));
     }
-    if (this.loading) { head.append(el('div', { class: 'row' }, el('span', { class: 'spinner small' }), ' computing refolding paths…')); return; }
-    if (this.error) { head.append(el('div', { class: 'warnbox', text: this.error })); return; }
-    const r = this.result;
-    if (!r) { head.append(el('button', { class: 'btn', onclick: () => this.load() }, 'Analyse')); return; }
+    if (this.loading) head.append(el('div', { class: 'row' }, el('span', { class: 'spinner small' }), ' computing refolding paths…'));
+    else if (this.error) head.append(el('div', { class: 'warnbox', text: this.error }));
+    const r = this.loading || this.error ? null : this.result;
+    const growth = () => { if (app.api.online && app.info?.capabilities?.vienna) root.append(cotranscriptionSection(app, ens, this.result ? this.a : null, this.result ? this.b : null)); };
+    if (!r) { if (!this.loading && !this.error) head.append(el('button', { class: 'btn', onclick: () => this.load() }, 'Analyse')); growth(); return; }
     this._verdict(head, r);
     this._mapSection(r);
     if (r.A.dbn !== r.B.dbn) {
@@ -174,6 +176,7 @@ export class PathwayPanel {
     root.append(el('div', { class: 'section' },
       el('div', { class: 'desc', text: `Secondary-structure level: ViennaRNA ${r.method?.vienna || ''} Turner energies; refolding paths by findpath (Flamm et al. 2001), search width ${r.method?.width ?? '–'}; routes through the ensemble's 2D states and local minima from ${r.method?.samples ?? 0} Boltzmann samples; flux by transition path theory with rates k = k₀·exp(−(saddle − E)/RT).` }),
       el('div', { class: 'desc', text: 'Barriers are those of the paths found (upper bounds); rates scale with k₀ and are order-of-magnitude estimates. 3D modules come from the two models and are only as reliable as the models.' })));
+    growth();
   }
 
   _verdict(head, r) {

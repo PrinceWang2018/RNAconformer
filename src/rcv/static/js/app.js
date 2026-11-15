@@ -10,6 +10,9 @@ import { EnsembleList, ConformationList, Timeline } from './panels/conformations
 import { DetailsPanel } from './panels/details.js';
 import { PluginHost } from './plugins.js';
 import { openDialog, exportImageDialog, exportVideoDialog, preferencesDialog, pluginsDialog, shortcutsDialog, aboutDialog, methodsDialog, panelsDialog, pluginGuideDialog, newPluginDialog, userGuideDialog, openWebsite } from './dialogs.js';
+import { checkForUpdates, autoCheckForUpdates, updateDialog } from './update.js';
+import { Recipes, recipesDialog, defineRecipeCommand } from './recipes.js';
+import { projectLibrary, watchThumbnails } from './library.js';
 import { exportFigure, composeFigure } from './export/figure.js';
 import { Welcome } from './welcome.js';
 import { PullController } from './pullui.js';
@@ -23,6 +26,7 @@ import { Scenes } from './scenes.js';
 import { SwitchPanel } from './panels/switch.js';
 import { PathwayPanel } from './panels/pathway.js';
 import { Probing } from './probing.js';
+import { ExpData } from './expdata.js';
 import { conditionsDialog } from './conditions.js';
 import { Confidence } from './confidence.js';
 import { fetchDialog, toolsMenuItems } from './tools.js';
@@ -110,6 +114,12 @@ class App extends Emitter {
     this.i18n = { untranslated, t: tr, current: currentLanguage, languages: LANGUAGES };
   }
 
+  // Help > Check for updates…; showUpdate(r) shows the window for a result of /api/update (also used by the GUI tests)
+  checkForUpdates() { return checkForUpdates(this); }
+  showUpdate(r) { return updateDialog(this, r); }
+  openLibrary() { return projectLibrary(this); }
+  openRecipes(id) { return recipesDialog(this, id); }
+
   savePrefs() {
     Object.assign(this.prefs, { orderMode: this.state.orderMode, colorScheme: this.state.colorScheme, morphDuration: this.morphDuration, holdTime: this.holdTime, loop: this.loop,
       style: this.viewer.settings.style, representation: this.viewer.settings.representation, background: this.viewer.settings.background, labelMode: this.viewer.labelMode });
@@ -164,6 +174,7 @@ class App extends Emitter {
     this.measure = new Measurements(this);
     this.annotations = new Annotations(this);
     this.probing = new Probing(this);
+    this.expdata = new ExpData(this);
     this.confidence = new Confidence(this);
     // conditions of the 2D analyses (temperature, Na+, ligand) are kept per ensemble and saved in .rcv files
     this.registerSessionPart('conditions', {
@@ -175,6 +186,9 @@ class App extends Emitter {
     this.ss2d = new SecondaryInset(this, $('#viewport'));
     this.seqbar = new SequenceBar(this, $('#viewport'));
     this.console = new ConsolePanel(this, $('#console-host'));
+    this.recipes = new Recipes(this);
+    watchThumbnails(this);
+    defineRecipeCommand(this.console.cmds, this);
     this.wm.decorate();
     this._bindContextMenu();
     this.pullCtl = new PullController(this);
@@ -212,16 +226,20 @@ class App extends Emitter {
     this.emit('ensemble');
     this.showPage(this.ensembles.size ? 'viewer' : 'welcome');
     document.body.dataset.ready = '1';
+    setTimeout(() => autoCheckForUpdates(this), 4000);     // installed builds, at most once a day; asks, never installs
   }
 
   // ---------------------------------------------------------------- pages & lifecycle
   showPage(page) {
+    if (page !== 'viewer' && this.wm?.present) this.wm.setPresent(false);   // the start page needs the menu bar
     this.page = page;
     document.body.dataset.page = page;
     $('#welcome').hidden = page !== 'welcome';
     $('#app').hidden = page !== 'viewer';
+    const scr = $('#screenpage');                     // the compound screening window (screening.js)
+    if (scr) scr.hidden = page !== 'screen';
     if (page === 'welcome') this.welcome.refresh();
-    else { this.viewer.resize(); this.viewer.needsRender = true; }
+    else if (page === 'viewer') { this.viewer.resize(); this.viewer.needsRender = true; }
     this.emit('page', page);
   }
 
@@ -344,6 +362,7 @@ class App extends Emitter {
     $('#tab-bodies').append(body);
     this._tabBodies[id] = body;
     this._tabs.push({ id, btn, body });
+    this.wm?._fillRails();            // the folded panel's rail has one icon per tab
     return body;
   }
   showTab(id) {
@@ -366,6 +385,7 @@ class App extends Emitter {
         { sep: true },
         { label: 'Open .rcv file or structures…', kbd: 'Ctrl+O', action: () => openDialog(this) },
         { label: 'Open prediction run…', action: () => openDialog(this, 'library'), disabled: !this.api.online },
+        { label: 'Project library…', kbd: 'Ctrl+L', action: () => projectLibrary(this), disabled: !this.api.online },
         { label: 'Browse folders…', action: () => openDialog(this, 'server'), disabled: !this.api.online },
         { sep: true },
         { label: 'Save as .rcv file…', kbd: 'Ctrl+S', action: () => this.saveRcv(), disabled: !has || !this.api.online },
@@ -473,6 +493,7 @@ class App extends Emitter {
         { label: 'Open the demo ensembles', action: () => this.openDemo(), disabled: !this.api.online },
         { label: 'What is new in this version', action: () => userGuideDialog(this, 'changelog') },
         { label: 'RCV website', action: () => openWebsite(this) },
+        { label: 'Check for updates…', action: () => this.checkForUpdates(), disabled: !this.api.online },
         { sep: true },
         { label: 'About', action: () => aboutDialog(this, this.info) },
       ] },
@@ -1255,6 +1276,7 @@ class App extends Emitter {
     if (!quiet) this.emit('surface');
   }
   openPlotStudio(type = null) { if (this.ens) plotStudio(this, type); }
+  openScreening() { return import('./screening.js').then(m => m.openScreening(this)); }
   fetchDialog() { fetchDialog(this); }
   conditionsDialog() { conditionsDialog(this); }
 
@@ -1444,10 +1466,12 @@ class App extends Emitter {
       if (ctrl && k.toLowerCase() === 'o') { e.preventDefault(); openDialog(this); return; }
       if (ctrl && k.toLowerCase() === 'n') { e.preventDefault(); this.action('predict'); return; }
       if (ctrl && k.toLowerCase() === 'h') { e.preventDefault(); this.showPage('welcome'); return; }
+      if (ctrl && !e.shiftKey && k.toLowerCase() === 'l') { e.preventDefault(); projectLibrary(this); return; }
       if (ctrl && e.shiftKey && k.toLowerCase() === 'f') { e.preventDefault(); this.fetchDialog(); return; }
       if (k === 'F11') { e.preventDefault(); this.wm.toggleFullscreen(); return; }
       if (k === 'F1') { e.preventDefault(); userGuideDialog(this); return; }
       if (this.page !== 'viewer') return;
+      if (k === 'F5') { e.preventDefault(); if (this.ens || this.wm.present) this.wm.setPresent(!this.wm.present); return; }
       if (ctrl && k.toLowerCase() === 's') { e.preventDefault(); if (e.shiftKey) this.saveWorkspace(); else this.saveRcv(); return; }
       if (ctrl && k.toLowerCase() === 'e') { e.preventDefault(); if (this.ens) exportImageDialog(this); return; }
       if (ctrl && (k.toLowerCase() === 'y' || (k.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); this.history.redo(); return; }
