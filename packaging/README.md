@@ -64,7 +64,7 @@ installs only through the Store).
 
 Submitting (Partner Center, *Apps and games ▸ New product ▸ MSIX or PWA app*):
 
-1. Reserve the name (*RCV - RNA Conformation Viewer*), then copy the product identity into the build as above.
+1. Reserve the name (*RNA Conformation Viewer*; the package uses exactly this display name), then copy the product identity into the build as above.
 2. *Packages*: upload the `.msix`. The manifest declares `runFullTrust` (a desktop program, like every Win32 app in
    the Store); Partner Center asks why: *RCV is a desktop application (Python + WebView2) that runs its prediction
    engine as a child process and reads and writes the user's structure files.*
