@@ -103,7 +103,7 @@ def _plddt_per_residue(cif, chain):
 
 def collect(files, source_label, chain_id=None):
     """files: {relative name: bytes}. Returns (name, confs, warnings, info)."""
-    from .data import Conformation, _pick_chain, natural_key
+    from .data import Conformation, _pick_chain, context_of, natural_key
     if not looks_like_af3(files):
         raise NotAlphaFold('no AlphaFold 3 models (model .cif with summary_confidences .json) found')
     warnings = set()
@@ -160,7 +160,7 @@ def collect(files, source_label, chain_id=None):
                   'af3': {k: s.get(k) for k in ('ranking_score', 'ptm', 'iptm', 'fraction_disordered', 'has_clash',
                                                 'num_recycles') if k in s}}
         confs.append(Conformation(e['label'], e['name'], None, ch.auth_asym_id or ch.label_asym_id, ch.residues, meta_c,
-                                  meta.get('title', '')))
+                                  meta.get('title', ''), context_of(chains, ch, meta.get('others'))))
     if not job_name:
         stem = Path(entries[0]['name']).name
         job_name = re.sub(r'(^fold_)|(_seed-\d+_sample-\d+)?_?model(_\d+)?\.cif$', '', stem, flags=re.I) or 'alphafold3'
@@ -198,9 +198,16 @@ def save_settings(values):
     return clean
 
 
-def input_json(name, sequence, seeds=1, msa_free=True):
-    """AlphaFold 3 input (dialect alphafold3, version 1) for one RNA chain."""
+def input_json(name, sequence, seeds=1, msa_free=True, modifications=None):
+    """AlphaFold 3 input (dialect alphafold3, version 1) for one RNA chain. modifications: [{'pos', 'code'}]
+    (rnafold3d.modifications); those with a PDB chemical component are given as RNA modifications."""
     rna = {'id': 'A', 'sequence': sequence}
+    if modifications:
+        from rnafold3d.modifications import BY_CODE
+        mods = [{'modificationType': BY_CODE[m['code']]['ccd'], 'basePosition': int(m['pos'])}
+                for m in modifications if m.get('code') in BY_CODE and BY_CODE[m['code']]['ccd']]
+        if mods:
+            rna['modifications'] = mods
     if msa_free:
         rna['unpairedMsa'] = ''               # no MSA search: runs without the genetic databases
     return {'name': name, 'modelSeeds': list(range(1, int(seeds) + 1)), 'sequences': [{'rna': rna}],

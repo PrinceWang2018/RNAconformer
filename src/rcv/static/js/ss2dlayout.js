@@ -169,7 +169,7 @@ const pairKey = p => `${p[0]}-${p[1]}`;
 // Draws into a backend with line/circle/path/text (canvas-like or SVG builder). coords in layout units.
 // unit: size of one screen pixel in the target (1 on screen; larger for high-resolution exports), so that a figure
 // looks the same in a small preview and in the exported file.
-export function drawStructure2D(target, ens, coords, { k, prev = null, colors, t = 1, from = null, sel = new Set(), hover = new Set(), box, dark = false, labels = true, mono = false, unit = 1 }) {
+export function drawStructure2D(target, ens, coords, { k, prev = null, colors, t = 1, from = null, sel = new Set(), hover = new Set(), box, dark = false, labels = true, mono = false, unit = 1, zres = null }) {
   const n = ens.nRes;
   const [bx, by, bw, bh] = box;
   let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
@@ -206,6 +206,12 @@ export function drawStructure2D(target, ens, coords, { k, prev = null, colors, t
     const fromSet = new Set(ens.conformations[from].pairs.map(pairKey));
     for (const p of cur) { const kept = fromSet.has(pairKey(p)); if (kept || t > 0.5) drawPair(p, kept ? 1 : 2 * t - 1, !kept); }
   } else for (const p of cur) drawPair(p, 1, !!ref && !ref.has(pairKey(p)));
+  // Z-RNA regions: a halo behind the nucleotides and a "Z" tag
+  if (zres && zres.size) {
+    for (const i of zres) target.circle(X(i), Y(i), r * 1.75, { fill: 'rgba(194,24,91,0.28)' });
+    const zi = [...zres], mx = zi.reduce((s, i) => s + X(i), 0) / zi.length, my = Math.min(...zi.map(Y));
+    target.text(mx, my - r * 2.1, 'Z-RNA', { size: clamp(r * 1.2, 8 * unit, 12 * unit), fill: '#c2185b', anchor: 'middle', weight: 700 });
+  }
   // nucleotides
   for (let i = 0; i < n; i++) {
     const hi = hover.has(i), s = sel.has(i);

@@ -11,9 +11,9 @@ that speed it up or slow it down —, see the whole ensemble on a **topology-awa
 data**, and read a per-nucleotide **confidence** from a small optional neural network; then share the result as one
 `.rcv` file, publication figures, videos or an interactive web page. **Everything runs on your computer**: predictions use your CPU
 cores, the 3D view uses your GPU; no data leave the machine (except *Fetch from the PDB*, which downloads an entry
-only when you ask for it, and the check for updates, which asks only which version is the newest).
+only when you ask for it). RCV does not check for updates and never downloads or installs programs.
 
-Version 0.7.1, 2026-10-27. Earlier names: RNAconfSwitch (0.4), RNAconformer Viewer (0.3). Free and open-source
+Version 0.7.6, 2026-11-21. Earlier names: RNAconfSwitch (0.4), RNAconformer Viewer (0.3). Free and open-source
 software (GPL-3.0). **Author:** Zixiang Wang (princewang2018@gmail.com).
 
 ![Viewer: TAR ensemble with the sequence bar, the 2D window and the Switch tab](images/rcv_viewer.png)
@@ -31,6 +31,9 @@ They include Python, the engine, ViennaRNA and the demo data (licences of the bu
   Start-menu entries: **RCV**, **RCV with demo ensembles**, **RCV User Guide**, **What is new in RCV** and the
   **Plugin Developer Guide**; a desktop shortcut and opening `.rcv` files with a double-click are options.
   The installer is not code-signed yet, so Windows SmartScreen may warn: choose *More info ▸ Run anyway*.
+* **Windows, Microsoft Store** *(0.7.6)* — the same program, signed by Microsoft and installed, updated and
+  removed by the Store ([www.rnaconfviewer.com/store](https://www.rnaconfviewer.com/store)). Settings and plugins
+  it creates stay in its package folder (removed with it); projects in `Documents\RCV` are shared.
 * **macOS 14 (Sonoma) or later** (Apple Silicon or Intel) — open the `.dmg` and drag RCV to *Applications*; the
   disk image also holds the user guide. The app is not notarised yet: the first time, right-click RCV ▸ *Open*
   (or *System Settings ▸ Privacy & Security ▸ Open Anyway*).
@@ -76,7 +79,8 @@ Command-line tools (no window) — the same tools are in the **Tools** menu of t
 | `rcv convert PATH… -o x.rcv` | structures, an NMR file or a prediction folder → one `.rcv` file |
 | `rcv info x.rcv [--methods]` | sequence, conformations, 2D structures, size, stored methods text |
 | `rcv extract x.rcv -o DIR [--multi]` | one PDB per conformation (or one multi-model PDB) |
-| `rcv batch seqs.fasta [-o DIR]` | predict every sequence of a FASTA file, one `.rcv` each, plus `batch_summary.csv` |
+| `rcv ss INPUT [-o x.dbn] [--format dbn\|ct\|bpseq]` | sequence and 2D structure of the conformations as dot-bracket, CT or BPSEQ text (section 14) *(0.7.6)* |
+| `rcv batch seqs.fasta [-o DIR]` | predict every sequence of a FASTA file, one `.rcv` each, plus `batch_summary.csv`; Ctrl+C stops the running prediction |
 | `rcv html x.rcv -o page.html` | interactive single-file web page (section 14) |
 | `rcv pathway x.rcv --a 1 --b 5 [--scan] [-o r.json]` | transition A → B: barriers, routes, bottleneck, rigid modules, φ values (section 8.1) |
 | `rcv probing x.rcv --data r.shape [--dms]` | agreement of every conformation with SHAPE/DMS data, reweighting (section 8.4) |
@@ -95,13 +99,10 @@ Command-line tools (no window) — the same tools are in the **Tools** menu of t
 | Load probing data (SHAPE / DMS)… | console `probing`, `rcv probing` (section 8.4) |
 | Interactive HTML page · Figure panels · Plot studio | `rcv html` · Export menu |
 
-**Updates** *(0.7.5)*. *Help ▸ Check for updates…* asks which version of RCV is the newest. When a newer one exists,
-RCV shows it with the installer for this computer — Windows, macOS (Apple Silicon or Intel) or Linux (`.deb` or
-`.rpm`, from the system you run) — and asks: **Download** opens the installer in your web browser; **Skip this
-version**, **Later** and *Release notes* are the other choices. RCV never downloads or installs anything by itself.
-Installed copies also check once a day when they start (turn it off in the update window or *View ▸ Preferences*;
-`RCV_NO_UPDATE_CHECK=1` turns it off too); copies run from source check only when asked. The check reads the newest
-release from GitHub, or from the website when GitHub cannot be reached, and sends nothing but `RCV/<version>`.
+**Updates.** RCV does not contact any server to look for new versions and never downloads or runs an installer.
+Copies installed from the **Microsoft Store** are updated by the Store; for the other installers, download the new
+version from [www.rnaconfviewer.com](https://www.rnaconfviewer.com/#download) and install it over the old one
+(settings, plugins and projects are kept). *(0.7.6: the update check of 0.7.5 was removed.)*
 
 Settings, logs and plugins live in `%APPDATA%\RCV`, `~/Library/Application Support/RCV` or `~/.local/share/rcv`;
 settings, plugins and projects of RNAconfSwitch 0.4 are still found.
@@ -115,17 +116,22 @@ The start page shows the **two ways to use RCV**, side by side:
 **1 · Predict RNA conformations from sequence(s)**
 
 * **Paste a sequence** (plain or FASTA; T is read as U) and press **Predict conformations** (or `Ctrl+Enter`).
-  The line under the box checks the input as you type and estimates the run time.
+  The line under the box checks the input as you type and estimates the run time. A sequence copied from a
+  database record can be pasted as it is: position numbers, spaces and the closing `//` are ignored *(0.7.6)*.
   * **Nothing entered?** *Predict* runs the **demo sequence** (HIV-1 TAR, 29 nt) and says so.
   * **Several sequences** (multi-record FASTA; a dot-bracket line after a sequence is used as its known 2D):
     RCV lists them with a check per sequence and offers **Predict N sequences** — a **batch** run, one
     prediction after another, each on all chosen cores (up to 100 sequences).
 * **Load a FASTA file…** — fills the box from a file (a FASTA file dropped on the box works too).
+* **Ψ Modified nucleotides…** *(0.7.6)* — put m6A, pseudouridine, inosine (A-to-I editing), 8-oxo-G, 2′-O-methyl,
+  LNA and some 90 other modifications on the sequence (section 3.3). They can also be typed in brackets:
+  `GGC[m6A]CU[Y]A*G`.
 * **Engine** *(0.7.3)* — **RCV engine** (built in, runs on the CPU; section 3.1) or **AlphaFold 3 (local)**, your
   own AlphaFold 3 installation (section 3.2).
 * **Advanced settings** (closed by default): name, number of conformations to keep, sampling depth (Fast /
   Standard / Thorough = 2 / 4 / 8 trajectories per kept conformation), CPU cores, a known secondary structure
-  (dot-bracket), the random seed, optional **probing data** (SHAPE, DMS) and an **alignment of homologs** that
+  (dot-bracket; checked before the run *(0.7.6)*: same length as the sequence, every bracket closed, hairpin
+  loops of at least 3 nt), the random seed (0 is a seed like any other), optional **probing data** (SHAPE, DMS) and an **alignment of homologs** that
   guide the 2D structures *(0.7.4, section 3.1)*, **Use related experimental structures (templates)** (on by
   default; section 3.1), *Fill in the demo sequence*.
 
@@ -133,7 +139,8 @@ The start page shows the **two ways to use RCV**, side by side:
 
 * **Open files…** (or drop files on the card, or anywhere on the window) — PDB/mmCIF files, a multi-model (NMR)
   file, an `.rcv` file, a prediction folder or a workspace. Several structure files, or the models of one
-  multi-model file, open together as **one ensemble** of the same RNA (section 11).
+  multi-model file, open together as **one ensemble** of the same RNA (section 11). Ligands, ions and
+  protein, DNA or other RNA chains of the file are shown next to the RNA *(0.7.6, section 11)*.
 * **AlphaFold Server results** *(0.7.3)* — open the `.zip` you download from the
   [AlphaFold Server](https://alphafoldserver.com/) (*AlphaFold Server…* opens the site). All sampled models of
   the job open as one ensemble, best ranking score first, with the pLDDT of every nucleotide (colour by
@@ -151,8 +158,11 @@ runs).
 
 A prediction shows its stages (secondary structures → 3D sampling → validation and selection → opening the
 viewer) with live details, a progress bar with the time left, and plain-language **notes** (ViennaRNA
-hypotheses and energies, cores used, rejected trajectories and why, conformations kept). *Cancel* stops the
-engine. When finished, the viewer opens; the run folder contains PDB + mmCIF + manifest and **`<name>.rcv`**,
+hypotheses and energies, cores used, rejected trajectories and why, conformations kept). The notes follow the
+newest one; scroll up to read older notes and they stay where you put them. *Cancel* stops the engine and
+all its worker processes within seconds *(0.7.6)*; a run older than a minute asks first, because what was
+computed is discarded and cannot be continued. If the window loses the connection to the engine, the card says
+so and keeps the last known state until the connection is back. When finished, the viewer opens; the run folder contains PDB + mmCIF + manifest and **`<name>.rcv`**,
 which makes reopening it from *Recent predictions* instant.
 
 A **batch** shows one stage per sequence with its current step and an overall time estimate. When it ends, a
@@ -189,7 +199,12 @@ Run time grows with length and sampling: on an 8-core laptop a 29-nt hairpin wit
    link to the PDB entry). 70% of the trajectories use templates (most of them the best one); the rest explore
    other folds, so the ensemble still shows alternative conformations. *(0.7.4)* The kept conformations start
    with the best model of each template in turn, so the first models show the different related structures
-   rather than one of them several times.
+   rather than one of them several times. *(0.7.6)* When the refined model fails the geometry checks — the
+   template asks for a shape the chain cannot take, typically next to a gap of the alignment — the nucleotides
+   at fault and their neighbours are released from the template and the refinement is repeated (up to three
+   more times, at most 35% of the chain released). Models whose refinement still fails keep the shape of the
+   search and are listed after the others. On 48 RNAs with a template this raised the agreement of the first
+   model with the experimental structure from 0.58 to 0.61 (TM-score), at no measurable cost in run time.
 3. **No template.** The search runs on ViennaRNA 2D hypotheses as before, and the **3D arrangement of the helices
    at junctions** (internal loops, bulges, multi-way junctions) is now taken from library junctions with the same
    topology and strand lengths (any homologue of the query excluded): one per trajectory, so the ensemble samples
@@ -226,6 +241,149 @@ flags. For Docker, WSL or a cluster, give a **custom command** with the placehol
 AlphaFold 3 input, runs it, shows its log and opens every sampled model as one ensemble coloured by pLDDT; the
 run folder keeps the input, the log and the AlphaFold 3 output. AlphaFold 3 runs one sequence at a time (no
 batch); its terms of use apply to its output.
+
+### 3.3 Modified nucleotides *(0.7.6)*
+
+RNA in cells and RNA made for therapy is rarely only A, C, G and U. RCV predicts the 2D structures and the 3D
+models of a sequence with **modified nucleotides**, and treats the base pairing each modification changes.
+
+**Choosing them.** On the start page, **Ψ Modified nucleotides…** opens the editor for the sequence in the box:
+
+* Click a nucleotide in the sequence map (`Shift`: a range, `Ctrl`/`⌘`: add more; *Select: all A / C / G / U*).
+* The list shows the modifications of that base, grouped (methylation; pseudouridine and dihydrouridine;
+  editing; damage; thio and halogen; hypermodified tRNA bases; sugar and backbone; synthetic analogues), with
+  a search box (name, MODOMICS short name or PDB component: `m6A`, `pseudouridine`, `PSU`, `8-oxo`). Each has a
+  badge for what it does to pairing — **measured** (ViennaRNA parameters), **estimated**, **blocks pairing** or
+  **no change** — and, when chosen, its pairing partners, the energy change per stack, the PDB component and a
+  short note on its chemistry and biology. *Apply* (or a double click) puts it on the selected nucleotides.
+* *Phosphorothioate linkage before the selected nucleotides* for antisense and siRNA backbones.
+* **Presets:** *m6A at DRACH motifs* (the METTL3-METTL14 consensus; not every DRACH site is methylated in a
+  cell), *every U → m1Ψ* (as in mRNA vaccines), *every U → Ψ*, *clear all*.
+* The table lists the modifications in the sequence; *Use in the sequence* writes them into the box. The status
+  line under the box then reads, e.g., `24 nt · … · 3 modified: m6A ×1, Ψ ×2`.
+
+**Writing them.** A modification is written in brackets in place of its nucleotide, and `*` between two
+nucleotides is a phosphorothioate: `GGC[m6A]CU[Y]AG`, `A*G*C[fU]`. Names are the MODOMICS short names
+(`m6A`, `Y` or `Ψ`, `m1Y`, `I`, `m5C`, `ac4C`, `8oxoG`, `Gm`, `+A` for LNA, `fU` for 2′-fluoro, `dA` for a
+deoxynucleotide …), their PDB components (`6MZ`, `PSU`, `1MA`, `5MC` …) or aliases (`A>I`, `A-to-I`). The same
+notation works in FASTA files, in batches and on the command line (`rnafold3d predict 'GGC[m6A]CU…'`, or
+`--modifications 4:m6A,7:Y`); `rnafold3d modifications` lists all of them.
+
+**What the 2D prediction does with them** (ViennaRNA soft and hard constraints):
+
+* *Measured*: m6A, pseudouridine (Ψ, and m1Ψ), inosine (pairs with C and U, weaker than G), dihydrouridine,
+  purine and 7-deaza-A use the nearest-neighbour parameters shipped with ViennaRNA 2.7.
+* *Estimated*: the others that keep or change pairing use the Turner stacks of a reference pair with a
+  correction per stack from the literature — e.g. **8-oxo-G** pairs with C (weaker) and, in its *syn* form,
+  with **A** (the G·A mismatch that makes it mutagenic); m2,2G pairs with U and A but not C; 2-thio-U
+  stabilises U–A and weakens U·G; 2′-O-methyl, 2′-F and LNA stabilise the pairs they are in.
+* *Blocks pairing*: modifications on the Watson-Crick edge (m1A, m1G, m3C, m3U, m1I, t6A, yW …) are kept
+  unpaired in every 2D structure; a known 2D (dot-bracket) that pairs them is corrected, with a warning.
+
+**What the 3D models get.** The modifications are part of the 3D search, not added to finished models:
+
+* **Sugar pucker.** Conformers drawn for a non-helical residue follow its modification: dihydrouridine
+  (C2′-endo in about 70 % of draws) and deoxynucleotides (about 60 %) prefer C2′-endo; 2′-O-methyl, 2′-F, 2-thio-U
+  and pseudouridine prefer C3′-endo; LNA is locked C3′-endo. (Unmodified loop residues are about 6 % C2′-endo.)
+  Residues in a helix keep the A-form C3′-endo sugar of the stem, as DNA nucleotides in an RNA duplex do.
+* **Syn/anti.** 8-substituted purines (8-oxo-G, 8-oxo-A, m8A) have their own glycosidic-angle prior with a syn
+  well (preferred by 1.5 kT, m8A by 3 kT) and are drawn syn more often; LNA and 2′-F favour anti. A base paired in a
+  helix stays anti; 8-oxo-G paired with A is held by restraints and can turn syn (its Hoogsteen face).
+* **Contacts.** The atoms of each modification (methyls, thio and halogen atoms, side chains of hypermodified
+  bases, 2′-O-methyl, LNA bridge, phosphorothioate sulfur) are placed from their parent base, sugar or phosphate at
+  every step of the search and count in its steric score; atoms that a modification removes (O2′ of a
+  deoxynucleotide, N2 of inosine, O2 of 2-thio-U) do not.
+* **Interactions of the modification itself** (`modinteract.py`), as a free-energy-like term of the search:
+  * *hydrogen bonds* of the polar groups a modification adds (the carbonyl, N-H, hydroxyl and carboxylate of the
+    t6A side chain, the amines of Q, mnm5U, preQ1, the acetyl of ac4C, the carboxylates of cmo5U and cm5U; thio
+    groups as weak acceptors) and of the donors it creates on the ring (N1-H of Ψ, N7-H of 8-oxo-G and 8-oxo-A),
+    0.8 kT each. The parent atoms change roles too: a methyl removes the donor of G N1 or U N3 (m1G, m3U), two
+    methyls that of an amino group (m2,2G, m6,6A), a methyl on N1 or N7 removes the acceptor (m1A, m7G);
+  * the *water bridge* of pseudouridine: N1-H … water … oxygen of its own or the preceding phosphate (N1–O
+    4.4–5.4 Å), 0.6 kT. m1Ψ has a methyl on N1 and no bridge;
+  * *stacking* of residues outside helices, as a change against the parent base: Ψ and m1Ψ, m5C, m6A, 2-thio-U,
+    5-halo-pyrimidines (+0.3 to +0.6 kT per stacked face), i6A, t6A and their relatives (+0.8 to +1.0),
+    wybutosine (+1.2); dihydrouridine, whose ring is not aromatic, stacks less (−0.8). Residues in helices are
+    left out: their stacking is part of the 2D free energy (ViennaRNA's measured parameters).
+
+  These are small energies, as in reality: they shift the ensemble rather than force one structure. In a test
+  hairpin pair (24 trajectories each), they raised Ψ water bridges from 36 to 41 of 72, the hydrogen bonds of
+  modification atoms from 0.4 to 0.8 per model, the stacking of the Ψ residues by 30–160 % and of t6A from
+  0.01 to 0.13 faces, and lowered that of dihydrouridine to 0. The manifest lists for every modified residue
+  its hydrogen bonds (atom, partner, distance), its water bridge and its stacking partners.
+* **Local relaxation.** After the global search, the torsions of the modified residues, their neighbours and the
+  residues within 5 Å of a modification atom are annealed again at full steric weight (helices stay rigid).
+
+The finished models carry the final atoms (rotamers chosen against the whole model); very large tRNA side chains
+(wybutosine) are built as the base core only. The manifest reports, for every modified residue, its pucker and
+syn/anti in the model next to the preferred ones, and the contacts before and after the relaxation. The PDB and
+mmCIF files carry the modified residues as their PDB components (HETATM, MODRES; `_chem_comp` with the parent
+base), so other programs read them. 61 entries have a component, each checked against the wwPDB chemical
+component dictionary: the residue RCV builds has the component's atoms, bonds and stereocentres and is written
+with the dictionary's atom names (`C9` for the methyl of 6MZ, `C6'` for the methylene of an LNA residue …).
+Entries for which the dictionary has no nucleotide of exactly that chemistry (m6Am, 8-oxo-G, cmnm5U …) are
+written under the parent base's name with RCV's atom names. When a structure is opened, 67 components are
+recognised as their modification, among them reduced or alternative forms that PDB entries use for the same
+nucleoside (7MG and G7M for m7G, QUO and 56B for queuosine).
+
+**In the viewer**, *Colour by ▸ Modified nucleotides* colours them by kind, the hover tip names the
+modification, the console selects them (`select modified`, `resn m6A`) and *Methods text* describes them.
+AlphaFold 3 runs (section 3.2) pass modifications that have a PDB component to AlphaFold 3, and say which they
+cannot.
+
+### 3.4 Z-RNA: left-handed helices *(0.7.6)*
+
+Z-RNA is a left-handed double helix. It forms from alternating purine–pyrimidine pairs (CG repeats most easily,
+CA/UG less) at high salt, with 8-substituted purines (m8G, 8-Br-G) or when a Z-binding protein (ADAR1 Zα, ZBP1)
+holds it, and it is a signal in innate immunity and A-to-I editing.
+
+**Identification, on by default.** RCV marks Z-RNA wherever it appears: in still conformations, during morphs,
+scrubbing and videos, and while you pull. The region gets a raspberry halo and a dashed helix axis in 3D with a
+*Z-RNA C1–G12* badge, a halo and a *Z-RNA* tag in the 2D drawing, and the same marks in image, panel and video
+exports. `select zrna` in the console selects it. *View ▸ Z-RNA regions* turns the marks off (and on again).
+
+Only high-confidence regions are shown. A region needs all of:
+
+* at least three consecutive stacked Watson-Crick pairs (C1′–C1′ 8.5–12.5 Å in the shown frame);
+* every two-step window left-handed (the two twists sum to −30° or less; a single step may not exceed +25°) —
+  Z-RNA has a dinucleotide repeat of about 0° and −50°, A-form RNA +33° per step;
+* the purine of at least 75 % of the pairs syn (χ −20° to 120°) and at least 90 % of the pyrimidines anti.
+
+The rules are checked on every frame in the browser (`zrna.js`, microseconds per frame) and once per model in the
+engine (`zrna.py`, results in the manifest under `zrna_regions`); a test keeps the two identical. On the
+experimental structures they find the whole duplex of PDB 2GXB and of all 12 NMR models of 1T4X, and no region
+in the 189,572 base pairs of the 3964 chains of the built-in structure library. A distorted Z helix can be
+missed (with 0.6 Å of random noise on every atom only 9 of 50 copies of 2GXB still qualify): the rules prefer
+missing a region to marking a wrong one.
+
+Z-RNA in the PDB is mostly a duplex of two chains. The viewer shows one chain of a file; to see both strands as
+one, type e.g. `A+B` as the RNA chain when opening it (*File ▸ Open .rcv file or structures…*). Pairs across the break between the strands
+are annotated, and the 2D energy of such a structure is the co-folding energy of the strands.
+
+**Prediction, off by default.** RCV's helices are A-form, so a prediction contains Z-RNA only when you ask for
+it: *Start page ▸ Advanced settings ▸ Predict Z-RNA (left-handed helices) when likely*, with the Na⁺
+concentration and whether a Z-binding protein is present. The engine then
+
+1. finds helix segments of at least four alternating purine–pyrimidine Watson-Crick pairs and estimates their
+   A→Z free energy: per base-pair step +1.0 (CG), +1.7 (CA/UG) or +2.8 kcal/mol (AU) at 0.15 M Na⁺, −0.75
+   per step and decade of salt, +3.5 per A–Z junction inside a helix and +0.5 per free end, −3.0 per m8G or
+   8-Br-G (−2.0 m8A, −1.0 8-oxo-G) and −1.5 per step with a Z-binding protein. These estimates are scaled so
+   that r(CG)n turns near 6 M Na⁺ and r(CGC[m8G]CG) near physiological salt, as measured;
+2. if the best segment is below +3 kcal/mol (about 1 % Z), adds a hypothesis with that segment built as a
+   Z-form duplex and the base pair at each A–Z junction opened (the junction extrudes a pair). Its 2D energy is
+   that of its parent plus the estimate. The 3D score is calibrated on right-handed helices and scores any
+   left-handed stem far worse, so for the ranking the best Z model is set level with the best model of the
+   parent structure and only the estimate decides between them: the Z model is model 1 when the estimate
+   favours Z (ΔG < 0, e.g. r(CG)₆ at 6 M Na⁺ or with a Z-binding protein) and follows the first A-form model
+   when Z is a minor form. The manifest gives the amount taken out (`helix_form_score_excluded`) and the
+   estimated Z fraction for every Z model;
+3. builds the Z stem from torsions fitted with RCV's own bond geometry to 1T4X and 2GXB (syn purines with
+   C3′-endo, anti pyrimidines with C2′-endo sugars). A built r(CG)₆ duplex lies 1.1–1.4 Å from those structures
+   (A-form: 8 Å).
+
+The Z hypothesis gets a quarter of the trajectories extra (at least two), and the first Z stem takes 5–15 s to
+build, so the run takes about a quarter to a half longer; the start page includes it in the time estimate. The
+manifest lists the candidates and their estimates (`input.zrna`), and the methods text describes the step.
 
 ## 4. The window
 
@@ -292,9 +450,10 @@ browser's developer tools back (F12, Shift+right-click).
 Italiano, Português (Brasil) and Русский. Choose the language with the **globe button** (menu bar, and the top
 of the start page) or in View ▸ Preferences; the switch is immediate and remembered. Until you choose, RCV
 follows the language of your system. Menus, buttons, dialogs, panels, tooltips, messages and the job notes are
-translated. Kept in English on purpose, so that results look the same everywhere: figures and charts (and
-therefore every exported image, PDF, video and plot), the command console and its commands, the methods text
-for manuscripts, and structure data (residue and file names).
+translated; in the notes of a run, file paths, the titles of template structures and lines printed by another
+program (AlphaFold 3) are shown as they are. Kept in English on purpose, so that results look the same
+everywhere: figures and charts (and therefore every exported image, PDF, video and plot), the command console
+and its commands, the methods text for manuscripts, and structure data (residue and file names).
 
 **Window layout** (Window menu). Every part of the window can be shown or hidden: the ensembles panel, the
 analysis panel, the 2D structure window, the console, the sequence bar, the toolbar, the playback bar, the status
@@ -324,7 +483,8 @@ otherwise), 5′/3′ ends at the bottom, tall hairpins turned sideways — with
 * **switching in step with 3D**: when the conformation changes, the drawing morphs to the new structure as the
   3D model morphs; pairs that break fade out during the first half, new pairs fade in during the second half,
   and new pairs (versus the previous conformation) stay orange; pseudoknotted pairs are purple arcs;
-* buttons to move it to another corner and to switch between small, medium and large.
+* buttons to move it to another corner and to switch between small, medium and large, and *(0.7.6)* a button
+  that **exports the sequence and the 2D structure** as dot-bracket, CT or BPSEQ text (section 14).
 
 The same drawing is used in transition videos, figure panels and the interactive HTML page.
 
@@ -500,8 +660,12 @@ entry title — (1,121 models and the native structures; labels: per-nucleotide 
 seen in training, r = 0.75 (test split) and 0.84 (dev split), and native structures score 0.86 on average against
 0.49 for engine models. Picking the top model by confidence is not reliably better than the engine's own ranking
 (better on the test split, worse on the dev split), so the engine's ranking is kept and confidence is shown as an
-additional guide to which parts of a model to trust. Details: `docs/V07_VALIDATION.md`; retraining:
-`tools/qa_model/`.
+additional guide to which parts of a model to trust. *(0.7.6)* Checked blind on the 15 CASP16 targets: the four
+bands are in the right order (true lDDT 0.42 / 0.59 / 0.69 / 0.71 for very low / low / medium / high), so the
+*high* band is somewhat optimistic there. **For a model built on a template, confidence says how native-like
+the geometry is, not whether the template was the right one**: a model fitted onto a distant relative can be
+shown high and be wrong (one CASP16 target: shown 0.86, true 0.48), so read it together with the template's
+identity and coverage in the Details tab. Details: `docs/V07_VALIDATION.md`; retraining: `tools/qa_model/`.
 
 ### 8.6 Advanced analyses inside the tabs *(0.7.4, 0.7.5)*
 
@@ -523,8 +687,10 @@ table can be copied (tab-separated, pastes into a spreadsheet).
   states, ranked by the difference in FRET efficiency (R₀ = 50 Å) minus the spread inside each state; also a
   guide for PELDOR/DEER spin labels. Dyes and linkers add their own length.
 
-**Switch tab — Variants.** Paste substitutions (`G34U`, `34U`, several changes joined with `+`: `A12C+G30C`;
-separate variants with commas or spaces). For each variant RCV reports the change of the pairing profile
+**Switch tab — Variants.** Paste substitutions (`G34U`, `34U`, `34G>U`, several changes joined with `+`:
+`A12C+G30C`; separate variants with commas or spaces). Positions are the residue numbers RCV shows (for a
+structure whose file starts at residue 17, the first nucleotide is 17). An entry that cannot be read is listed
+with the reason under the table and the others are analysed *(0.7.6)*. For each variant RCV reports the change of the pairing profile
 (1 − Pearson correlation of the per-nucleotide unpaired probabilities of wild type and variant, the measure used
 in riboSNitch studies), how many base pairs of the most stable structure are gained or lost, the nucleotide
 around which the change is largest and, with two states chosen, ΔΔG and the A share. *Effect* is *small*,
@@ -578,7 +744,8 @@ takes its pockets from here. The analysis is also available without the interfac
 
 **Details tab — Target sites.** For antisense oligonucleotides, siRNAs and hybridisation probes: the free
 energy needed to open every window of 14–25 nt (ensemble free energy with the window single-stranded minus the
-unconstrained one, ViennaRNA), the share of the conformations in which the window is unpaired, GC content and
+unconstrained one, ViennaRNA; all windows in one pass since 0.7.6, a fraction of a second for 300 nt), the
+share of the conformations in which the window is unpaired, GC content and
 the antisense DNA sequence (click to copy). The best non-overlapping windows are listed; *Colour 3D by
 accessibility* colours every nucleotide by its unpaired probability. Binding strength of the oligonucleotide,
 off-targets and chemistry are outside this ranking.
@@ -646,6 +813,7 @@ common vocabulary of molecular viewers, so users of other programs feel at home.
 | `resi 5-12+20` · `pos 1-10` | author residue numbers · sequence positions (`12-18` alone = positions) |
 | `resn A+G` · `A`, `C`, `G`, `U` · `chain A` | nucleotide type · chain |
 | `paired`, `unpaired`, `pk` | base-paired / unpaired / pseudoknotted in the shown conformation |
+| `zrna` | in a left-handed Z-RNA helix of the shown frame (section 3.4) |
 | `helix H2` | residues of a helix family |
 | `switching` · `changed` | pairing partner differs between conformations · between previous and shown |
 | `rmsf > 3` · `moved > 2` | flexibility across the ensemble · displacement since the previous conformation (Å) |
@@ -724,6 +892,20 @@ All of these, plus custom colours, labels and hidden or highlighted residues, ar
 * **Structures**: PDB, mmCIF, multi-model files, rnafold3d run folders. Files opened together form one ensemble,
   in file-name order (`model_2` before `model_10`). All conformations must be the same RNA (matched by position
   when the sequences are identical, else by author numbering).
+* **What is bound to the RNA** *(0.7.6)*: a PDB entry often holds more than the RNA chain that RCV analyses.
+  Ligands are drawn as sticks (magenta carbons), ions as spheres, and protein, DNA and other RNA chains as thin
+  traces (one point per residue); hovering names them (`SAM 301 · ligand`, `ALA 45 · protein`). They move with
+  their conformation, also in morphs, figures, videos, `.rcv` files and the interactive page. *View ▸ Bound
+  molecules* switches them off and on. They are context only: energies, 2D structures and every analysis use the
+  RNA chain alone; hydrogens and water are left out. In an ensemble, only what every conformation has is shown
+  (a note says so when something was left out); above 6000 ligand and ion atoms or 30 000 residues of other
+  chains, the ones nearest to the RNA are kept. A file without any RNA is refused with a message that says
+  what it holds instead.
+* **More structures open** *(0.7.6)*: models that a file labels by alternate conformer (e.g. 1ZEV), mirror-image
+  L-RNA (0A/0C/0G/0U; opened with a note that the analyses are made for natural D-RNA), nucleotides whose
+  component declares a DNA parent although they carry a 2′ substituent (2′-fluoro, 2′-O-methyl …), and
+  components without a declared parent, whose base is read from their atoms. Of the two alternate positions
+  of an atom, the first in the file is used.
 * **Workspace** (`Ctrl+Shift+S`): every open ensemble in one JSON file (larger; opens without the engine).
   RNAconfSwitch sessions (`.rnaconf.json`) and older `.rnaview.json` files still open.
 * **Project library** *(0.7.5, File ▸ Project library…, `Ctrl+L`, or the start page)* — every prediction run,
@@ -744,6 +926,7 @@ An `.rcv` file is a ZIP archive — rename it to `.zip` to look inside:
 | `rcv.json` | manifest (format, app version, sequence, counts, coordinate encoding and SHA-256) and the ensemble document without coordinates: residues, atom names, per-conformation pairs, dot-brackets, energies and terms, validation, helix families, RMSD matrix, similarity map, RMSF, 2D layouts, provenance (engine version, parameters, seeds, source-file checksums), warnings |
 | `coords.bin` | coordinates as `rcv-coords/1`: int32 little-endian milli-ångström values per conformation in three planes (x, y, z); conformation 0 stored as differences along the atom order, the others as differences to conformation 0; byte-shuffled; deflated by ZIP. Precision 0.001 Å (as PDB) |
 | `bonds.bin` | covalent bonds, uint32 atom-index pairs |
+| *(in `rcv.json`)* `context` | *(0.7.6)* what is bound to the RNA: ligand and ion atoms with elements and bonds, one point per residue of other chains, and their coordinates for every conformation |
 | `session.json` | the view: camera, representation, style, colours, metric, order, conformation, selection, named selections, custom colours/labels, hidden residues, measurements, annotations, scenes, command log, plugin state (e.g. Distance tracker distances) |
 | `thumbnail.jpg` | preview image |
 | `methods.txt` | methods paragraph (section 14) |
@@ -802,6 +985,14 @@ simulating it).
 
 * **Image** (`Ctrl+E`): PNG/TIFF/PDF at journal sizes and 300–1200 dpi, transparent background, legend, labels,
   annotations, measurements and the energy panel (vector in PDF).
+* **Secondary structure** *(0.7.6; Export ▸ Secondary structure, the download button of the 2D window, or
+  `rcv ss`)*: the sequence with the 2D structure of the conformations as text that other programs read —
+  **dot-bracket** (`.dbn`: `>name`, sequence, structure; ViennaRNA, forna, VARNA, RNAstructure `dot2ct`),
+  **CT** (`.ct`, mfold and RNAstructure; the last column keeps the residue numbers of the file) or **BPSEQ**.
+  Choose the shown conformation, every different 2D structure once (the header lists the conformations that
+  share it) or all conformations; a preview shows the text, *Copy* puts it on the clipboard. The structure is
+  the one RCV shows — the base pairs found in the 3D coordinates, pseudoknots as `[ ]` —, the ΔG in the header
+  is the 2D energy of that structure. Modified nucleotides are written as their parent base.
 * **Figure font**: all figure text (images, panels, plots, videos) uses **Liberation Sans**, bundled with RCV
   under the SIL Open Font License 1.1 (free to use and embed; same letter widths as the common Helvetica/Arial
   style that journals ask for). PDF files embed the font (subset), so they look the same on every computer.
@@ -894,7 +1085,7 @@ rcv (Python standard-library server)                       src/rcv/
    ├─ transition.py  refolding paths, network flux (transition path theory), bottleneck, φ scan, rigid modules
    ├─ landscape.py   topology-aware ensemble map and its quality measures
    ├─ probing.py     SHAPE/DMS profiles: reading, normalisation, agreement, maximum-entropy reweighting
-   ├─ methods.py     methods text · htmlexport.py  interactive page
+   ├─ methods.py     methods text · htmlexport.py  interactive page · ss2dexport.py  dot-bracket, CT, BPSEQ
    ├─ fonts.py       PDF subsets of the bundled Liberation Sans (fontTools; standard PDF fonts without it)
    └─ desktop.py / paths.py  window shells, native dialogs, user folders
 rnafold3d engine (numpy, scipy, ViennaRNA)                 src/rnafold3d/
@@ -908,6 +1099,21 @@ rcv/alphafold.py     AlphaFold Server results and local AlphaFold 3 runs (option
 
 The engine uses the CPU cores you allow; the GPU renders the view and exports. GPU acceleration of the engine
 itself is not implemented.
+
+*(0.7.6)* When something is missing or breaks, RCV says so:
+
+* **No 3D graphics** (remote desktop, a virtual machine without 3D acceleration, graphics acceleration switched
+  off, a blocked driver): instead of an empty window, a page names the usual reasons and what to do.
+  Predictions from the command line (`rcv batch`, `rcv engine predict`) do not need graphics.
+* **Graphics interrupted** (driver reset, waking from sleep): a note covers the 3D view and the view is redrawn
+  when the graphics are back.
+* **The window was closed without RCV noticing** (browser-window mode): RCV quits by itself after ten minutes
+  without a window, unless a prediction is still running. A computer that slept does not count as a closed window.
+* **An unexpected error** in the window is reported in a note and written to the log instead of leaving a
+  control silently without effect.
+* Requests to the local server are refused without the session token before their content is read, and wrong
+  values (a word where a number belongs, a list where an object belongs) are answered with a sentence that names
+  the value.
 
 ### 17.1 Compound screening on the command line *(0.7.5, experimental)*
 
@@ -952,7 +1158,8 @@ conformers) and the RNA is rigid.
   in each node against hand-solved and simulated networks, traps, the φ-value scan, rigid modules against a known rotation, the ensemble map's guarantees, probing
   data, the confidence features and the mechanism morph (exact end points, chain kept).
 * `python tools/viewer_smoketest.py` — drives the real application in a headless Edge/Chrome (temporary
-  profile) through 73 scenarios, among them the 2D window, console commands and an example script, the residue
+  profile; a browser that does not load the test page is started once more, and the report says so) through
+  83 scenarios, among them the 2D window, console commands and an example script, the residue
   menu, the switch tab, figure panels (preview and export identical), transition videos, `.rcv` save and reopen,
   HTML export, empty-input demo, a FASTA batch, the Tools menu dialogs, embedded PDF fonts, every plot-studio
   plot, the molecular surface and transparency, the plugin template and guide, desktop behaviour (own right-click
@@ -962,14 +1169,22 @@ conformers) and the RNA is rigid.
   mechanism morph, two models of one basin, probing data saved and restored, conditions, the confidence model, the 0.7 plots and the
   interactive page with the pathway, and (0.7.5) the compound screening window, where `screenwindow` runs a
   real screen of four compounds against two conformations and checks the ranked table and the pose it puts
-  back into the 3D view.
+  back into the 3D view, and (0.7.6) `bound` (a complex with a ligand, an ion and a protein chain: drawn, named on
+  hover, following morphs and superposition, switched in the View menu), `audit76` (2D export, the question
+  before cancelling, the progress notes, the page without 3D graphics, a lost and restored graphics context) and
+  `langstart` (the start page while typing and while a prediction runs with its notes, and the variants table,
+  in German and Japanese: no English text left; `langnotes` is the screenshot of the progress page in Japanese).
+* `tests/test_v076_audit.py` *(0.7.6)* — the fixes of the 0.7.6 audit: cancelling stops every worker process,
+  structures that did not open, readable messages for damaged files and wrong values, the local server, numbered
+  sequences, the dot-bracket check, the 2D export in three formats and what is bound to the RNA.
 
 ## 19. Desktop builds
 
 See `packaging/README.md` (PyInstaller recipe; Windows build script with Inno Setup, `.rcv` file association;
-macOS `.app`/`.dmg` with the `.rcv` document type). Windows and macOS builds must be made on those systems; the
-GitHub workflow `.github/workflows/installers.yml` builds all three installers (Windows x64, macOS Apple
-Silicon, macOS Intel) on GitHub's machines.
+the MSIX package for the Microsoft Store, `packaging/windows/build_msix.ps1`; macOS `.app`/`.dmg` with the
+`.rcv` document type; Linux `.deb`/`.rpm`). Windows and macOS builds must be made on those systems; the
+GitHub workflow `.github/workflows/installers.yml` builds all of them (Windows x64 and MSIX, macOS Apple
+Silicon, macOS Intel, Linux) on GitHub's machines.
 
 ## 20. Limitations
 
@@ -982,8 +1197,20 @@ Silicon, macOS Intel) on GitHub's machines.
   model flexibility within loops or protection by tertiary contacts or proteins.
 * The advanced sections (8.6) are 2D-level estimates (rescue designs, variants, transcription, target sites) or
   geometric annotations of the given models (motifs, comparison). They suggest experiments; they do not replace them.
+* Bound molecules *(0.7.6)* are shown, not modelled: a ligand, ion or protein next to the RNA does not enter the
+  energies, the 2D analyses, the pathway or the pull exploration, and conformations made by pulling have none.
+* Modified nucleotides *(0.7.6)*: only some have measured nearest-neighbour parameters; the others use an
+  estimated correction or are kept unpaired, so treat their 2D effect as a hypothesis. In 3D, pucker and syn/anti
+  preferences, steric contacts, and the hydrogen bonds, water bridges and stacking of the modification are
+  modelled with estimated strengths; hydrogen bonds are judged by distance only (no angles), the search has no
+  stacking term for unmodified loop bases to compare with, and side chains keep the rotamer chosen on the ideal
+  nucleotide during the search (they are re-chosen against the finished model).
 * Pull switching chooses among computed conformations; explorations take minutes; helices are rigid.
-* Non-canonical base-pair annotation and multi-chain complexes are not supported yet. The molecular surface is a
+* Z-RNA *(0.7.6)*: the A→Z free energies are estimates scaled to a few measured duplexes, not fitted parameters,
+  and the Z stem is rigid (one geometry for all alternating sequences); the identification rules need canonical
+  pairs and a syn purine in most pairs, so Z-like helices of other sequences or distorted Z helices are not marked.
+* Non-canonical base-pair annotation and multi-chain complexes are not supported yet (two strands of a duplex can
+  be shown together as one chain, e.g. `A+B`). The molecular surface is a
   smooth Gaussian surface for figures, not a solvent-excluded surface for area calculations.
 * Prediction accuracy for large multi-branched RNAs without a related experimental structure is limited (see
   `docs/V2_STATUS.md` and the CASP16 benchmark in the README). Templates come only from the built-in library

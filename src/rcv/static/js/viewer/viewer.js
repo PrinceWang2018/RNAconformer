@@ -3,6 +3,7 @@ import * as THREE from '../../vendor/three/three.module.min.js';
 import { TrackballControls } from './controls.js';
 import { PostFX } from './post.js';
 import { Tube, Slabs, Cylinders, Spheres, VDW } from './geometry.js';
+import { ContextLayer } from './context.js';
 import { ELEMENT } from '../colors.js';
 import { svg } from '../util.js';
 
@@ -71,6 +72,7 @@ export class Viewer {
     this.extraSpheres = new Set();         // residues drawn as van der Waals spheres (console: show spheres)
     this.extraLabels = new Map();          // residue -> custom label text (null = residue name)
     this.labelMode = 'selection';
+    this.context = new ContextLayer(this.inner);   // ligands, ions and partner chains of the ensemble (ens.context)
     this.overlays = new Map();
     this.renderHooks = new Set();          // fn(project, w, h) after every frame (annotation layer)
     this.animators = new Set();
@@ -81,6 +83,22 @@ export class Viewer {
       onEnd: () => container.classList.remove('rotating'),
     });
     this._bindPicking();
+    // The graphics context can be taken away (driver reset, sleep and resume, too many 3D pages): say so instead of
+    // a black view, and redraw when it is back (the renderer rebuilds its buffers and textures by itself).
+    this.contextLost = false;
+    canvas.addEventListener('webglcontextlost', e => {
+      e.preventDefault();                                  // allows the browser to restore the context
+      this.contextLost = true;
+      this._lostNote = this._lostNote || container.appendChild(Object.assign(document.createElement('div'), { className: 'gl-lost' }));
+      this._lostNote.textContent = '3D graphics were interrupted (graphics driver reset, or the computer woke from sleep). The view is redrawn as soon as they are back; if it stays like this, restart RCV.';
+      this._lostNote.hidden = false;
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.contextLost = false;
+      if (this._lostNote) this._lostNote.hidden = true;
+      this.resize();
+      this.needsRender = true;
+    });
     this._resizeObs = new ResizeObserver(() => this.resize());
     this._resizeObs.observe(container);
     this.resize();
@@ -134,7 +152,8 @@ export class Viewer {
     this.matGlyco = makeMaterial(st, {});                           // glycosidic sticks
     this.matInst = makeMaterial(st, {});                            // atoms and bonds
     this.matSurf = makeMaterial(st, { vertexColors: true, side: THREE.DoubleSide });
-    this._mats = [this.matVC, this.matSlab, this.matGlyco, this.matInst, this.matSurf];
+    this.matCtx = makeMaterial(st, {});                             // what is bound to the RNA
+    this._mats = [this.matVC, this.matSlab, this.matGlyco, this.matInst, this.matSurf, this.matCtx];
     this._applyAlpha();
   }
 
@@ -158,12 +177,14 @@ export class Viewer {
     this.ghostGroup = new THREE.Group();
     this.inner.add(this.ghostGroup);
     this.previewTube = null;
+    this.context.build(ens.context || null, this.matCtx);
     this._applyRepVisibility();
     this.update();
   }
 
   _disposeReps() {
     this.setSurface(null);
+    this.context.dispose();
     for (const m of [this.tubeMesh, this.slabMesh, this.glyco?.mesh, this.atoms?.mesh, this.bondCyl?.mesh, this.selAtoms?.mesh, this.selBonds?.mesh, this.vdwAtoms?.mesh]) {
       if (!m) continue;
       this.inner.remove(m);
@@ -186,7 +207,21 @@ export class Viewer {
     this.glyco.mesh.material = this.matGlyco;
     for (const c of [this.atoms, this.bondCyl, this.selAtoms, this.selBonds, this.vdwAtoms]) c.mesh.material = this.matInst;
     if (this.surfaceMesh) this.surfaceMesh.material = this.matSurf;
+    this.context.setMaterial(this.matCtx);
     this.needsRender = true;
+  }
+
+  // What is bound to the RNA: shown or hidden, and which conformation (or blend a -> b at t) it is drawn for.
+  setContextEnabled(on) { this.context.setEnabled(on); this.needsRender = true; }
+  setContextFrame(a, b = a, t = 0) { this.context.frame(a, b, t); this.needsRender = true; }
+  setContextBlend(start, k, t) { this.context.blendFrom(start, k, t); this.needsRender = true; }
+  pickContext(clientX, clientY) {
+    if (!this.ens || !this.context.active) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const [w, h] = this.cssSize;
+    const cam = this._cameraFor(w / h);
+    this._syncPivot();
+    return this.context.pick(this.projector(cam, w, h), clientX - rect.left, clientY - rect.top, this.controls.unitsPerPixel || 0.05);
   }
 
   setRepresentation(rep) {
@@ -485,7 +520,7 @@ export class Viewer {
   // ------------------------------------------------------------------ camera
   _cameraFor(aspect, cam = null) {
     const ens = this.ens;
-    const R = ens ? ens.radius : 30;
+    const R = ens ? Math.max(ens.radius, this.context.radius) : 30;     // depth range: the RNA and what is bound to it
     const F = ens ? (this.fitAll ? ens.radius : ens.fitRadius) : 30;
     const zoom = this.controls.zoom;
     if (this.projection === 'orthographic') {
@@ -560,6 +595,7 @@ export class Viewer {
     this._last = t;
     let active = this.controls.update(dt);
     for (const fn of [...this.animators]) { try { active = fn(dt) || active; } catch (e) { console.error(e); this.animators.delete(fn); } }
+    if (this.contextLost) return;                          // nothing can be drawn until the context is back
     if (active || this.needsRender) {
       this.needsRender = false;
       this.render();

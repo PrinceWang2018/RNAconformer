@@ -82,6 +82,31 @@ pyz = PYZ(a.pure)
 # engine's progress pipe are UTF-8 whatever the Windows code page (e.g. GBK), and unbuffered output, so progress
 # lines reach the app as they are written.
 options = [('X utf8', None, 'OPTION'), ('u', None, 'OPTION')]
+
+# Windows: a version resource (publisher, product, description, version) in RCV.exe. Windows shows it in the file's
+# properties and the Task Manager; an executable without one gets more scrutiny from SmartScreen and antivirus
+# heuristics. Written as a text file because that is the form every PyInstaller 6 release accepts.
+version_file = None
+if sys.platform == 'win32':
+    from PyInstaller.utils.win32 import versioninfo as vi
+    nums = tuple((list(map(int, __version__.split('.')[:3])) + [0, 0, 0])[:3]) + (0,)
+    dotted = '.'.join(map(str, nums))
+    info = vi.VSVersionInfo(
+        ffi=vi.FixedFileInfo(filevers=nums, prodvers=nums, mask=0x3F, flags=0x0, OS=0x40004, fileType=0x1,
+                             subtype=0x0, date=(0, 0)),
+        kids=[vi.StringFileInfo([vi.StringTable('040904B0', [
+                  vi.StringStruct('CompanyName', 'Zixiang Wang'),
+                  vi.StringStruct('FileDescription', 'RCV - RNA Conformation Viewer'),
+                  vi.StringStruct('FileVersion', dotted),
+                  vi.StringStruct('InternalName', 'RCV'),
+                  vi.StringStruct('LegalCopyright', 'Copyright (C) 2026 Zixiang Wang. GPL-3.0.'),
+                  vi.StringStruct('OriginalFilename', 'RCV.exe'),
+                  vi.StringStruct('ProductName', 'RCV - RNA Conformation Viewer'),
+                  vi.StringStruct('ProductVersion', dotted)])]),
+              vi.VarFileInfo([vi.VarStruct('Translation', [0x0409, 1200])])])
+    version_file = ROOT / 'build' / 'rcv_version_info.txt'
+    version_file.parent.mkdir(parents=True, exist_ok=True)
+    version_file.write_text(str(info), encoding='utf-8')
 exe = EXE(
     pyz, a.scripts, options,
     exclude_binaries=True,
@@ -89,6 +114,7 @@ exe = EXE(
     console=False,                                     # windowed app; the engine runs as a child process
     icon=str(ICONS / ('rcv.icns' if sys.platform == 'darwin' else 'rcv.ico')),
     upx=False,
+    version=str(version_file) if version_file else None,
 )
 coll = COLLECT(exe, a.binaries, a.datas, name='RCV', upx=False)
 

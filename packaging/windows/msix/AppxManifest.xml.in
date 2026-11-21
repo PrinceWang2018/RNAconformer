@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX package manifest of RCV (template). packaging\windows\build_msix.ps1 fills in the @...@ values:
+    @IDENTITY_NAME@      Package/Identity/Name       (Microsoft Partner Center > the app > Product identity)
+    @PUBLISHER@          Package/Identity/Publisher  ("CN=...", same page; must match exactly for the Store)
+    @PUBLISHER_DISPLAY@  Package/Properties/PublisherDisplayName
+    @VERSION@            a.b.c.0 (the Store requires the fourth number to be 0)
+  RCV is a desktop (Win32) program: it runs with full trust (runFullTrust), as with the Setup.exe installer.
+  Only English is declared: Partner Center asks for a Store listing in every language a package declares. The
+  program itself has eleven interface languages, chosen inside RCV.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity Name="@IDENTITY_NAME@" Publisher="@PUBLISHER@" Version="@VERSION@" ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>RCV - RNA Conformation Viewer</DisplayName>
+    <PublisherDisplayName>@PUBLISHER_DISPLAY@</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Predict, explore and present RNA 3D conformational ensembles on your own computer.</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application Id="RCV" Executable="RCV.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="RCV - RNA Conformation Viewer"
+        Description="RNA 3D conformation prediction, ensemble analysis and visualization"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square71x71Logo="Assets\Square71x71Logo.png"
+                         Square310x310Logo="Assets\Square310x310Logo.png" ShortName="RCV">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo" />
+            <uap:ShowOn Tile="wide310x150Logo" />
+            <uap:ShowOn Tile="square310x310Logo" />
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile>
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- double-clicking an .rcv file starts RCV with the file's path as its argument -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="rcv">
+            <uap:DisplayName>RCV conformational ensemble</uap:DisplayName>
+            <uap:Logo>Assets\FileIcon.png</uap:Logo>
+            <uap:InfoTip>RNA conformational ensemble (RCV)</uap:InfoTip>
+            <uap:SupportedFileTypes>
+              <uap:FileType ContentType="application/zip">.rcv</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

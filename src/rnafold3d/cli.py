@@ -37,19 +37,39 @@ def expand_files(files):
 
 
 def _predict(a):
+    for flag, value, low in (('--models', a.models, 1), ('--trajectories', a.trajectories, 0), ('--workers', a.workers, 1),
+                             ('--max-structures', a.max_structures, 1), ('--seed', a.seed, 0), ('--steps', a.steps, 0)):
+        if value < low:
+            raise ValueError(f'{flag} must be {low} or more, not {value}'
+                             + (' (0 lets the engine choose)' if low == 0 and flag != '--seed' else ''))
     if a.fasta:
         name, seq = read_fasta(a.fasta)
     else:
         name, seq = a.name, a.sequence
+    from . import modifications as modmod
+    mods = []
+    if modmod.has_notation(seq):                 # GGC[m6A]CU[Y]A*G: modified nucleotides in the sequence
+        seq, mods, problems = modmod.parse(seq)
+        if problems:
+            raise ValueError('sequence: ' + '; '.join(problems))
+    for item in (getattr(a, 'modifications', '') or '').replace(' ', '').split(','):
+        if item:
+            pos, _, code = item.partition(':')
+            if not pos.isdigit() or not code:
+                raise ValueError(f'--modifications: {item!r} is not POSITION:CODE (for example 4:m6A,12:Y); '
+                                 'the codes are listed by "rnafold3d modifications"')
+            mods.append({'pos': int(pos), 'code': code})
     seq = normalize_sequence(seq)
     dbn = read_dbn(a.dbn, len(seq)) if a.dbn else (a.structure or None)
-    extra = {}
+    extra = {'modifications': tuple(modmod.normalize(mods, seq))} if mods else {}
     if getattr(a, 'job_json', None):
         with open(a.job_json, encoding='utf-8') as f:
             job = json.load(f)
-        extra = {k: (tuple(job[k]) if isinstance(job[k], list) else job[k])
-                 for k in ('seed_structures', 'pull_restraints', 'relax_steps', 'max_structures', 'mfe_share',
-                           'reactivities', 'alignment') if k in job}
+        # added to the options above: the modified nucleotides of the sequence stay (they were lost here until 0.7.6,
+        # so a pull exploration of a modified RNA sampled the unmodified one)
+        extra.update({k: (tuple(job[k]) if isinstance(job[k], list) else job[k])
+                      for k in ('seed_structures', 'pull_restraints', 'relax_steps', 'max_structures', 'mfe_share',
+                                'reactivities', 'alignment') if k in job})
         if 'save_candidates' in job:
             extra['save_candidates'] = bool(job['save_candidates'])
     if a.shape:
@@ -66,10 +86,23 @@ def _predict(a):
                         workers=a.workers, anneal_steps=a.steps, temperature=a.temperature,
                         cluster_rmsd=a.cluster_rmsd, templates=a.templates, template_cutoff=a.template_cutoff,
                         template_exclude=tuple(x for x in a.template_exclude.replace(' ', '').split(',') if x),
-                        pseudoknots=a.pseudoknots, fragments=a.fragments, domains=a.domains, **extra)
+                        pseudoknots=a.pseudoknots, fragments=a.fragments, domains=a.domains,
+                        zrna=a.zrna, zrna_salt=a.zrna_salt, zrna_binder=a.zrna_binder, **extra)
     m = predict(seq, a.out, name=name, dbn=dbn, config=cfg, log=None if a.quiet else print)
     print(json.dumps({'out': a.out, 'conformers': len(m['conformers']), **m['statistics']}, indent=1))
     return 0 if m['conformers'] else 2
+
+
+def _modifications(a):
+    from .modifications import catalogue
+    cat = catalogue()
+    if a.json:
+        print(json.dumps(cat, indent=1, ensure_ascii=False))
+        return 0
+    for e in cat['entries']:
+        partners = '-' if e['partners'] is None else ('blocked' if e['pairing'] == 'blocked' else '/'.join(e['partners']))
+        print(f"{e['code']:10s} {e['parent']}  {e['ccd'] or '-':4s} {e['pairing']:10s} {partners:8s} {e['name']}")
+    return 0
 
 
 def _validate(a):
@@ -345,6 +378,11 @@ def main(argv=None):
     p.add_argument('--job-json', help='JSON with guided-exploration options (seed_structures, pull_restraints, relax_steps)')
     p.add_argument('--templates', choices=('auto', 'off'), default='auto',
                    help='use related experimental structures from the built-in library as templates (default auto)')
+    p.add_argument('--zrna', choices=('off', 'auto'), default='off',
+                   help='auto: add a hypothesis with a left-handed Z-RNA helix segment when its estimated A->Z free '
+                        'energy is low enough (zrna.py; extra trajectories)')
+    p.add_argument('--zrna-salt', type=float, default=0.15, metavar='M', help='Na+ (mol/L) for the Z-RNA estimate')
+    p.add_argument('--zrna-binder', action='store_true', help='a Z-binding protein (ADAR1 Zalpha, ZBP1) is present')
     p.add_argument('--template-cutoff', default='', metavar='YYYY-MM-DD',
                    help='only use templates released before this date (blind benchmarks)')
     p.add_argument('--template-exclude', default='', metavar='PDB,PDB', help='PDB ids never used as templates')
@@ -358,7 +396,13 @@ def main(argv=None):
                    '"position value" lines; they guide the 2D hypotheses as pseudo-energies')
     p.add_argument('--alignment', metavar='FILE', help='aligned homologous sequences (FASTA with gaps, Stockholm or Clustal) '
                    'that contain the query: the covariation-supported consensus 2D becomes the first hypothesis')
+    p.add_argument('--modifications', default='', metavar='POS:CODE,...',
+                   help='modified nucleotides, e.g. "4:m6A,12:Y,20:I" (also written in the sequence: GGC[m6A]CU); '
+                        'list them with "rnafold3d modifications"')
     p.set_defaults(func=_predict)
+    mo = sub.add_parser('modifications', help='list the modified nucleotides RCV knows (code, name, effect on pairing)')
+    mo.add_argument('--json', action='store_true')
+    mo.set_defaults(func=_modifications)
     v = sub.add_parser('validate', help='independent all-atom validation of PDB/mmCIF files')
     v.add_argument('files', nargs='+')
     v.add_argument('--chain')

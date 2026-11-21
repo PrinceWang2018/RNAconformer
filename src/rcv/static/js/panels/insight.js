@@ -159,7 +159,10 @@ export function variantsSection(app, ens, r) {
               onclick: e => { e.stopPropagation(); app.predictSequence(v.sequence, `${slug(ens.name)}_${v.variant}`); } })));
           tr.addEventListener('click', () => pick(app, [...new Set([...v.positions, v.hotspot])]));
           return tr;
-        })), el('div', { class: 'desc', text: `Effect: small, moderate (change ≥ 0.1 or ≥ 3 pairs) or large (change ≥ 0.3 or ≥ 8 pairs). ${x.two_state ? `Wild type: ${pct(x.wt.frac_a)} A. ` : ''}A click selects the mutated nucleotide and the place that changes most. Substitutions only; modified nucleotides are not modelled.` }),
+        })), el('div', { class: 'desc', text: `Effect: small, moderate (change ≥ 0.1 or ≥ 3 pairs) or large (change ≥ 0.3 or ≥ 8 pairs). ${x.two_state ? `Wild type: ${pct(x.wt.frac_a)} A. ` : ''}A click selects the mutated nucleotide and the place that changes most. Positions are the residue numbers shown in RCV. Substitutions only; modified nucleotides are not modelled.` }),
+        // "Not analysed:" and every reason are separate texts: each is translated on its own
+        (x.skipped || []).length ? el('div', { class: 'desc', style: 'color: var(--warn)' }, el('span', { text: 'Not analysed:' }), ' ',
+          ...x.skipped.flatMap((k, i) => (i ? ['; ', el('span', { text: k.reason })] : [el('span', { text: k.reason })])), '.') : null,
         el('div', { class: 'row adv-actions' }, copyButton('Copy as table', () => ['variant\teffect\tchange\tpairs changed\tddG\tA share\tmost stable structure',
           ...x.rows.map(v => [v.variant, v.effect, v.change, v.pairs_changed, v.ddg ?? '', v.frac_a ?? '', v.mfe_dbn].join('\t'))].join('\n'))));
       }

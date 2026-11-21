@@ -2,15 +2,15 @@
  "targets": 15,
  "methods": {
   "rcv": {
-   "label": "RCV 0.7.5 (physics + templates)",
+   "label": "RCV 0.7.6 (physics + templates)",
    "n": 15,
-   "mean_top1_tm": 0.495,
+   "mean_top1_tm": 0.501,
    "mean_best5_tm": 0.527,
-   "median_top1_rmsd": 7.82,
+   "median_top1_rmsd": 6.02,
    "median_best5_rmsd": 5.87,
-   "top1_tm_ge_0.45": 8,
-   "mean_top1_inf_wc": 0.814,
-   "mean_top1_tm_template_targets": 0.639,
+   "top1_tm_ge_0.45": 9,
+   "mean_top1_inf_wc": 0.81,
+   "mean_top1_tm_template_targets": 0.648,
    "mean_top1_tm_other_targets": 0.281
   },
   "rcv072": {
@@ -107,9 +107,9 @@
  },
  "casp_median_group_mean_top1_tm": 0.453,
  "casp_best_model1_mean_tm": 0.588,
- "rcv_mean_fraction_of_groups_beaten": 0.62,
+ "rcv_mean_fraction_of_groups_beaten": 0.622,
  "rcv_wall_time_s": {
-  "median": 140,
-  "max": 526
+  "median": 119,
+  "max": 460
  }
 }

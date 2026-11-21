@@ -1,0 +1,935 @@
+[
+ {
+  "target": "R1203",
+  "length": 134,
+  "best_in_library": {
+   "pdb": "8SP9",
+   "chain": "C",
+   "tm": 0.62,
+   "release": "2023-08-09",
+   "title": "Crystal Structure of Coxsackievirus B3 (CVB3) Cloverleaf RNA with tRNA"
+  },
+  "top5": [
+   {
+    "pdb": "8SP9",
+    "chain": "C",
+    "tm": 0.62,
+    "length": 153,
+    "title": "Crystal Structure of Coxsackievirus B3 (CVB3) Cloverleaf RNA with tRNA"
+   },
+   {
+    "pdb": "8S95",
+    "chain": "C",
+    "tm": 0.5841,
+    "length": 157,
+    "title": "Crystal Structure of Poliovirus (type 1 Mahoney) cloverleaf RNA with t"
+   },
+   {
+    "pdb": "6JXM",
+    "chain": "B",
+    "tm": 0.5355,
+    "length": 97,
+    "title": "Crystal Structure of phi29 pRNA domain II"
+   },
+   {
+    "pdb": "6UGG",
+    "chain": "B",
+    "tm": 0.5095,
+    "length": 77,
+    "title": "Structure of unmodified E. coli tRNA(Asp)"
+   },
+   {
+    "pdb": "7LYG",
+    "chain": "A",
+    "tm": 0.4949,
+    "length": 142,
+    "title": "Zika virus RNA promoter stem-loop A with tRNA-scaffold"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "7LYF",
+    "chain": "A",
+    "tm": 0.4875,
+    "identity": 1.0,
+    "coverage": 0.5,
+    "rank_score": 0.461,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "7LYG",
+    "chain": "A",
+    "tm": 0.4949,
+    "identity": 1.0,
+    "coverage": 0.5,
+    "rank_score": 0.453,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "8S95",
+    "chain": "C",
+    "tm": 0.5841,
+    "identity": 1.0,
+    "coverage": 0.493,
+    "rank_score": 0.453,
+    "found_by": "sequence"
+   }
+  ]
+ },
+ {
+  "target": "R1205",
+  "length": 55,
+  "best_in_library": {
+   "pdb": "7JJU",
+   "chain": "A",
+   "tm": 0.3859,
+   "release": "2020-09-09",
+   "title": "Crystal structure of en exoribonuclease-resistant RNA (xrRNA) from Pot"
+  },
+  "top5": [
+   {
+    "pdb": "7JJU",
+    "chain": "A",
+    "tm": 0.3859,
+    "length": 51,
+    "title": "Crystal structure of en exoribonuclease-resistant RNA (xrRNA) from Pot"
+   },
+   {
+    "pdb": "7JJU",
+    "chain": "B",
+    "tm": 0.3806,
+    "length": 51,
+    "title": "Crystal structure of en exoribonuclease-resistant RNA (xrRNA) from Pot"
+   },
+   {
+    "pdb": "8T2S",
+    "chain": "B",
+    "tm": 0.3634,
+    "length": 652,
+    "title": "Structure of a group II intron ribonucleoprotein in the pre-branching "
+   },
+   {
+    "pdb": "8BTZ",
+    "chain": "A",
+    "tm": 0.3563,
+    "length": 238,
+    "title": "Single-stranded Paranemic Crossover RNA Triangle (PXT)"
+   },
+   {
+    "pdb": "8SCB",
+    "chain": "2",
+    "tm": 0.3458,
+    "length": 76,
+    "title": "Terminating ribosome with SRI-41315"
+   }
+  ],
+  "found": []
+ },
+ {
+  "target": "R1209",
+  "length": 72,
+  "best_in_library": {
+   "pdb": "6N7X",
+   "chain": "R",
+   "tm": 0.325,
+   "release": "2019-07-24",
+   "title": "S. cerevisiae U1 snRNP"
+  },
+  "top5": [
+   {
+    "pdb": "6N7X",
+    "chain": "R",
+    "tm": 0.325,
+    "length": 568,
+    "title": "S. cerevisiae U1 snRNP"
+   },
+   {
+    "pdb": "6JQ6",
+    "chain": "U",
+    "tm": 0.3234,
+    "length": 81,
+    "title": "Hatchet Ribozyme Structure soaking with Ir(NH3)6+"
+   },
+   {
+    "pdb": "7UO5",
+    "chain": "B",
+    "tm": 0.3223,
+    "length": 373,
+    "title": "E.coli RNaseP Holoenzyme with Mg2+"
+   },
+   {
+    "pdb": "7LYG",
+    "chain": "A",
+    "tm": 0.3139,
+    "length": 142,
+    "title": "Zika virus RNA promoter stem-loop A with tRNA-scaffold"
+   },
+   {
+    "pdb": "5LZD",
+    "chain": "y",
+    "tm": 0.3103,
+    "length": 95,
+    "title": "Structure of SelB-Sec-tRNASec bound to the 70S ribosome in the GTPase "
+   }
+  ],
+  "found": []
+ },
+ {
+  "target": "R1211",
+  "length": 90,
+  "best_in_library": {
+   "pdb": "8DP3",
+   "chain": "R",
+   "tm": 0.6457,
+   "release": "2023-04-19",
+   "title": "Crystal structure of coxsackievirus B3 cloverleaf RNA replication elem"
+  },
+  "top5": [
+   {
+    "pdb": "8DP3",
+    "chain": "R",
+    "tm": 0.6457,
+    "length": 90,
+    "title": "Crystal structure of coxsackievirus B3 cloverleaf RNA replication elem"
+   },
+   {
+    "pdb": "7PTK",
+    "chain": "B",
+    "tm": 0.5821,
+    "length": 720,
+    "title": "Young conformer of a 6-helix bundle of RNA with clasp"
+   },
+   {
+    "pdb": "7PTL",
+    "chain": "B",
+    "tm": 0.573,
+    "length": 720,
+    "title": "Mature conformer of a 6-helix bundle of RNA with clasp"
+   },
+   {
+    "pdb": "8S95",
+    "chain": "C",
+    "tm": 0.5634,
+    "length": 157,
+    "title": "Crystal Structure of Poliovirus (type 1 Mahoney) cloverleaf RNA with t"
+   },
+   {
+    "pdb": "7QDU",
+    "chain": "Q",
+    "tm": 0.5629,
+    "length": 552,
+    "title": "Twist-corrected RNA origami 5-helix Tile A"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "8DP3",
+    "chain": "R",
+    "tm": 0.6457,
+    "identity": 0.944,
+    "coverage": 1.0,
+    "rank_score": 0.767,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "8SP9",
+    "chain": "C",
+    "tm": 0.5143,
+    "identity": 1.0,
+    "coverage": 0.833,
+    "rank_score": 0.692,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "8S95",
+    "chain": "C",
+    "tm": 0.5634,
+    "identity": 0.861,
+    "coverage": 0.878,
+    "rank_score": 0.614,
+    "found_by": "sequence, aligned with structure"
+   }
+  ]
+ },
+ {
+  "target": "R1212",
+  "length": 117,
+  "best_in_library": {
+   "pdb": "6NY1",
+   "chain": "B",
+   "tm": 0.3913,
+   "release": "2019-02-27",
+   "title": "CasX-gRNA-DNA(30bp) State II"
+  },
+  "top5": [
+   {
+    "pdb": "6NY1",
+    "chain": "B",
+    "tm": 0.3913,
+    "length": 122,
+    "title": "CasX-gRNA-DNA(30bp) State II"
+   },
+   {
+    "pdb": "6NY2",
+    "chain": "B",
+    "tm": 0.3875,
+    "length": 122,
+    "title": "CasX-gRNA-DNA(45bp) state I"
+   },
+   {
+    "pdb": "7L49",
+    "chain": "E",
+    "tm": 0.385,
+    "length": 225,
+    "title": "Cryo-EM structure of CRISPR-Cas12f Ternary Complex"
+   },
+   {
+    "pdb": "3HHN",
+    "chain": "E",
+    "tm": 0.3759,
+    "length": 137,
+    "title": "Crystal structure of class I ligase ribozyme self-ligation product, in"
+   },
+   {
+    "pdb": "8EX9",
+    "chain": "B",
+    "tm": 0.3711,
+    "length": 150,
+    "title": "ISDra2 TnpB in complex with reRNA and cognate DNA, conformation 2 (Ruv"
+   }
+  ],
+  "found": []
+ },
+ {
+  "target": "R1221s3",
+  "length": 82,
+  "best_in_library": {
+   "pdb": "7UO1",
+   "chain": "C",
+   "tm": 0.6343,
+   "release": "2022-09-28",
+   "title": "E.coli RNaseP Holoenzyme with Mg2+"
+  },
+  "top5": [
+   {
+    "pdb": "7UO1",
+    "chain": "C",
+    "tm": 0.6343,
+    "length": 82,
+    "title": "E.coli RNaseP Holoenzyme with Mg2+"
+   },
+   {
+    "pdb": "3Q1Q",
+    "chain": "C",
+    "tm": 0.605,
+    "length": 86,
+    "title": "Structure of a Bacterial Ribonuclease P Holoenzyme in Complex with tRN"
+   },
+   {
+    "pdb": "8WIB",
+    "chain": "C",
+    "tm": 0.5892,
+    "length": 76,
+    "title": "Cryo- EM structure of Mycobacterium smegmatis 70S ribosome, E- tRNA an"
+   },
+   {
+    "pdb": "7UXA",
+    "chain": "E",
+    "tm": 0.5864,
+    "length": 88,
+    "title": "Human tRNA Splicing Endonuclease Complex bound to pre-tRNA-ARG"
+   },
+   {
+    "pdb": "6POM",
+    "chain": "B",
+    "tm": 0.584,
+    "length": 75,
+    "title": "Cryo-EM structure of the full-length Bacillus subtilis glyQS T-box rib"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "7UO1",
+    "chain": "C",
+    "tm": 0.6343,
+    "identity": 1.0,
+    "coverage": 0.953,
+    "rank_score": 0.733,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "4V9K",
+    "chain": "AW",
+    "tm": 0.4902,
+    "identity": 1.0,
+    "coverage": 0.895,
+    "rank_score": 0.714,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "7Q4K",
+    "chain": "D2",
+    "tm": 0.5191,
+    "identity": 1.0,
+    "coverage": 0.849,
+    "rank_score": 0.7,
+    "found_by": "sequence"
+   }
+  ]
+ },
+ {
+  "target": "R1224s3",
+  "length": 82,
+  "best_in_library": {
+   "pdb": "6POM",
+   "chain": "B",
+   "tm": 0.6634,
+   "release": "2019-11-20",
+   "title": "Cryo-EM structure of the full-length Bacillus subtilis glyQS T-box rib"
+  },
+  "top5": [
+   {
+    "pdb": "6POM",
+    "chain": "B",
+    "tm": 0.6634,
+    "length": 75,
+    "title": "Cryo-EM structure of the full-length Bacillus subtilis glyQS T-box rib"
+   },
+   {
+    "pdb": "3Q1Q",
+    "chain": "C",
+    "tm": 0.6605,
+    "length": 86,
+    "title": "Structure of a Bacterial Ribonuclease P Holoenzyme in Complex with tRN"
+   },
+   {
+    "pdb": "5AXM",
+    "chain": "P",
+    "tm": 0.6565,
+    "length": 75,
+    "title": "Crystal structure of Thg1 like protein (TLP) with tRNA(Phe)"
+   },
+   {
+    "pdb": "6UGG",
+    "chain": "B",
+    "tm": 0.6542,
+    "length": 77,
+    "title": "Structure of unmodified E. coli tRNA(Asp)"
+   },
+   {
+    "pdb": "8WIB",
+    "chain": "C",
+    "tm": 0.6515,
+    "length": 76,
+    "title": "Cryo- EM structure of Mycobacterium smegmatis 70S ribosome, E- tRNA an"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "7UO1",
+    "chain": "C",
+    "tm": 0.6316,
+    "identity": 1.0,
+    "coverage": 0.953,
+    "rank_score": 0.733,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "4V9K",
+    "chain": "AW",
+    "tm": 0.545,
+    "identity": 1.0,
+    "coverage": 0.895,
+    "rank_score": 0.714,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "7Q4K",
+    "chain": "D2",
+    "tm": 0.5862,
+    "identity": 1.0,
+    "coverage": 0.849,
+    "rank_score": 0.7,
+    "found_by": "sequence"
+   }
+  ]
+ },
+ {
+  "target": "R1261",
+  "length": 87,
+  "best_in_library": {
+   "pdb": "5BTP",
+   "chain": "B",
+   "tm": 0.5773,
+   "release": "2015-08-12",
+   "title": "Fusobacterium ulcerans ZTP riboswitch bound to ZMP"
+  },
+  "top5": [
+   {
+    "pdb": "5BTP",
+    "chain": "B",
+    "tm": 0.5773,
+    "length": 75,
+    "title": "Fusobacterium ulcerans ZTP riboswitch bound to ZMP"
+   },
+   {
+    "pdb": "4ZNP",
+    "chain": "A",
+    "tm": 0.5572,
+    "length": 73,
+    "title": "The structure of A pfI Riboswitch Bound to ZMP"
+   },
+   {
+    "pdb": "4XWF",
+    "chain": "A",
+    "tm": 0.41,
+    "length": 64,
+    "title": "Crystal structure of the ZMP riboswitch at 1.80 angstrom"
+   },
+   {
+    "pdb": "8BTZ",
+    "chain": "A",
+    "tm": 0.3992,
+    "length": 238,
+    "title": "Single-stranded Paranemic Crossover RNA Triangle (PXT)"
+   },
+   {
+    "pdb": "7PTL",
+    "chain": "B",
+    "tm": 0.3971,
+    "length": 720,
+    "title": "Mature conformer of a 6-helix bundle of RNA with clasp"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "5BTP",
+    "chain": "B",
+    "tm": 0.5773,
+    "identity": 0.932,
+    "coverage": 0.663,
+    "rank_score": 0.618,
+    "found_by": "sequence"
+   }
+  ]
+ },
+ {
+  "target": "R1262",
+  "length": 84,
+  "best_in_library": {
+   "pdb": "4ZNP",
+   "chain": "A",
+   "tm": 0.5796,
+   "release": "2015-08-26",
+   "title": "The structure of A pfI Riboswitch Bound to ZMP"
+  },
+  "top5": [
+   {
+    "pdb": "4ZNP",
+    "chain": "A",
+    "tm": 0.5796,
+    "length": 73,
+    "title": "The structure of A pfI Riboswitch Bound to ZMP"
+   },
+   {
+    "pdb": "5BTP",
+    "chain": "B",
+    "tm": 0.5718,
+    "length": 75,
+    "title": "Fusobacterium ulcerans ZTP riboswitch bound to ZMP"
+   },
+   {
+    "pdb": "7PTK",
+    "chain": "B",
+    "tm": 0.4117,
+    "length": 720,
+    "title": "Young conformer of a 6-helix bundle of RNA with clasp"
+   },
+   {
+    "pdb": "7ZJ5",
+    "chain": "E",
+    "tm": 0.4111,
+    "length": 374,
+    "title": "Unbound state of a brocolli-pepper aptamer FRET tile."
+   },
+   {
+    "pdb": "4XWF",
+    "chain": "A",
+    "tm": 0.4059,
+    "length": 64,
+    "title": "Crystal structure of the ZMP riboswitch at 1.80 angstrom"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "5BTP",
+    "chain": "B",
+    "tm": 0.5718,
+    "identity": 0.932,
+    "coverage": 0.663,
+    "rank_score": 0.618,
+    "found_by": "sequence"
+   }
+  ]
+ },
+ {
+  "target": "R1263",
+  "length": 64,
+  "best_in_library": {
+   "pdb": "4XWF",
+   "chain": "A",
+   "tm": 0.9239,
+   "release": "2015-09-09",
+   "title": "Crystal structure of the ZMP riboswitch at 1.80 angstrom"
+  },
+  "top5": [
+   {
+    "pdb": "4XWF",
+    "chain": "A",
+    "tm": 0.9239,
+    "length": 64,
+    "title": "Crystal structure of the ZMP riboswitch at 1.80 angstrom"
+   },
+   {
+    "pdb": "4ZNP",
+    "chain": "A",
+    "tm": 0.4943,
+    "length": 73,
+    "title": "The structure of A pfI Riboswitch Bound to ZMP"
+   },
+   {
+    "pdb": "5BTP",
+    "chain": "B",
+    "tm": 0.4664,
+    "length": 75,
+    "title": "Fusobacterium ulcerans ZTP riboswitch bound to ZMP"
+   },
+   {
+    "pdb": "1M5K",
+    "chain": "B",
+    "tm": 0.3838,
+    "length": 92,
+    "title": "Crystal structure of a hairpin ribozyme in the catalytically-active co"
+   },
+   {
+    "pdb": "8TVZ",
+    "chain": "C",
+    "tm": 0.3734,
+    "length": 363,
+    "title": "RNA origami 3-helix tile Traptamer"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "4XWF",
+    "chain": "A",
+    "tm": 0.9239,
+    "identity": 1.0,
+    "coverage": 1.0,
+    "rank_score": 0.711,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "4ZNP",
+    "chain": "A",
+    "tm": 0.4943,
+    "identity": 0.742,
+    "coverage": 0.969,
+    "rank_score": 0.511,
+    "found_by": "sequence + structure"
+   }
+  ]
+ },
+ {
+  "target": "R1264",
+  "length": 64,
+  "best_in_library": {
+   "pdb": "4XWF",
+   "chain": "A",
+   "tm": 0.7818,
+   "release": "2015-09-09",
+   "title": "Crystal structure of the ZMP riboswitch at 1.80 angstrom"
+  },
+  "top5": [
+   {
+    "pdb": "4XWF",
+    "chain": "A",
+    "tm": 0.7818,
+    "length": 64,
+    "title": "Crystal structure of the ZMP riboswitch at 1.80 angstrom"
+   },
+   {
+    "pdb": "5BTP",
+    "chain": "B",
+    "tm": 0.4261,
+    "length": 75,
+    "title": "Fusobacterium ulcerans ZTP riboswitch bound to ZMP"
+   },
+   {
+    "pdb": "6SWD",
+    "chain": "2",
+    "tm": 0.3968,
+    "length": 1044,
+    "title": "IC2 body model of cryo-EM structure of a full archaeal ribosomal trans"
+   },
+   {
+    "pdb": "4R4V",
+    "chain": "A",
+    "tm": 0.3876,
+    "length": 186,
+    "title": "Crystal structure of the VS ribozyme - G638A mutant"
+   },
+   {
+    "pdb": "4ZNP",
+    "chain": "A",
+    "tm": 0.3751,
+    "length": 73,
+    "title": "The structure of A pfI Riboswitch Bound to ZMP"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "4XWF",
+    "chain": "A",
+    "tm": 0.7818,
+    "identity": 1.0,
+    "coverage": 1.0,
+    "rank_score": 0.711,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "4ZNP",
+    "chain": "A",
+    "tm": 0.3751,
+    "identity": 0.742,
+    "coverage": 0.969,
+    "rank_score": 0.511,
+    "found_by": "sequence + structure"
+   }
+  ]
+ },
+ {
+  "target": "R1271",
+  "length": 77,
+  "best_in_library": {
+   "pdb": "3J0Q",
+   "chain": "W",
+   "tm": 0.7039,
+   "release": "2011-11-16",
+   "title": "Core of mammalian 80S pre-ribosome in complex with tRNAs fitted to a 1"
+  },
+  "top5": [
+   {
+    "pdb": "3J0Q",
+    "chain": "W",
+    "tm": 0.7039,
+    "length": 77,
+    "title": "Core of mammalian 80S pre-ribosome in complex with tRNAs fitted to a 1"
+   },
+   {
+    "pdb": "8B2L",
+    "chain": "W2",
+    "tm": 0.7037,
+    "length": 76,
+    "title": "Cryo-EM structure of the plant 80S ribosome"
+   },
+   {
+    "pdb": "6UFH",
+    "chain": "B",
+    "tm": 0.6926,
+    "length": 77,
+    "title": "Co-crystal structure of M. tuberculosis ileS T-box in complex with tRN"
+   },
+   {
+    "pdb": "6GZ4",
+    "chain": "Bw",
+    "tm": 0.6916,
+    "length": 76,
+    "title": "tRNA translocation by the eukaryotic 80S ribosome and the impact of GT"
+   },
+   {
+    "pdb": "7R81",
+    "chain": "u1",
+    "tm": 0.6912,
+    "length": 76,
+    "title": "Structure of the translating Neurospora crassa ribosome arrested by cy"
+   }
+  ],
+  "found": [
+   {
+    "pdb": "7LJ3",
+    "chain": "B",
+    "tm": 0.6212,
+    "identity": 0.8,
+    "coverage": 0.909,
+    "rank_score": 0.557,
+    "found_by": "sequence"
+   },
+   {
+    "pdb": "5E6M",
+    "chain": "C",
+    "tm": 0.5285,
+    "identity": 0.732,
+    "coverage": 0.922,
+    "rank_score": 0.534,
+    "found_by": "sequence + structure"
+   },
+   {
+    "pdb": "8QPP",
+    "chain": "U",
+    "tm": 0.6506,
+    "identity": 0.636,
+    "coverage": 1.0,
+    "rank_score": 0.504,
+    "found_by": "sequence + structure"
+   }
+  ]
+ },
+ {
+  "target": "R1288",
+  "length": 57,
+  "best_in_library": {
+   "pdb": "4V8P",
+   "chain": "C3",
+   "tm": 0.3797,
+   "release": "2014-07-09",
+   "title": "T.thermophila 60S ribosomal subunit in complex with initiation factor "
+  },
+  "top5": [
+   {
+    "pdb": "4V8P",
+    "chain": "C3",
+    "tm": 0.3797,
+    "length": 120,
+    "title": "T.thermophila 60S ribosomal subunit in complex with initiation factor "
+   },
+   {
+    "pdb": "7OYB",
+    "chain": "71",
+    "tm": 0.3763,
+    "length": 120,
+    "title": "Cryo-EM structure of the 6 hpf zebrafish embryo 80S ribosome"
+   },
+   {
+    "pdb": "7R81",
+    "chain": "B1",
+    "tm": 0.3727,
+    "length": 120,
+    "title": "Structure of the translating Neurospora crassa ribosome arrested by cy"
+   },
+   {
+    "pdb": "8EUG",
+    "chain": "9",
+    "tm": 0.3719,
+    "length": 229,
+    "title": "Ytm1 associated nascent 60S ribosome State 3"
+   },
+   {
+    "pdb": "6ERI",
+    "chain": "Ax",
+    "tm": 0.3695,
+    "length": 118,
+    "title": "Structure of the chloroplast ribosome with chl-RRF and hibernation-pro"
+   }
+  ],
+  "found": []
+ },
+ {
+  "target": "R1293",
+  "length": 82,
+  "best_in_library": {
+   "pdb": "8T29",
+   "chain": "R",
+   "tm": 0.5735,
+   "release": "2024-01-10",
+   "title": "Crystal structure of SCV PTE RNA in complex with Fab BL3-6"
+  },
+  "top5": [
+   {
+    "pdb": "8T29",
+    "chain": "R",
+    "tm": 0.5735,
+    "length": 90,
+    "title": "Crystal structure of SCV PTE RNA in complex with Fab BL3-6"
+   },
+   {
+    "pdb": "7ZJ5",
+    "chain": "E",
+    "tm": 0.4765,
+    "length": 374,
+    "title": "Unbound state of a brocolli-pepper aptamer FRET tile."
+   },
+   {
+    "pdb": "5ZAL",
+    "chain": "C",
+    "tm": 0.4542,
+    "length": 73,
+    "title": "Cryo-EM structure of human Dicer and its complexes with a pre-miRNA su"
+   },
+   {
+    "pdb": "7ELE",
+    "chain": "G",
+    "tm": 0.4529,
+    "length": 89,
+    "title": "Cryo-EM structure of Arabidopsis DCL1 in complex with pre-miRNA 166f"
+   },
+   {
+    "pdb": "7DA7",
+    "chain": "C",
+    "tm": 0.4419,
+    "length": 150,
+    "title": "Mouse Toll-like receptor 3 ectodomain in complex with lncRNA Rmrp in e"
+   }
+  ],
+  "found": []
+ },
+ {
+  "target": "R1296",
+  "length": 72,
+  "best_in_library": {
+   "pdb": "6WLQ",
+   "chain": "A",
+   "tm": 0.4034,
+   "release": "2020-07-08",
+   "title": "Apo SAM-IV riboswitch models, 4.7 Angstrom resolution"
+  },
+  "top5": [
+   {
+    "pdb": "6WLQ",
+    "chain": "A",
+    "tm": 0.4034,
+    "length": 119,
+    "title": "Apo SAM-IV riboswitch models, 4.7 Angstrom resolution"
+   },
+   {
+    "pdb": "6UES",
+    "chain": "A",
+    "tm": 0.3982,
+    "length": 119,
+    "title": "Apo SAM-IV Riboswitch"
+   },
+   {
+    "pdb": "7UY6",
+    "chain": "B",
+    "tm": 0.3699,
+    "length": 159,
+    "title": "Tetrahymena telomerase at 2.9 Angstrom resolution"
+   },
+   {
+    "pdb": "4PQV",
+    "chain": "A",
+    "tm": 0.3449,
+    "length": 68,
+    "title": "Crystal structure of an Xrn1-resistant RNA from the 3' untranslated re"
+   },
+   {
+    "pdb": "3V7E",
+    "chain": "D",
+    "tm": 0.3397,
+    "length": 126,
+    "title": "Crystal structure of YbxF bound to the SAM-I riboswitch aptamer"
+   }
+  ],
+  "found": []
+ }
+]

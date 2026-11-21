@@ -15,12 +15,13 @@ Silicon and Intel need separate builds, or a CI runner of each kind) and the Lin
 | `requirements-desktop.txt` | build environment (Python 3.12, ViennaRNA 2.7.2 wheel, pywebview, PyInstaller, certifi for *Fetch from the PDB*, fontTools for embedding the figure font in PDFs) |
 | `build_windows.ps1` | Windows: venv → PyInstaller → frozen-engine self-test → Inno Setup installer |
 | `windows/RCV.iss` | Inno Setup script (Start-menu entry, optional desktop shortcut, optional `.rcv` file association, uninstaller) |
+| `windows/build_msix.ps1`, `windows/msix/` | Windows: MSIX package for the Microsoft Store (manifest template `AppxManifest.xml.in`, Store/tile icons in `Assets/` drawn by `make_assets.py`) |
 | `macos/build_macos.sh` | macOS: venv → PyInstaller `.app` → self-test → `.dmg` with an *Applications* link and the user guide (optional signing and notarisation) |
 | `linux/build_linux.sh` | Linux: venv → PyInstaller → self-test (engine, tools, server) → `.deb` (dpkg-deb) and `.rpm` (rpmbuild) |
 | `linux/rcv-rpm.spec`, `linux/rcv.desktop`, `linux/rcv-mime.xml`, `linux/icons/` | RPM recipe, menu entry (with *RCV with demo ensembles* and *RCV User Guide*), `.rcv` file type, icons 16–512 px |
 | `make_docs.py` | user guide, plugin guide and changelog as web pages (installers: Start menu / disk image; website: `--site`) |
 | `THIRD-PARTY-NOTICES.txt` | licences and credits of the bundled software (ViennaRNA, Python, NumPy, SciPy, …), installed next to RCV |
-| `../.github/workflows/installers.yml` | builds all installers on GitHub (Windows x64, macOS Apple Silicon, macOS Intel, Linux `.deb` and `.rpm`) and test-installs the Linux packages |
+| `../.github/workflows/installers.yml` | builds all installers on GitHub (Windows x64 and its MSIX package, macOS Apple Silicon, macOS Intel, Linux `.deb` and `.rpm`) and test-installs the Linux packages |
 | `icons/` | `rcv.ico`, `rcv.icns` and a 1024 px `rcv.png` rendered from `src/rcv/static/img/icon.svg` |
 
 ## Windows (10/11, x64)
@@ -37,7 +38,49 @@ Windows 11 and current Windows 10; on older systems install the Evergreen runtim
 pywebview/WebView2 the app falls back to an Edge app window.
 
 Unsigned installers trigger a SmartScreen warning; sign `RCV.exe` and the installer with a
-code-signing certificate (`signtool sign /fd sha256 /tr <timestamp-url> /td sha256 ...`) before distribution.
+code-signing certificate (`signtool sign /fd sha256 /tr <timestamp-url> /td sha256 ...`) before distribution,
+or point Windows users to the Microsoft Store build (below), which the Store signs. To keep antivirus heuristics
+quiet the build avoids what they flag: no UPX compression (`upx=False`), a version resource in `RCV.exe`
+(publisher, product, version), no update check or downloader (removed in 0.7.6) and no scripts run at install
+time.
+
+### Microsoft Store (MSIX)
+
+The Store build is the same program as the Setup.exe, packaged as MSIX: Windows installs, updates and removes it
+(clean uninstall, no administrator rights, no SmartScreen prompt), and the Store signs it.
+
+```powershell
+winget install Microsoft.WindowsSDK.10.0.26100            # MakeAppx, MakePri, SignTool
+powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1 -SkipInstaller   # dist\RCV + help pages
+powershell -File packaging\windows\build_msix.ps1 -IdentityName "<Package/Identity/Name>" `
+  -Publisher "CN=<Package/Identity/Publisher>" -PublisherDisplayName "<Publisher display name>"
+```
+
+Output: `dist\msix\RCV-<version>-Windows-x64.msix` (version `a.b.c.0`). The three values are on Partner Center ▸
+the app ▸ *Product management ▸ Product identity* and must be copied exactly. On GitHub, set them as repository
+variables `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER`, `MSIX_PUBLISHER_DISPLAY_NAME`; the workflow then puts the package
+on the run page as the artifact `store-msix-x64` (it is not attached to the website release: an unsigned MSIX
+installs only through the Store).
+
+Submitting (Partner Center, *Apps and games ▸ New product ▸ MSIX or PWA app*):
+
+1. Reserve the name (*RCV - RNA Conformation Viewer*), then copy the product identity into the build as above.
+2. *Packages*: upload the `.msix`. The manifest declares `runFullTrust` (a desktop program, like every Win32 app in
+   the Store); Partner Center asks why: *RCV is a desktop application (Python + WebView2) that runs its prediction
+   engine as a child process and reads and writes the user's structure files.*
+3. *Store listing* (English; the package declares only `en-us`, so one listing is enough): description and
+   screenshots (`docs/images/`), privacy policy URL (`https://www.rnaconfviewer.com/#privacy`: RCV collects no data).
+4. *Age ratings* (IARC questionnaire: no user interaction, no data sharing) and *Pricing: free*.
+
+Testing before submission: create a test certificate whose subject equals `-Publisher`, trust it in *Local
+Machine ▸ Trusted People*, build with `-CertificatePfx test.pfx -CertificatePassword ...` and double-click the
+`.msix`. Things that differ from the Setup.exe: the install folder (`C:\Program Files\WindowsApps\...`) is read-only
+(RCV never writes there), and files the packaged RCV creates in `%APPDATA%\RCV` / `%LOCALAPPDATA%` are kept by
+Windows in the package's own folder (removed with the app), so settings and plugins made by the Store copy are
+not seen by a Setup.exe copy; projects in `Documents\RCV` are shared.
+
+Run `python packaging/windows/msix/make_assets.py` (needs Pillow) only when the icon changes; the PNGs are kept
+in the repository.
 
 ## macOS (14+, Apple Silicon or Intel)
 

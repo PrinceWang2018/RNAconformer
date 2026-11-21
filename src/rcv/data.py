@@ -26,13 +26,17 @@ import os
 
 from rnafold3d.build import atom_order
 from rnafold3d.evaluate import DESCRIPTORS, TERMS as EVAL_TERMS, TOTAL as EVAL_TOTAL, evaluate_many
-from rnafold3d.structure_io import read_models
+from rnafold3d.modifications import (BY_CODE as MOD_CATALOGUE, CCD_TO_CODE, canonical_atoms,
+                                     normalize as normalize_mods)
+from rnafold3d.structure_io import L_RNA, read_models
 
 SCHEMA = 'rcv.document/1'
 LEGACY_SCHEMAS = ('rnaconfswitch.document/1', 'rnafold3d.viewer/1')
 STRUCT_EXT = ('.pdb', '.ent', '.cif', '.mmcif')
 COVALENT = {'C': 0.76, 'N': 0.71, 'O': 0.66, 'P': 1.07, 'S': 1.05, 'F': 0.57, 'BR': 1.20, 'SE': 1.20, 'CL': 1.02, 'I': 1.39}
 MAX_CONFORMATIONS = 500
+CONTEXT_MAX_ATOMS = 6000          # atoms of ligands and ions shown next to the RNA (the nearest groups first)
+CONTEXT_MAX_POINTS = 30000        # residues of protein, DNA and other RNA chains drawn as traces
 
 ENGINE_TERMS = {
     'clash': ('Clash (coarse)', 'Coarse-grained steric overlap between rigid bodies and loops.'),
@@ -62,11 +66,12 @@ EXTERNAL_METRICS = (
 
 # ----------------------------------------------------------------------------- input collection
 class Conformation:
-    __slots__ = ('label', 'source', 'model', 'chain', 'residues', 'meta', 'title')
+    __slots__ = ('label', 'source', 'model', 'chain', 'residues', 'meta', 'title', 'context')
 
-    def __init__(self, label, source, model, chain, residues, meta=None, title=''):
+    def __init__(self, label, source, model, chain, residues, meta=None, title='', context=None):
         self.label, self.source, self.model, self.chain = label, source, model, chain
         self.residues, self.meta, self.title = residues, meta or {}, title
+        self.context = context          # what the file holds besides this RNA chain (context_of), or None
 
 
 class DifferentRNAError(ValueError):
@@ -78,9 +83,29 @@ def natural_key(s):
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', str(s))]
 
 
-def _pick_chain(chains, chain_id, where, warnings):
+def _pick_chain(chains, chain_id, where, warnings, others=None):
     if not chains:
-        raise ValueError(f'{where}: no RNA residues found')
+        from rnafold3d.structure_io import describe_others
+        holds = describe_others(others)
+        raise ValueError(f'{where}: no RNA found in this file. '
+                         + (f'It holds {holds}. ' if holds else 'It has no atom records that RCV can read as nucleotides. ')
+                         + 'RCV shows RNA structures: open a file with at least one RNA chain (A, C, G, U or modified '
+                           'nucleotides)')
+    if chain_id and '+' in chain_id:                 # several chains shown as one, e.g. both strands of a duplex
+        parts = []
+        for cid in chain_id.split('+'):
+            hit = next((ch for key, ch in chains.items() if cid.strip() in (key, ch.auth_asym_id, ch.label_asym_id)), None)
+            if hit is None:
+                raise ValueError(f'{where}: chain {cid!r} not found (available: {", ".join(sorted(chains))})')
+            parts.append(hit)
+        import copy
+        joined = copy.copy(parts[0])
+        joined.residues = [copy.copy(r) for ch in parts for r in ch.residues]
+        for k, r in enumerate(joined.residues, 1):
+            r.index = k
+        joined.sequence = ''.join(r.base for r in joined.residues)
+        joined.auth_asym_id = joined.label_asym_id = '+'.join(c.auth_asym_id or c.label_asym_id for c in parts)
+        return joined
     if chain_id:
         for key, ch in chains.items():
             if chain_id in (key, ch.auth_asym_id, ch.label_asym_id):
@@ -90,8 +115,38 @@ def _pick_chain(chains, chain_id, where, warnings):
     others = [c for c in chains.values() if c is not ch and len(c.residues) >= 2]
     if others:
         warnings.add(f'{where}: several RNA chains; showing chain {ch.auth_asym_id or ch.label_asym_id} '
-                     f'({len(ch.residues)} nt). Use the chain option to choose another.')
+                     f'({len(ch.residues)} nt). Use the chain option to choose another, or e.g. A+B to show the '
+                     f'strands of a duplex together.')
     return ch
+
+
+def context_of(chains, shown, others):
+    """What a model holds besides the RNA chain that is shown: ligands and ions with their atoms, and protein, DNA and
+    other RNA chains as one point per residue (CA, C4'). Coordinates as in the file. None when there is nothing.
+        {'groups': [{'chain', 'num', 'comp', 'names', 'elements', 'xyz'}], 'traces': [{'kind', 'chain', 'nums', 'comps', 'xyz'}]}"""
+    groups, traces = [], []
+    others = others or {}
+    for (chain, num, ins, comp), atoms in (others.get('groups') or {}).items():
+        heavy = [(a, e, x) for a, (e, x) in atoms.items() if str(e).upper() not in ('H', 'D')]
+        if heavy:
+            groups.append({'chain': str(chain), 'num': f'{num}{ins}', 'comp': str(comp), 'names': [a for a, _, _ in heavy],
+                           'elements': [str(e).upper() for _, e, _ in heavy], 'xyz': np.array([x for _, _, x in heavy], float)})
+    for kind in ('protein', 'dna'):
+        for chain, residues in (others.get(kind) or {}).items():
+            if residues:
+                traces.append({'kind': kind, 'chain': str(chain), 'nums': [f'{n}{i}' for n, i in residues],
+                               'comps': [c for c, _ in residues.values()], 'xyz': np.array([x for _, x in residues.values()], float)})
+    names = set(str(shown.auth_asym_id or shown.label_asym_id or '').split('+')) if shown is not None else set()
+    for ch in chains.values():
+        if ch is shown or (len(names) > 1 and (ch.auth_asym_id or ch.label_asym_id) in names):
+            continue
+        pts = [(r, next((r.atoms[a] for a in ("C4'", "C1'", 'P') if a in r.atoms), None)) for r in ch.residues]
+        pts = [(r, x) for r, x in pts if x is not None]
+        if pts:
+            traces.append({'kind': 'rna', 'chain': str(ch.auth_asym_id or ch.label_asym_id),
+                           'nums': [f'{r.auth_seq_id or r.index}{r.ins_code or ""}' for r, _ in pts],
+                           'comps': [r.comp_id for r, _ in pts], 'xyz': np.array([x for _, x in pts], float)})
+    return {'groups': groups, 'traces': traces} if groups or traces else None
 
 
 def _models_to_confs(models, fname, chain_id, warnings, single_file=False):
@@ -99,10 +154,14 @@ def _models_to_confs(models, fname, chain_id, warnings, single_file=False):
     multi = len(models) > 1
     stem = Path(fname).stem
     for mid, chains, meta in models:
-        ch = _pick_chain(chains, chain_id, Path(fname).name, warnings)
+        ch = _pick_chain(chains, chain_id, Path(fname).name, warnings, meta.get('others'))
+        if any(r.comp_id in L_RNA for r in ch.residues):
+            warnings.add(f'{Path(fname).name}: mirror-image RNA (L-nucleotides). The structure is shown as it is; '
+                         'energies and the other analyses are made for natural D-RNA.')
         label = (f'Model {mid}' if single_file else f'{stem} · model {mid}') if multi else stem
         out.append(Conformation(label, Path(fname).name, mid if multi else None,
-                                ch.auth_asym_id or ch.label_asym_id, ch.residues, {}, meta.get('title', '')))
+                                ch.auth_asym_id or ch.label_asym_id, ch.residues, {}, meta.get('title', ''),
+                                context_of(chains, ch, meta.get('others'))))
     return out
 
 
@@ -386,6 +445,7 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
                              'chain': ref.chain, 'first_atom': len(atom_names), 'n_atoms': len(ordered)})
         atom_names += ordered
         atom_res += [ri] * len(ordered)
+    modifications = _modifications(manifest, residues_out, seq, same_sequence)
     elements = [_element(a) for a in atom_names]
     n_atoms = len(atom_names)
     xyz = np.zeros((len(confs), n_atoms, 3))
@@ -401,17 +461,22 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
     # --- superposition on C4' (fallback: all atoms) of the first conformation, then centring
     c4 = [i for i, nm in enumerate(atom_names) if nm == "C4'"]
     fit_idx = c4 if len(c4) >= 3 else list(range(n_atoms))
-    for ci in range(1, len(confs)):
-        r, t = _kabsch(xyz[ci, fit_idx], xyz[0, fit_idx])
+    moves = [(np.eye(3), np.zeros(3)) for _ in confs]    # file coordinates @ R + t = shown coordinates
+
+    def move(ci, r, t):
         xyz[ci] = xyz[ci] @ r + t
+        moves[ci] = (moves[ci][0] @ r, moves[ci][1] @ r + t)
+    for ci in range(1, len(confs)):
+        move(ci, *_kabsch(xyz[ci, fit_idx], xyz[0, fit_idx]))
     mean = xyz.mean(axis=0)
     for ci in range(len(confs)):                         # one refinement round against the mean structure
-        r, t = _kabsch(xyz[ci, fit_idx], mean[fit_idx])
-        xyz[ci] = xyz[ci] @ r + t
+        move(ci, *_kabsch(xyz[ci, fit_idx], mean[fit_idx]))
     mean = xyz.mean(axis=0)
     centre = mean[fit_idx].mean(axis=0)
     xyz -= centre
     mean -= centre
+    moves = [(r, t - centre) for r, t in moves]
+    context = _context_document(confs, moves, xyz[0][fit_idx], warnings)
 
     # --- ensemble statistics
     rmsf_atom = np.sqrt(np.mean(np.sum((xyz - mean) ** 2, axis=2), axis=0))
@@ -436,8 +501,16 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
         residues = []
         for r in residues_out:
             s = r['first_atom']
-            residues.append({atom_names[s + q]: xyz[ci, s + q] for q in range(r['n_atoms'])})
+            atoms = {atom_names[s + q]: xyz[ci, s + q] for q in range(r['n_atoms'])}
+            if r.get('mod') or r['comp'] != r['name']:          # renamed atoms of modified nucleotides (Ψ, s2U ...)
+                atoms = canonical_atoms(atoms, r['comp'], r.get('mod'))
+            residues.append(atoms)
         residue_sets.append(residues)
+    mod_sites = [{'pos': m['index'] + 1, 'code': m['code']} for m in modifications if m.get('code')]
+    try:
+        mod_sites = normalize_mods(mod_sites, seq)
+    except ValueError:
+        mod_sites = []
     if progress:
         progress(f'evaluating {nc} conformations')
     # engine packages carry the validator report already; imported structures are validated here
@@ -446,9 +519,9 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
     work = pending * len(seq)               # validation dominates: ~1 s per 200-nt conformation
     workers = min(max(1, (os.cpu_count() or 2) - 1), pending) if (pending >= 6 and work > 3000) else 1
     try:
-        evaluations = evaluate_many(seq, residue_sets, known, workers)
+        evaluations = evaluate_many(seq, residue_sets, known, workers, mod_sites or None)
     except (OSError, RuntimeError):              # no process pool available: fall back to serial
-        evaluations = evaluate_many(seq, residue_sets, known, 1)
+        evaluations = evaluate_many(seq, residue_sets, known, 1, mod_sites or None)
     for ci, c in enumerate(confs):
         residues = residue_sets[ci]
         ev = evaluations[ci]
@@ -599,6 +672,7 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
                                                           ('alphafold3' if (source or {}).get('kind') == 'alphafold3' else 'structures')),
         'sequence': seq,
         'residues': residues_out,
+        'modifications': modifications,
         'atoms': {'names': atom_names, 'elements': elements, 'residue': atom_res},
         'bonds': [v for b in bonds for v in b],
         'conformations': conformations,
@@ -615,12 +689,144 @@ def build_document(name, confs, manifest=None, warnings=(), source=None, plugins
         'plugins': [p.id for p in plugins],
         'warnings': sorted(warnings),
     }
+    if context:
+        doc['context'] = context
     try:                                                # topology-aware ensemble map (Energy tab, Pathway tab)
         from .landscape import layout_doc
         doc['ensemble']['landscape'] = layout_doc(doc)
     except Exception as exc:                            # the map is optional; never block opening
         doc['warnings'].append(f'ensemble map not computed: {type(exc).__name__}: {exc}')
     return doc
+
+
+def _plural(n, one, many=None):
+    return f'{n} {one if n == 1 else many or one + "s"}'
+
+
+def _context_document(confs, moves, rna_points, warnings):
+    """The 'context' of a document: what is bound to the RNA in every conformation, moved with each conformation
+    like the RNA itself. Ligands and ions keep their atoms (bonds from distances); protein, DNA and other RNA chains
+    are one point per residue. Groups and chains that are not the same in every conformation are left out.
+
+        {'atoms': {'names', 'elements', 'group'}, 'groups': [{'comp', 'chain', 'num', 'kind', 'first_atom', 'n_atoms'}],
+         'bonds': [i, j, ...], 'traces': [{'kind', 'chain', 'first', 'n', 'nums', 'comps'}], 'n_points': int,
+         'coords': [base64 float32 per conformation: the atoms, then the trace points], 'summary': str}"""
+    ctxs = [c.context for c in confs]
+    if not any(ctxs):
+        return None
+    missing = 'Bound molecules (ligands, ions, protein or other chains) are not shown: not every conformation has them.'
+    if not all(ctxs):
+        warnings.add(missing)
+        return None
+
+    def gkey(g):
+        return (g['chain'], g['num'], g['comp'], tuple(g['names']))
+
+    def tkey(t):
+        return (t['kind'], t['chain'], tuple(t['nums']))
+    gmaps = [{gkey(g): g for g in ctx['groups']} for ctx in ctxs]
+    tmaps = [{tkey(t): t for t in ctx['traces']} for ctx in ctxs]
+    gkeys = [k for k in gmaps[0] if all(k in m for m in gmaps[1:])]
+    tkeys = [k for k in tmaps[0] if all(k in m for m in tmaps[1:])]
+    if not gkeys and not tkeys:
+        warnings.add(missing)
+        return None
+    if any(len(m) != len(gkeys) for m in gmaps) or any(len(m) != len(tkeys) for m in tmaps):
+        warnings.add('Only the bound molecules that every conformation has are shown.')
+
+    r0, t0 = moves[0]
+
+    def nearest(xyz):                                    # distance of a group or chain to the RNA (first conformation)
+        p = xyz @ r0 + t0
+        return float(min(np.sqrt(((p[s:s + 256, None, :] - rna_points[None, :, :]) ** 2).sum(axis=2)).min()
+                         for s in range(0, len(p), 256)))
+    n_atoms = sum(len(k[3]) for k in gkeys)
+    if n_atoms > CONTEXT_MAX_ATOMS:
+        ranked, kept, total = sorted(gkeys, key=lambda k: nearest(gmaps[0][k]['xyz'])), set(), 0
+        for k in ranked:
+            if total + len(k[3]) > CONTEXT_MAX_ATOMS:
+                break
+            kept.add(k)
+            total += len(k[3])
+        warnings.add(f'{len(kept)} of {len(gkeys)} ligands and ions are shown (the nearest to the RNA).')
+        gkeys = [k for k in gkeys if k in kept]
+    if sum(len(k[2]) for k in tkeys) > CONTEXT_MAX_POINTS:
+        ranked, kept, total = sorted(tkeys, key=lambda k: nearest(tmaps[0][k]['xyz'])), set(), 0
+        for k in ranked:
+            if total + len(k[2]) > CONTEXT_MAX_POINTS:
+                break
+            kept.add(k)
+            total += len(k[2])
+        warnings.add(f'{len(kept)} of {len(tkeys)} other chains are shown (the nearest to the RNA).')
+        tkeys = [k for k in tkeys if k in kept]
+    if not gkeys and not tkeys:
+        return None
+
+    names, elements, group_of, groups = [], [], [], []
+    for gi, k in enumerate(gkeys):
+        g = gmaps[0][k]
+        groups.append({'comp': g['comp'], 'chain': g['chain'], 'num': g['num'], 'kind': 'ion' if len(g['names']) == 1 else 'ligand',
+                       'first_atom': len(names), 'n_atoms': len(g['names'])})
+        names += g['names']
+        elements += g['elements']
+        group_of += [gi] * len(g['names'])
+    traces, n_points = [], 0
+    for k in tkeys:
+        t = tmaps[0][k]
+        traces.append({'kind': t['kind'], 'chain': t['chain'], 'first': n_points, 'n': len(t['nums']),
+                       'nums': t['nums'], 'comps': t['comps']})
+        n_points += len(t['nums'])
+    coords = []
+    for (r, t), gm, tm in zip(moves, gmaps, tmaps):
+        parts = [gm[k]['xyz'] for k in gkeys] + [tm[k]['xyz'] for k in tkeys]
+        coords.append(np.concatenate(parts) @ r + t)
+    first = coords[0][:len(names)]
+    bonds = [v for i, j in (_bonds(first, elements, group_of) if len(names) > 1 else ()) if group_of[i] == group_of[j]
+             for v in (i, j)]
+
+    def listed(items, limit=6):
+        seen = list(dict.fromkeys(items))
+        return ', '.join(seen[:limit]) + (' …' if len(seen) > limit else '')
+    lig = [g for g in groups if g['kind'] == 'ligand']
+    ion = [g for g in groups if g['kind'] == 'ion']
+    parts = []
+    if lig:
+        parts.append(f'{_plural(len(lig), "ligand")} ({listed(g["comp"] for g in lig)})')
+    if ion:
+        parts.append(f'{_plural(len(ion), "ion")} ({listed(g["comp"] for g in ion)})')
+    for kind, word, unit in (('protein', 'protein', 'residue'), ('dna', 'DNA', 'nucleotide'), ('rna', 'other RNA', 'nucleotide')):
+        ts = [t for t in traces if t['kind'] == kind]
+        if ts:
+            parts.append(f'{word} ({_plural(len(ts), "chain")} {listed(t["chain"] for t in ts)}; '
+                         f'{_plural(sum(t["n"] for t in ts), unit)})')
+    return {'atoms': {'names': names, 'elements': elements, 'group': group_of}, 'groups': groups, 'bonds': bonds,
+            'traces': traces, 'n_points': n_points,
+            'coords': [base64.b64encode(c.astype('<f4').tobytes()).decode('ascii') for c in coords],
+            'summary': ', '.join(parts)}
+
+
+def _modifications(manifest, residues_out, seq, same_sequence):
+    """Modified nucleotides of the document: from the engine's manifest (the notation given at prediction), else from
+    the residue names (PDB chemical components such as PSU, 1MA, 5MC). Sets residue['mod'] to the catalogue code."""
+    out, by_index = [], {}
+    sites = (((manifest or {}).get('input') or {}).get('modifications') or {}).get('sites') or []
+    if sites and same_sequence:
+        for m in sites:
+            k = int(m.get('pos', 0)) - 1
+            if 0 <= k < len(residues_out) and m.get('code') in MOD_CATALOGUE:
+                by_index.setdefault(k, []).append(m['code'])
+    for k, r in enumerate(residues_out):
+        codes = by_index.get(k) or ([CCD_TO_CODE[r['comp']]] if r['comp'] in CCD_TO_CODE else [])
+        for code in codes:
+            e = MOD_CATALOGUE[code]
+            if e['kind'] != 'backbone':
+                r['mod'] = code
+            out.append({'index': k, 'code': code, 'name': e['name'], 'comp': r['comp'], 'parent': e['parent'],
+                        'category': e['category'], 'kind': e['kind']})
+        if not codes and r['comp'] not in ('A', 'C', 'G', 'U'):
+            out.append({'index': k, 'code': None, 'name': f'modified {seq[k]} ({r["comp"]})', 'comp': r['comp'],
+                        'parent': seq[k], 'category': None, 'kind': 'base'})
+    return out
 
 
 def _provenance(manifest):
@@ -636,6 +842,8 @@ def _provenance(manifest):
                             'cluster_rmsd_threshold', 'max_structures')
                            if k in manifest.get('parameters', {})},
             'statistics': manifest.get('statistics'),
+            **({'modifications': inp['modifications']} if inp.get('modifications') else {}),
+            **({'zrna': inp['zrna']} if (inp.get('zrna') or {}).get('mode', 'off') != 'off' else {}),
             'notes': manifest.get('notes', [])}
 
 

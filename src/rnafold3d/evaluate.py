@@ -103,12 +103,19 @@ def find_stacks(sequence, residues):
     return out
 
 
-def _vienna_eval(sequence, dbn):
+def _vienna_eval(sequence, dbn, modifications=None, breaks=()):
     try:
         import RNA
     except ImportError:
         return None
     try:
+        if breaks and not modifications:          # several strands (a duplex shown as one chain): co-folding energy
+            cut = sorted(breaks)
+            s = ''.join(c + ('&' if k + 1 in cut else '') for k, c in enumerate(sequence))
+            return float(RNA.fold_compound(s).eval_structure(dbn))      # the structure is given without '&'
+        if modifications:
+            from .modifications import fold_compound
+            return float(fold_compound(sequence, modifications)[0].eval_structure(dbn))
         return float(RNA.fold_compound(sequence).eval_structure(dbn))
     except Exception:          # malformed / unsupported structure: report as unavailable
         return None
@@ -131,23 +138,23 @@ def radius_of_gyration(residues):
     return float(np.sqrt(np.mean(np.sum((x - x.mean(axis=0)) ** 2, axis=1))))
 
 
-def evaluate_many(sequence, residue_sets, validations=None, workers=1):
+def evaluate_many(sequence, residue_sets, validations=None, workers=1, modifications=None):
     """Evaluate several conformations, in parallel worker processes when `workers` > 1."""
     validations = validations or [None] * len(residue_sets)
     if workers <= 1 or len(residue_sets) < 2:
-        return [evaluate(sequence, r, v) for r, v in zip(residue_sets, validations)]
+        return [evaluate(sequence, r, v, modifications) for r, v in zip(residue_sets, validations)]
     import multiprocessing as mp
     from concurrent.futures import ProcessPoolExecutor
     ctx = mp.get_context('spawn')            # safe from threaded servers; workers re-import the package
     with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as pool:
-        return list(pool.map(_evaluate_args, [(sequence, r, v) for r, v in zip(residue_sets, validations)]))
+        return list(pool.map(_evaluate_args, [(sequence, r, v, modifications) for r, v in zip(residue_sets, validations)]))
 
 
 def _evaluate_args(args):
     return evaluate(*args)
 
 
-def evaluate(sequence, residues, validation=None):
+def evaluate(sequence, residues, validation=None, modifications=None):
     """Evaluate one conformation. residues: list (per sequence position, may be empty dicts) of {atom: xyz}.
 
     `validation` may pass a precomputed rnafold3d.checks report to avoid recomputing it.
@@ -158,7 +165,9 @@ def evaluate(sequence, residues, validation=None):
     std = [{k: v for k, v in (r or {}).items() if b in 'ACGU' and k in atom_order(b)} for b, r in zip(seq, residues)]
     pairs, nested, removed, dbn = annotate_pairs(seq, std)
     nested_dbn = pairs_to_dotbracket(len(seq), nested) if nested else '.' * len(seq)
-    dg2d = _vienna_eval(seq, nested_dbn) if set(seq) <= set('ACGU') else None
+    from .annotate import chain_breaks
+    breaks = chain_breaks([_Res(k + 1, seq[k], std[k]) for k in range(len(seq)) if std[k]])
+    dg2d = _vienna_eval(seq, nested_dbn, modifications, breaks) if set(seq) <= set('ACGU') else None
     partner = {}
     for i, j in nested:
         partner[i], partner[j] = j, i

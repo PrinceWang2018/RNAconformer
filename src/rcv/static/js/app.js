@@ -10,7 +10,6 @@ import { EnsembleList, ConformationList, Timeline } from './panels/conformations
 import { DetailsPanel } from './panels/details.js';
 import { PluginHost } from './plugins.js';
 import { openDialog, exportImageDialog, exportVideoDialog, preferencesDialog, pluginsDialog, shortcutsDialog, aboutDialog, methodsDialog, panelsDialog, pluginGuideDialog, newPluginDialog, userGuideDialog, openWebsite } from './dialogs.js';
-import { checkForUpdates, autoCheckForUpdates, updateDialog } from './update.js';
 import { Recipes, recipesDialog, defineRecipeCommand } from './recipes.js';
 import { projectLibrary, watchThumbnails } from './library.js';
 import { exportFigure, composeFigure } from './export/figure.js';
@@ -34,10 +33,12 @@ import { setPdfFontProvider } from './export/encoders.js';
 import { installNativeFeel } from './nativefeel.js';
 import { Palettes, paletteDialog } from './palettes.js';
 import { Annotations } from './annotations.js';
+import { ZRegions } from './zrna.js';
 import { MouseTools } from './tools3d.js';
 import { History, clearItems } from './history.js';
 import { plotStudio } from './plots.js';
 import { SurfaceController, transparencyDialog } from './surfacectl.js';
+import { ContextController } from './contextctl.js';
 import { composePanels, exportPanels } from './export/panels.js';
 import { recordVideo, framePlan } from './export/video.js';
 import { initLanguage, setLanguage, currentLanguage, LANGUAGES, languageName, untranslated, t as tr } from './i18n.js';
@@ -61,7 +62,7 @@ class Api {
     const r = await fetch(path, opt);
     let data = null;
     try { data = await r.json(); } catch { /* non-JSON */ }
-    if (!r.ok) throw new Error((data && data.error) || `${r.status} ${r.statusText}`);
+    if (!r.ok) throw Object.assign(new Error((data && data.error) || `${r.status} ${r.statusText}`), { status: r.status });
     return data;
   }
   // raw request (binary bodies / responses)
@@ -114,9 +115,6 @@ class App extends Emitter {
     this.i18n = { untranslated, t: tr, current: currentLanguage, languages: LANGUAGES };
   }
 
-  // Help > Check for updates…; showUpdate(r) shows the window for a result of /api/update (also used by the GUI tests)
-  checkForUpdates() { return checkForUpdates(this); }
-  showUpdate(r) { return updateDialog(this, r); }
   openLibrary() { return projectLibrary(this); }
   openRecipes(id) { return recipesDialog(this, id); }
 
@@ -173,6 +171,7 @@ class App extends Emitter {
     });
     this.measure = new Measurements(this);
     this.annotations = new Annotations(this);
+    this.zrna = new ZRegions(this);
     this.probing = new Probing(this);
     this.expdata = new ExpData(this);
     this.confidence = new Confidence(this);
@@ -182,6 +181,7 @@ class App extends Emitter {
       load: (ens, v) => { ens.conditions = v || null; this.emit('conditions', ens.conditions); },
     });
     this.surface = new SurfaceController(this);
+    this.context = new ContextController(this);
     this.scenes = new Scenes(this);
     this.ss2d = new SecondaryInset(this, $('#viewport'));
     this.seqbar = new SequenceBar(this, $('#viewport'));
@@ -226,7 +226,6 @@ class App extends Emitter {
     this.emit('ensemble');
     this.showPage(this.ensembles.size ? 'viewer' : 'welcome');
     document.body.dataset.ready = '1';
-    setTimeout(() => autoCheckForUpdates(this), 4000);     // installed builds, at most once a day; asks, never installs
   }
 
   // ---------------------------------------------------------------- pages & lifecycle
@@ -248,6 +247,9 @@ class App extends Emitter {
     window.addEventListener('pagehide', () => {
       try { navigator.sendBeacon(`/api/bye?token=${encodeURIComponent(this.api.token || '')}`, ''); } catch { /* ignore */ }
     });
+    // a sign of life for the local server: without requests for several minutes and without a running job it
+    // takes the window for gone (a crashed or killed browser cannot say goodbye) and quits
+    setInterval(() => { this.api.get('/api/ping').catch(() => {}); }, 45000);
     window.addEventListener('beforeunload', e => {
       const running = this.jobsDock?.running || (this.welcome?.job && !['done', 'failed', 'cancelled'].includes(this.welcome.job.status));
       if (running) { e.preventDefault(); e.returnValue = 'A computation is still running.'; }
@@ -430,6 +432,8 @@ class App extends Emitter {
         { sep: true },
         { label: 'Ensemble overlay', kbd: 'E', checked: this.state.ghosts, action: () => this.toggleGhosts() },
         { label: 'Flexibility putty', kbd: 'P', checked: this.state.putty, action: () => this.togglePutty() },
+        { label: 'Z-RNA regions (left-handed helices)', checked: !!this.zrna?.enabled, action: () => this.zrna.set(!this.zrna.enabled) },
+        { label: 'Bound molecules (ligands, ions, other chains)', checked: !!this.context?.enabled && !!this.context?.available, action: () => this.context.set(!this.context.enabled), disabled: !this.context?.available },
         { label: 'Molecular surface', kbd: 'U', checked: !!this.surface?.enabled, action: () => this.surface.set(!this.surface.enabled), disabled: !has },
         { label: 'Surface and transparency…', action: () => transparencyDialog(this), disabled: !has },
         { label: 'Measure (click two atoms)', kbd: 'M', checked: !!this.measureMode, action: () => this.action('measure'), disabled: !this.ens },
@@ -467,6 +471,7 @@ class App extends Emitter {
         { sep: true },
         { label: 'Current conformation (PDB)…', action: () => this.exportPDB(false), disabled: !has },
         { label: 'All conformations (PDB)…', action: () => this.exportPDB(true), disabled: !has },
+        { label: 'Secondary structure (dot-bracket, CT, BPSEQ)…', action: () => this.exportSecondary(), disabled: !has },
         { label: 'Energy table (CSV)…', action: () => this.exportCSV(), disabled: !has },
         { label: 'Interactive HTML page (share, supplement)…', action: () => this.exportHTML(), disabled: !has || !this.api.online },
         { sep: true },
@@ -493,11 +498,11 @@ class App extends Emitter {
         { label: 'Open the demo ensembles', action: () => this.openDemo(), disabled: !this.api.online },
         { label: 'What is new in this version', action: () => userGuideDialog(this, 'changelog') },
         { label: 'RCV website', action: () => openWebsite(this) },
-        { label: 'Check for updates…', action: () => this.checkForUpdates(), disabled: !this.api.online },
         { sep: true },
         { label: 'About', action: () => aboutDialog(this, this.info) },
       ] },
     ];
+    this.menuDefs = menus;
     menuBar($('#menus'), menus);
   }
 
@@ -986,6 +991,7 @@ class App extends Emitter {
     if (mech) mech.mech.at(mech.t, d);                   // mechanism morph (Pathway tab)
     else for (let i = 0; i < d.length; i++) d[i] = A[i] + (B[i] - A[i]) * t;
     this.viewer.setCoords(d);
+    this.context?.frame(a, b, t);
     if (this.capturing && this.surface?.enabled) this.surface.update(d, { spacing: 1.1 });
     const ca = this.colorsFor(a).lin, cb = this.colorsFor(b, a).lin;
     const cc = this.curColors = new Float32Array(ca.length);
@@ -999,6 +1005,7 @@ class App extends Emitter {
   restoreView(s) {
     this.display.set(s.display);
     this.viewer.setCoords(this.display);
+    this.context?.at(s.conf);
     if (s.colors) { this.curColors = s.colors; this.viewer.setResidueColorsLinear(this.curColors); }
     this.viewer.controls.quaternion.copy(s.q);
     this.viewer.needsRender = true;
@@ -1038,6 +1045,7 @@ class App extends Emitter {
       this.ens.superposedOn = [...this.state.selection];
       this.display.set(this.ens.coords[this.state.conf]);
       this.viewer.setCoords(this.display);
+      this.context?.at();
       this._applyGhosts();
       toast(`All conformations fitted on ${this.state.selection.size} selected residues.`, 'ok', 'Superposition');
     } catch (err) { toast(err.message, 'error', 'Superposition'); }
@@ -1046,10 +1054,12 @@ class App extends Emitter {
     const ens = this.ens;
     const fresh = new Ensemble(ens.doc, { serverId: ens.serverId });
     ens.coords = fresh.coords;
+    if (ens.context && fresh.context) ens.context.coords = fresh.context.coords;
     ens.superposedOn = null;
     ens._bounds();
     this.display.set(ens.coords[this.state.conf]);
     this.viewer.setCoords(this.display);
+    this.context?.at();
     this._applyGhosts();
   }
 
@@ -1132,13 +1142,17 @@ class App extends Emitter {
 
   _onHover(p, e) {
     const res = p && this.ens ? [p.residue] : [];
+    const bound = this.ens ? this.context?.tipAt(e, p) : null;      // a ligand, ion or partner chain in front of the RNA
+    if (bound) { p = null; res.length = 0; }
     if (res.join() !== (this._hoverRes || []).join()) { this._hoverRes = res; this.emit('hover', res); }
+    if (bound) { tooltip.show(bound, e.clientX, e.clientY); return; }
     if (!p || !this.ens || !e) { tooltip.hide(); return; }
     const ens = this.ens, r = p.residue, k = this.state.conf;
     const pi = ens.pairInfo(k, r);
     const atomRep = this.viewer.settings.representation !== 'cartoon';
     tooltip.show([
       tipRow(ens.resLabel(r), atomRep ? `atom ${ens.atomNames[p.atom]}` : (ens.residues[r].comp !== ens.residues[r].name ? ens.residues[r].comp : '')),
+      ...(ens.doc.modifications || []).filter(m => m.index === r).map(m => el('div', { class: 'tl', translate: 'no', text: `${m.code ? `${m.code} · ` : ''}${m.name}` })),
       el('div', { class: 'tl', text: pi ? `paired with ${ens.resLabel(pi.partner)}${pi.pk ? ' (pseudoknot)' : ''}` : 'unpaired in this conformation' }),
       el('div', { class: 'tl', text: `RMSF ${fmt(ens.rmsf[r], 1)} Å across ${ens.n} conformations` }),
     ], e.clientX, e.clientY);
@@ -1289,6 +1303,7 @@ class App extends Emitter {
     try {
       const view = this.viewState();
       delete view.parts;
+      view.context = !!this.context?.enabled;
       const analysis = { pathway: ens._pathway || null, phi: ens._phiScan || null };   // shown on the page when computed
       const body = { view, title: ens.name, analysis, ...(ens.serverId ? { document: ens.serverId } : { doc: ens.doc }) };
       const r = await this.api.raw('POST', '/api/export-html', JSON.stringify(body), { 'Content-Type': 'application/json' });
@@ -1326,6 +1341,13 @@ class App extends Emitter {
     const name = `${slug(ens.name)}_${all ? 'all' : ens.shortId(which ?? this.state.conf)}.pdb`;
     const saved = await saveBlob(new Blob([text], { type: 'chemical/x-pdb' }), name, [{ description: 'PDB file', accept: { 'chemical/x-pdb': ['.pdb'] } }]);
     if (saved) toast(saved, 'ok', 'PDB saved');
+  }
+
+  // Sequence + 2D structure of the conformations as dot-bracket, CT or BPSEQ text (export/secondary.js)
+  async exportSecondary() {
+    if (!this.ens) return;
+    const m = await import('./export/secondary.js');
+    return m.exportSecondaryDialog(this);
   }
 
   async exportCSV() {
@@ -1536,6 +1558,69 @@ class App extends Emitter {
   }
 }
 
+// ------------------------------------------------------------------ start-up and unexpected errors
+// A page that explains why RCV cannot be used, over whatever was built so far (instead of a small message on a
+// half-built window).
+function fatalPage(title, paragraphs, { points = [], detail = '' } = {}) {
+  document.querySelector('.fatal')?.remove();
+  document.body.append(el('div', { class: 'fatal', role: 'alert' }, el('div', { class: 'fatal-card' },
+    el('img', { class: 'logo', src: 'img/icon.svg?v=0.6', alt: '' }), el('h1', { text: title }),
+    paragraphs[0] ? el('p', { text: paragraphs[0] }) : null,
+    points.length ? el('ul', {}, ...points.map(p => el('li', { text: p }))) : null,
+    ...paragraphs.slice(1).map(p => el('p', { text: p })),
+    detail ? el('pre', { class: 'fatal-detail', translate: 'no', text: detail }) : null,
+    el('div', { class: 'fatal-actions' }, el('button', { class: 'btn primary', onclick: () => location.reload() }, 'Try again')))));
+  document.body.dataset.ready = 'fatal';
+}
+
+function webgl2Available() {
+  if (new URLSearchParams(location.search).has('simulate-no-webgl')) return false;     // for the automated tests
+  try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; }
+}
+
+function noGraphicsPage() {
+  fatalPage('3D graphics are not available in this window',
+    ['RCV draws structures with the graphics processor (WebGL 2), and this window cannot use it. The usual reasons:',
+      'Run RCV on the computer itself, switch graphics acceleration on or update the graphics driver, then start RCV again. Predictions from the command line (rcv batch) do not need 3D graphics.'],
+    { points: ['a remote desktop session, or a virtual machine without 3D acceleration',
+      'graphics acceleration switched off in the browser (Edge or Chrome: Settings ▸ System ▸ Use graphics acceleration when available)',
+      'an outdated or blocked graphics driver'] });
+}
+
+// Errors nobody caught (a click handler that throws, a rejected promise): say so and write them to the log of
+// the local server, instead of a button that silently does nothing.
+function reportUnexpected(app) {
+  const seen = new Map();
+  app.unexpected = [];                                               // read by the automated tests
+  const report = (what, err) => {
+    const msg = String(err?.message || err || what).slice(0, 300);
+    if (!msg || /ResizeObserver loop|^Script error\.?$/.test(msg) || err?.name === 'AbortError') return;
+    if (app.unexpected.length < 100) app.unexpected.push(`${what}: ${msg}`);
+    const now = Date.now();
+    if (now - (seen.get(msg) || 0) < 15000) return;                  // the same error once in a while, not per frame
+    seen.set(msg, now);
+    if (seen.size > 50) seen.clear();
+    console.error(err || msg);
+    if (document.body.dataset.ready === '1') {                       // the program's own message stays as it is, untranslated
+      const note = toast('If it happens again, save your work and restart RCV; the details are in the log.', 'error', 'Something went wrong', 9000);
+      note.querySelector('.tb')?.append(el('span', { class: 'toast-detail', translate: 'no', text: msg }));
+    }
+    const stack = String(err?.stack || '').split('\n').slice(0, 6).join(' | ').slice(0, 1500);
+    app.api.post('/api/client-log', { level: 'error', message: `${what}: ${msg}${stack ? ' || ' + stack : ''}` }).catch(() => {});
+  };
+  window.addEventListener('error', e => report('error', e.error || e.message));
+  window.addEventListener('unhandledrejection', e => report('unhandled rejection', e.reason));
+}
+
 const app = new App();
 window.rcv = app;                  // for debugging, the command console and automated tests
-app.init().catch(err => { console.error(err); toast(err.message || String(err), 'error', 'Start-up failed'); });
+reportUnexpected(app);
+if (!webgl2Available()) initLanguage().catch(() => {}).then(noGraphicsPage);
+else {
+  app.init().catch(err => {
+    console.error(err);
+    app.api.post('/api/client-log', { level: 'error', message: `start-up failed: ${err?.stack || err}` }).catch(() => {});
+    if (/webgl|context/i.test(String(err?.message || err))) noGraphicsPage();
+    else fatalPage('RCV could not start', ['The window could not be set up. Try again; if it happens every time, reinstall RCV or report the message below.'], { detail: String(err?.message || err) });
+  });
+}

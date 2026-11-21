@@ -1,7 +1,7 @@
 ; Inno Setup script for the RCV Windows installer (built by packaging\build_windows.ps1).
 ;   Inputs: dist\RCV (PyInstaller one-folder build) and build\docs_html (python packaging\make_docs.py build\docs_html).
 #ifndef AppVersion
-  #define AppVersion "0.7.5"
+  #define AppVersion "0.7.6"
 #endif
 
 [Setup]
@@ -12,7 +12,6 @@ AppVerName=RCV {#AppVersion}
 AppPublisher=Zixiang Wang
 AppPublisherURL=https://www.rnaconfviewer.com/
 AppSupportURL=https://github.com/PrinceWang2018/RNAconformer/issues
-AppUpdatesURL=https://www.rnaconfviewer.com/#download
 AppContact=princewang2018@gmail.com
 AppCopyright=Copyright (C) 2026 Zixiang Wang
 VersionInfoVersion={#AppVersion}

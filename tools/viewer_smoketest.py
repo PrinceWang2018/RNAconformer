@@ -6,6 +6,12 @@ Starts RCV (no window) with the demo ensembles and the test harness (tools/viewe
 real application through the scenarios in tools/viewer_harness/steps.js, saves screenshots of the visual
 scenarios and prints a pass/fail report. Works on Linux, Windows and WSL (using the Windows browser).
 A temporary browser profile is used, so your own browser profile is never touched.
+
+Under WSL the Windows browser keeps these profiles in the Windows temporary folder, not on the Linux disk: there
+(reached through \\\\wsl.localhost) a start took 5.6 s instead of 1.1 s, and 7 of 800 starts never loaded a page
+(0 of 400 on the Windows disk; measured 2026-11-21). As a second safeguard the test page reports LOADED as soon as
+its script runs; a scenario whose browser has not reported within --start-timeout seconds is started once more
+with a fresh profile, and the report says so.
 """
 from __future__ import annotations
 
@@ -25,11 +31,17 @@ sys.path.insert(0, str(ROOT / 'src'))
 from rcv.desktop import find_browser, _is_wsl  # noqa: E402
 
 SCREENSHOT = ['overview', 'morph', 'dark', 'overlay', 'welcome', 'welcomedark', 'welcomebatch', 'ss2d', 'console1', 'switchtab', 'panels', 'transitionframe',
-              'tools2', 'plots', 'plotsall', 'surface1', 'pathwayshot', 'pathwayshot2', 'landmap', 'plots07', 'confshot', 'pathwayzh', 'docpathway', 'plugindev', 'panelsize', 'winmax', 'langzh', 'langde', 'langja', 'guide1', 'insightswitch', 'insightpathway', 'insightdetails', 'insightpockets', 'update1', 'railshot', 'presentshot', 'libraryshot', 'recipeshot', 'expdatashot', 'screenpage']
+              'tools2', 'plots', 'plotsall', 'surface1', 'pathwayshot', 'pathwayshot2', 'landmap', 'plots07', 'confshot', 'pathwayzh', 'docpathway', 'plugindev', 'panelsize', 'winmax', 'langzh', 'langde', 'langja', 'langnotes', 'guide1', 'insightswitch', 'insightpathway', 'insightdetails', 'insightpockets', 'update1', 'railshot', 'presentshot', 'libraryshot', 'recipeshot', 'expdatashot', 'screenpage', 'modeditor', 'zrnashot', 'boundshot']
 REALTIME = ['pull', 'plugins', 'trackersave', 'pathway1', 'pathwaybasin', 'probing1', 'conditions1', 'htmlpage07', 'confidence1', 'i18n07', 'exports', 'video', 'transition', 'rcvsave', 'htmlexport', 'ctxmenu', 'script1', 'tools1', 'pdffont', 'native1', 'perf',
-            'welcomedemo', 'batchui', 'windows1', 'lang1', 'layout1', 'workflow1', 'expdata1', 'screenwindow',
-            'predict', 'explore']   # pull needs real time
+            'welcomedemo', 'batchui', 'windows1', 'lang1', 'langstart', 'layout1', 'workflow1', 'expdata1', 'screenwindow', 'modapply', 'modview', 'zrna',
+            'bound', 'audit76', 'predict', 'explore']   # pull needs real time
 LAST = ['empty']            # closes every ensemble; must run last
+
+
+# The browser's own background work is switched off. With a profile on a fast disk it starts some of it about 45 s
+# after the start, and the page then stood still for up to 13 s (measured in `langstart`, which ran past its limit).
+QUIET = ['--disable-background-networking', '--disable-component-update', '--disable-sync', '--disable-default-apps', '--no-default-browser-check',
+         '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows']
 
 
 def host_path(p, browser):
@@ -48,7 +60,6 @@ class Server:
         env['RCV_DEVDIR'] = str(ROOT / 'tools' / 'viewer_harness')
         env['RCV_HOME'] = str(Path(projects).parent / 'apphome')
         env['PYTHONUNBUFFERED'] = '1'
-        env['RCV_NO_UPDATE_CHECK'] = '1'          # an installed build (--app) must not ask about updates mid-test
         cmd = [str(Path(app).resolve())] if app else [sys.executable, '-m', 'rcv']   # --app: a built RCV program
         self.proc = subprocess.Popen(cmd + ['--shell', 'none', '--demo', '--port', '0', '--projects-dir', str(projects)],
                                      cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -84,6 +95,23 @@ class Server:
             self.proc.kill()
 
 
+def profile_folder(work, browser):
+    """Where the browser profiles of this run are kept: `work`, or for a Windows browser started from WSL a folder
+    of the same name in the Windows temporary folder (see the module text). Falls back to `work`."""
+    if _is_wsl() and str(browser).startswith('/mnt/'):
+        try:
+            ps = '/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
+            temp = subprocess.run([ps, '-NoProfile', '-NonInteractive', '-Command', '[IO.Path]::GetTempPath()'], stdin=subprocess.DEVNULL,
+                                  capture_output=True, text=True, timeout=60).stdout.strip()
+            if temp:
+                folder = Path(subprocess.check_output(['wslpath', '-u', temp.rstrip('\\') + '\\' + Path(work).name], text=True).strip())
+                folder.mkdir(parents=True, exist_ok=True)
+                return folder
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return Path(work)
+
+
 def kill_browser(proc, profile, browser):
     if _is_wsl() and str(browser).startswith('/mnt/'):
         ps = '/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe'
@@ -113,53 +141,73 @@ def run(args):
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='rnaview_smoke_', dir=out))
-    print(f'browser: {browser}\noutput:  {out}')
+    profiles = profile_folder(work, browser)
+    print(f'browser: {browser}\noutput:  {out}' + (f'\nbrowser profiles: {profiles}' if profiles != work else ''))
     server = Server(work / 'projects', args.app)
     results = []
+    restarted = []                                   # scenarios whose first browser never loaded the test page
+    fail_first = set((args.fail_first_start or '').split(','))
     only = set(args.only.split(',')) if args.only else None
     try:
         for name in SCREENSHOT + REALTIME + LAST:
             if only and name not in only:
                 continue
-            profile = work / f'profile_{name}'
-            profile.mkdir()
             url = f'{server.base}/_dev/drive.html?token={server.token}&steps={name}'
             if name == 'script1':
                 from urllib.parse import quote
                 url += '&script=' + quote(str(ROOT / 'examples' / 'scripts' / 'tar_switch_figure.rcvs'))
-            common = [browser, '--headless=new', '--hide-scrollbars', f'--window-size={args.size}', f'--force-device-scale-factor={args.scale}', '--no-first-run',
-                      '--lang=en-US',            # the scenarios read English interface text (other languages: lang1, langzh, ...)
-                      f'--user-data-dir={host_path(profile, browser)}']
+            screenshot = name in SCREENSHOT or name in LAST
             t0 = time.time()
-            if name in SCREENSHOT or name in LAST:
-                shot = out / f'{name}.png'
-                cmd = common + ['--virtual-time-budget=15000', f'--screenshot={host_path(shot, browser)}', url]
+            for attempt in (1, 2):
+                profile = profiles / (f'profile_{name}' if attempt == 1 else f'profile_{name}_again')
+                profile.mkdir()
+                page = 'about:blank' if attempt == 1 and name in fail_first else url
+                common = [browser, '--headless=new', '--hide-scrollbars', f'--window-size={args.size}', f'--force-device-scale-factor={args.scale}', '--no-first-run',
+                          '--lang=en-US',            # the scenarios read English interface text (other languages: lang1, langzh, ...)
+                          *QUIET,
+                          f'--user-data-dir={host_path(profile, browser)}']
+                if screenshot:
+                    cmd = common + ['--virtual-time-budget=15000', f'--screenshot={host_path(out / f"{name}.png", browser)}', page]
+                    limit = args.timeout
+                else:
+                    cmd = common + ['--remote-debugging-port=0', page]
+                    limit = args.timeout * (6 if name in ('predict', 'explore', 'batchui', 'screenwindow') else 1)
                 p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                try:
-                    p.wait(args.timeout)
-                except subprocess.TimeoutExpired:
-                    pass
-                kill_browser(p, profile, browser)
-            else:
-                p = subprocess.Popen(common + ['--remote-debugging-port=0', url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                limit = args.timeout * (6 if name in ('predict', 'explore', 'batchui', 'screenwindow') else 1)
-                while time.time() - t0 < limit:
+                t1 = time.time()
+                lost = False                         # the browser never loaded the test page
+                while time.time() - t1 < limit:
                     logs = server.logs(name)
-                    if any(l.startswith(('DONE', 'ERROR')) for l in logs):
+                    if screenshot:
+                        if p.poll() is not None:     # the picture is saved and the browser has ended
+                            break
+                    elif any(l.startswith(('DONE', 'ERROR')) for l in logs):
                         break
-                    time.sleep(0.5)
+                    if attempt == 1 and not logs and time.time() - t1 > args.start_timeout:
+                        lost = True
+                        break
+                    time.sleep(0.25)
                 kill_browser(p, profile, browser)
+                if attempt == 1 and not lost and not server.logs(name):
+                    time.sleep(1.5)                  # lines of a browser that has just ended may still be on their way
+                    lost = not server.logs(name)
+                if not lost:
+                    break
+                restarted.append(name)
             logs = server.logs(name)
             (out / f'{name}.log').write_text('\n'.join(logs) + '\n', encoding='utf-8')
             ok = any(l.startswith('DONE') for l in logs) and not any(l.startswith('ERROR') for l in logs)
-            detail = '; '.join(l for l in logs if not l.startswith('DONE'))[:300]
+            detail = ('browser started twice; ' if name in restarted else '') + '; '.join(l for l in logs if not l.startswith(('DONE', 'LOADED')))[:300]
             results.append((name, ok, round(time.time() - t0, 1), detail))
             print(f"  {'PASS' if ok else 'FAIL'}  {name:9s} {results[-1][2]:6.1f}s  {detail}")
     finally:
         server.stop()
         shutil.rmtree(work, ignore_errors=True)
+        if profiles != work:
+            shutil.rmtree(profiles, ignore_errors=True)
     failed = [r for r in results if not r[1]]
     print(f'\n{len(results) - len(failed)}/{len(results)} scenarios passed; screenshots in {out}')
+    if restarted:
+        print(f'{len(restarted)} of {len(results)} needed a second browser start (the first browser did not load the test page): {", ".join(restarted)}')
     return 1 if failed else 0
 
 
@@ -170,6 +218,10 @@ def main():
     ap.add_argument('--only', help='comma-separated scenario names')
     ap.add_argument('--app', help='test a built RCV program (e.g. dist/RCV/RCV or /opt/rcv/RCV) instead of the source')
     ap.add_argument('--timeout', type=float, default=90, help='seconds per scenario (predict/explore get 6x)')
+    ap.add_argument('--start-timeout', type=float, default=30, help='seconds to wait for the test page to report that it has loaded, before '
+                    'the browser of a scenario is started once more (default 30; it normally takes 1-3)')
+    ap.add_argument('--fail-first-start', metavar='NAMES', help='for testing this script: the first browser of these scenarios opens an '
+                    'empty page instead of the test page')
     ap.add_argument('--size', default='1600,1000', help='browser window size W,H (default 1600,1000)')
     ap.add_argument('--scale', type=float, default=1, help='device pixel ratio of the screenshots (2 = sharp on HiDPI screens)')
     sys.exit(run(ap.parse_args()))

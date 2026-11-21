@@ -40,7 +40,7 @@ MULTI = [
      'sequence': 'GGAGCAUCGUGUCUCAAGUGCUUCACGGUCACAAUAUACCGUUUCGUCGGGUGCGUGGCAAUUCGGUGCACAUCAUGUCUUUCGUGGCUGGUG'
                  'UGGUCAAGGUGCGACAAGUAUAGAGCAGAGCUCC'},
 ]
-METHODS = {'rcv': 'RCV 0.7.5', '304': 'AlphaFold 3', '052': 'trRosettaRNA', '481': 'Vfold', '183': 'GuangzhouRNA'}
+METHODS = {'rcv': 'RCV 0.7.6', '304': 'AlphaFold 3', '052': 'trRosettaRNA', '481': 'Vfold', '183': 'GuangzhouRNA'}
 
 
 def references(c, t):
@@ -193,7 +193,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('command', choices=['run', 'evaluate'])
     ap.add_argument('--cache', default=str(HERE / 'cache'))
-    ap.add_argument('--runs', default=str(HERE / 'runs_v075'))
+    ap.add_argument('--runs', default=str(HERE / 'runs_v076'))
     ap.add_argument('--workers', type=int, default=16)
     ap.add_argument('--trajectories', type=int, default=40)
     ap.add_argument('--seed', type=int, default=42)

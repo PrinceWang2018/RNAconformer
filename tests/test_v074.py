@@ -207,6 +207,24 @@ class TestInsight(unittest.TestCase):
             with self.assertRaises(ValueError):
                 insight.parse_variants(bad, seq)
         self.assertEqual(insight.parse_variants('g1t', seq)[0][0], 'G1U')
+        # 0.7.6: one mistyped entry no longer stops the others; 34G>U notation; a variant entered twice counts once
+        r = insight.variants(seq, st, Conditions(), 'C13G, X5A, G99A, 13C>G, n.2G>C')
+        self.assertEqual([x['variant'] for x in r['rows']], ['C13G', 'G2C'])
+        self.assertEqual([k['text'] for k in r['skipped']], ['X5A', 'G99A'])
+        self.assertIn('outside the sequence (1-29)', r['skipped'][1]['reason'])
+        with self.assertRaises(ValueError):
+            insight.variants(seq, st, Conditions(), 'X5A')
+        with self.assertRaises(ValueError):
+            insight.parse_variants('G1C+G1A', seq)
+        # positions are the residue numbers RCV shows: a file numbered 17-45 is addressed with those numbers
+        nums = [str(i) for i in range(17, 17 + len(seq))]
+        v = insight.parse_variants('G17C, 29G', seq, numbers=nums)
+        self.assertEqual([(x[0], x[2]) for x in v], [('G17C', [0]), ('C29G', [12])])
+        with self.assertRaises(ValueError):
+            insight.parse_variants('G1C', seq, numbers=nums)
+        # numbers that are not unique (two chains joined) or carry insertion codes: positions count along the sequence
+        self.assertEqual(insight.parse_variants('G1C', seq, numbers=['5'] * len(seq))[0][2], [0])
+        self.assertEqual(insight.parse_variants('G1C', seq, numbers=[str(i) for i in range(1, len(seq) + 1)])[0][2], [0])
 
     @unittest.skipUnless(HAVE_VIENNA, 'ViennaRNA not installed')
     def test_cotranscriptional(self):
@@ -266,6 +284,29 @@ class TestInsight(unittest.TestCase):
         self.assertTrue(all(abs(p['start'] - q['start']) >= 8 for k, p in enumerate(best) for q in best[:k]))
         with self.assertRaises(ValueError):
             insight.target_sites(doc, Conditions(), 4)
+
+    @unittest.skipUnless(HAVE_VIENNA, 'ViennaRNA not installed')
+    def test_target_sites_one_pass_equals_constrained_folding(self):
+        """0.7.6: the opening energy of every window comes from one pass over the ensemble; it must be the
+        difference of the ensemble free energies with and without the window forced single-stranded."""
+        import RNA
+        doc = _docs()['trna']
+        seq, width = doc['sequence'], 18
+        for cond in (Conditions(), Conditions.from_json({'temperature': 25, 'sodium': 0.15}, len(seq))):
+            x = insight.target_sites(doc, cond, width)
+            md = cond.model()
+            fc = RNA.fold_compound(seq, md)
+            _s, mfe = fc.mfe()
+            fc.exp_params_rescale(mfe)
+            _, g0 = fc.pf()
+            for s0 in (0, 7, 30, len(seq) - width):
+                f2 = RNA.fold_compound(seq, md)
+                for t in range(s0, s0 + width):
+                    f2.hc_add_up(t + 1, RNA.CONSTRAINT_CONTEXT_ALL_LOOPS)
+                f2.exp_params_rescale(mfe)
+                _, g1 = f2.pf()
+                self.assertAlmostEqual(x['profile'][x['starts'].index(s0)], max(0.0, g1 - g0), delta=0.011)
+            self.assertEqual(x['starts'], list(range(len(seq) - width + 1)))
 
     def test_compare(self):
         d = _docs()

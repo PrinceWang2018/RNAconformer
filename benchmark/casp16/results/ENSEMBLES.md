@@ -8,7 +8,7 @@ RCV's templates: 7LYF_A+1I9F_A (2021-05-12 2001-05-25), 7LYG_A (2021-05-12), 8S9
 
 | Method | Coverage | Worst state | Model 1, best state | Spread of the 5 models | Models used |
 |---|---|---|---|---|---|
-| RCV 0.7.5 | 0.528 | 0.523 | 0.522 | 0.46 | 1 of 5 |
+| RCV 0.7.6 | 0.528 | 0.523 | 0.522 | 0.46 | 1 of 5 |
 | AlphaFold 3 | 0.613 | 0.592 | 0.592 | 0.31 | 2 of 5 |
 | trRosettaRNA | 0.539 | 0.535 | 0.527 | 0.48 | 2 of 5 |
 | Vfold | 0.505 | 0.485 | 0.486 | 0.38 | 2 of 5 |
@@ -20,7 +20,7 @@ RCV's templates: 8QO5_A (2024-03-06), 8UYS_A (2023-12-06). Valid RCV trajectorie
 
 | Method | Coverage | Worst state | Model 1, best state | Spread of the 5 models | Models used |
 |---|---|---|---|---|---|
-| RCV 0.7.5 | 0.650 | 0.635 | 0.691 | 0.49 | 1 of 5 |
+| RCV 0.7.6 | 0.650 | 0.635 | 0.691 | 0.58 | 1 of 5 |
 | AlphaFold 3 | 0.371 | 0.347 | 0.352 | 0.33 | 1 of 5 |
 | trRosettaRNA | 0.355 | 0.349 | 0.280 | 0.66 | 2 of 5 |
 | Vfold | 0.664 | 0.649 | 0.678 | 0.60 | 1 of 5 |
@@ -28,11 +28,11 @@ RCV's templates: 8QO5_A (2024-03-06), 8UYS_A (2023-12-06). Valid RCV trajectorie
 
 ## R1256 — Bat coronavirus HKU5 SL5, 127 nt, 30 experimental conformations (spread 0.30)
 
-RCV's templates: 8UYJ_A (2023-12-06), 8UYM_A (2023-12-06). Valid RCV trajectories: 12 of 40.
+RCV's templates: 8UYJ_A (2023-12-06), 8UYM_A (2023-12-06). Valid RCV trajectories: 15 of 40.
 
 | Method | Coverage | Worst state | Model 1, best state | Spread of the 5 models | Models used |
 |---|---|---|---|---|---|
-| RCV 0.7.5 | 0.384 | 0.303 | 0.431 | 0.72 | 2 of 5 |
+| RCV 0.7.6 | 0.381 | 0.298 | 0.418 | 0.63 | 2 of 5 |
 | AlphaFold 3 | 0.264 | 0.238 | 0.252 | 0.45 | 3 of 5 |
 | trRosettaRNA | 0.442 | 0.394 | 0.479 | 0.66 | 1 of 5 |
 | Vfold | 0.411 | 0.377 | 0.418 | 0.56 | 3 of 5 |
@@ -42,7 +42,7 @@ RCV's templates: 8UYJ_A (2023-12-06), 8UYM_A (2023-12-06). Valid RCV trajectorie
 
 | Method | Median spread |
 |---|---|
-| RCV 0.7.5 | 0.56 |
+| RCV 0.7.6 | 0.53 |
 | AlphaFold 3 | 0.25 |
 | trRosettaRNA | 0.48 |
 | Vfold | 0.57 |

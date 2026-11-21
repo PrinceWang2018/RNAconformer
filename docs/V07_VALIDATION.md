@@ -140,6 +140,40 @@ better on the test split, worse on the dev split. RCV 0.7 therefore keeps the en
 as a per-nucleotide colour scheme and a per-model metric. Re-ranking will be reconsidered when a model wins on
 both splits.
 
+**Blind check on CASP16** *(0.7.6; `benchmark/casp16/confidence_check.py`)*. The 15 CASP16 targets were not used
+to train or to choose the confidence model. Predicted against true all-atom lDDT of the five models of every
+target (75 models, 6,095 nucleotides):
+
+| | 0.7.5 models (`runs_v075`) | 0.7.6 models (`runs_v076`) |
+|---|---|---|
+| model 1, over the 15 targets: r | 0.909 | 0.564 (0.899 without R1271) |
+| all models: r; bias (confidence − lDDT) | 0.756; +0.023 | 0.477; +0.066 |
+| per nucleotide: r; mean absolute error | 0.613; 0.145 | 0.499; 0.165 |
+| true lDDT of the nucleotides shown as very low / low / medium / high | 0.42 / 0.60 / 0.70 / 0.75 | 0.42 / 0.59 / 0.69 / 0.71 |
+
+Reading it: the four colour bands are in the right order and the low bands are calibrated; the *high* band
+(predicted ≥ 0.8) is too optimistic on these targets (true 0.71–0.75; 0.81–0.86 on the benchmark and training
+chains). **A model fitted onto a template is over-rated when the template is a distant relative.** The confidence
+model reads only the coordinates, and a chain fitted onto experimental coordinates looks like an experimental
+structure whether or not it is the right one. Engine 2.5 fits more models onto their template (§ CHANGELOG), so
+this is more frequent in 0.7.6: R1271, model 1, built on a template with 80% identity, is shown at 0.86 and has 0.48. On 48 development chains with a template (truth: lDDT over the seven atoms per nucleotide kept in
+the library) the correlation over all models is 0.67 with one fit attempt and 0.70 with engine 2.5, but the
+template models alone go from r = 0.68, bias −0.01 to r = 0.61, bias +0.06.
+
+Two uses of this were tested and **not adopted**:
+
+* *Correcting the confidence of template models with the template's rank score* (linear, fitted on the 48
+  chains: cross-validated r 0.56 → 0.66). Blind on CASP16 it removes the bias of the 0.7.6 template models
+  (+0.10 → −0.01) but does not order them (r −0.20 → −0.02), and it makes the 0.7.5 models worse (all models
+  0.756 → 0.646).
+* *Choosing model 1 by confidence when another model leads by ≥ 0.1.* With one fit attempt this gains what
+  engine 2.5 gains (48 chains, TM-score of model 1 0.582 → 0.605, 6 better, none worse); with engine 2.5 it
+  changes nothing (0.605 → 0.605), and on the 0.7.6 CASP16 models the most confident model is worse than model 1
+  (lDDT 0.615 against 0.650).
+
+For a model that names a template, read the confidence together with the template's identity and coverage
+(Details tab). Retraining with template models and a template feature is the open item.
+
 ## Limitations
 
 * All kinetics are at the secondary-structure level (Turner energies, findpath saddles, Arrhenius rates with an

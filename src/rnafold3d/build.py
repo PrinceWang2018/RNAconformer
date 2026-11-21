@@ -267,6 +267,15 @@ PAIR_HBONDS = {('G', 'C'): (('N1', 'N3'), ('O6', 'N4'), ('N2', 'O2')),
                ('A', 'U'): (('N1', 'N3'), ('N6', 'O4')),
                ('G', 'U'): (('N1', 'O2'), ('O6', 'N3'))}
 _STEM_CACHE = {}
+# Z-RNA (left-handed) backbone. Torsions fitted with this builder's bond geometry to the strands of 1T4X (NMR, models
+# 1, 4, 7, 10; Popenda et al. 2004) and 2GXB (X-ray, ADAR1 Zalpha with Z-RNA; Placido et al. 2007): all-atom RMSD
+# 0.61 A over 10 hexanucleotide strands. Purines syn with C3'-endo sugars, pyrimidines anti with C2'-endo sugars;
+# the two kinds alternate along each strand.
+Z_TORSIONS = {
+    'purine': {'alpha': 52.6, 'beta': -166.6, 'gamma': -177.4, 'epsilon': -61.3, 'zeta': -90.0, 'chi': 53.7},
+    'pyrimidine': {'alpha': -89.6, 'beta': 171.1, 'gamma': 38.5, 'epsilon': -80.5, 'zeta': 79.7, 'chi': -149.2},
+}
+Z_PUCKER = {'purine': 'C3endo', 'pyrimidine': 'C2endo'}
 
 
 def _pair_targets(rb, sequence, pairs, strand1):
@@ -364,8 +373,17 @@ def _close_contacts(model, sequence, pairs, cutoff=2.9):
     return out
 
 
-def build_stem(rb: ResidueBuilder, sequence, pairs, refine=True):
+def z_reference(bases):
+    """Per-residue Z-RNA torsions and puckers for a strand (5'->3' bases)."""
+    kind = ['purine' if b in 'AG' else 'pyrimidine' for b in bases]
+    return [dict(Z_TORSIONS[k]) for k in kind], [Z_PUCKER[k] for k in kind]
+
+
+def build_stem(rb: ResidueBuilder, sequence, pairs, refine=True, form='A'):
     """Ideal A-form duplex for consecutive stacked pairs [(i, j), (i+1, j-1), ...] (0-based).
+
+    form='Z' builds the left-handed Z-RNA duplex instead (zrna.py): the same pair geometry with Z_TORSIONS and
+    Z_PUCKER on both strands (syn purines, alternating sugar puckers), refined the same way.
 
     Strand 1 (i..) and strand 2 (..j) are each built from calibrated A-form torsions, so both
     strands have exact covalent geometry. Strand 2 is rigidly fitted so every base matches the
@@ -376,7 +394,7 @@ def build_stem(rb: ResidueBuilder, sequence, pairs, refine=True):
     compressed pair H-bonds and close contacts, with increasing weight until the stem is clash-free).
     Results are cached per (stem sequence) since they do not depend on the rest of the RNA.
     """
-    key = (''.join(sequence[i] for i, _ in pairs), ''.join(sequence[j] for _, j in pairs), refine)
+    key = (''.join(sequence[i] for i, _ in pairs), ''.join(sequence[j] for _, j in pairs), refine) + (('Z',) if form == 'Z' else ())
     hit = _STEM_CACHE.get(key)
     if hit is not None:
         base_i, base_j = pairs[0]
@@ -390,19 +408,23 @@ def build_stem(rb: ResidueBuilder, sequence, pairs, refine=True):
     s1 = [p[0] for p in pairs]
     s2 = [p[1] for p in reversed(pairs)]           # 5'->3' order of strand 2
     aform = rb.g.aform
-    strand1 = build_strand(rb, [sequence[i] for i in s1])
+    if form == 'Z':
+        ref1, pk1 = z_reference([sequence[i] for i in s1])
+        ref2, pk2 = z_reference([sequence[j] for j in s2])
+    else:
+        ref1, ref2, pk1, pk2 = [dict(aform)] * L, [dict(aform)] * L, None, None
+    strand1 = build_strand(rb, [sequence[i] for i in s1], torsions=ref1, puckers=pk1)
     targets, names_all, generic = _pair_targets(rb, sequence, pairs, strand1)
     dst = np.vstack(targets)
 
     def assemble(tors):
-        strand2 = build_strand(rb, [sequence[j] for j in s2], torsions=tors)
+        strand2 = build_strand(rb, [sequence[j] for j in s2], torsions=tors, puckers=pk2)
         src = np.vstack([np.array([strand2[L - 1 - k][n] for n in names_all[k]]) for k in range(L)])
         r, t = kabsch(src, dst)
         fit = src @ r.T + t
         return strand2, r, t, fit
 
-    base_tors = [dict(aform) for _ in range(L)]
-    strand2, r, t, fit = assemble(base_tors)
+    strand2, r, t, fit = assemble([dict(x) for x in ref2])
 
     def to_model(strand2, r, t):
         out = {}
@@ -416,23 +438,24 @@ def build_stem(rb: ResidueBuilder, sequence, pairs, refine=True):
     worst, dmin = _stem_quality(out, sequence, pairs)
     report = {'pair_fit_rmsd': fit_rmsd, 'noncanonical_pairs_approximated': generic, 'refined': False,
               'max_hbond_compression': round(worst, 3), 'min_contact': None if not np.isfinite(dmin) else round(dmin, 3)}
-    if refine and L >= 2 and (worst > 0.5 or dmin < 2.5):
+    report['form'] = form
+    if refine and L >= 2 and (worst > 0.5 or dmin < 2.5 or (form == 'Z' and fit_rmsd > 0.5)):
         from scipy.optimize import least_squares
         names = ('alpha', 'beta', 'gamma', 'epsilon', 'zeta', 'chi')
         sd = np.array([max(rb.g.raw['aform_torsion_sd'][n], 4.0) for n in names])
 
-        def tors_of(x):
+        def tors_of(x, ref):
             x = x.reshape(L, 6)
-            return [{**aform, **{n: aform[n] + x[k, q] for q, n in enumerate(names)}} for k in range(L)]
+            return [{**ref[k], **{n: ref[k][n] + x[k, q] for q, n in enumerate(names)}} for k in range(L)]
 
         hb_list = _pair_hbond_list(sequence, pairs)
 
         def assemble_both(x):
             """Both strands from torsion offsets x = [strand 1 (6L), strand 2 (6L)]; strand 2 fitted to the pair targets."""
-            st1 = build_strand(rb, [sequence[i] for i in s1], torsions=tors_of(x[:6 * L]))
+            st1 = build_strand(rb, [sequence[i] for i in s1], torsions=tors_of(x[:6 * L], ref1), puckers=pk1)
             tg, nm, _ = _pair_targets(rb, sequence, pairs, st1)
             d = np.vstack(tg)
-            st2 = build_strand(rb, [sequence[j] for j in s2], torsions=tors_of(x[6 * L:]))
+            st2 = build_strand(rb, [sequence[j] for j in s2], torsions=tors_of(x[6 * L:], ref2), puckers=pk2)
             src = np.vstack([np.array([st2[L - 1 - k][n] for n in nm[k]]) for k in range(L)])
             r2, t2 = kabsch(src, d)
             m = {idx: atoms for idx, atoms in zip(s1, st1)}

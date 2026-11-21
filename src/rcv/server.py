@@ -369,11 +369,6 @@ def doc_file(rel):
     return None
 
 
-def _update_settings():
-    from . import update
-    return update.settings()
-
-
 def system_info(state):
     return {'app': APP_NAME, 'version': __version__, 'cpus': os.cpu_count() or 1,
             'platform': f'{platform.system()} {platform.release()}', 'machine': platform.machine(),
@@ -413,6 +408,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Referrer-Policy', 'no-referrer')
         if gz:
             self.send_header('Content-Encoding', 'gzip')
+        if self.close_connection:
+            self.send_header('Connection', 'close')
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()
@@ -425,14 +422,14 @@ class Handler(BaseHTTPRequestHandler):
     def _error(self, code, msg):
         self._json({'error': msg}, code)
 
-    def _consume_body(self):
-        """Read the request body once, before anything else: a body left unread on a keep-alive connection would be
-        parsed as the start of the next request (e.g. '{}GET ...')."""
+    def _consume_body(self, limit=MAX_BODY):
+        """Read the request body once, before the request is answered: a body left unread on a keep-alive
+        connection would be parsed as the start of the next request (e.g. '{}GET ...')."""
         try:
             n = int(self.headers.get('Content-Length') or 0)
         except ValueError:
-            n = 0
-        if n > MAX_BODY:
+            n = -1
+        if n < 0 or n > limit:
             self.close_connection = True
             self._body_cache = None
             return False
@@ -459,7 +456,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self):
         raw = self._raw_body()
-        return json.loads(raw or b'{}')
+        try:
+            body = json.loads(raw or b'{}')
+        except (ValueError, UnicodeDecodeError):
+            raise ValueError('the request body is not valid JSON') from None
+        if not isinstance(body, dict):
+            raise ValueError('the request body must be a JSON object ({...}), not a ' + type(body).__name__)
+        return body
 
     def _doc_body(self):
         """Request body and its ensemble document (an open document by id, or the document itself)."""
@@ -528,24 +531,35 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         self._dispatch('DELETE')
 
+    def _refuse(self, code, msg):
+        """Answer without reading the request body, and close the connection (an unread body would otherwise be
+        parsed as the next request)."""
+        self._body_cache = None
+        self.close_connection = True
+        return self._error(code, msg)
+
     def _dispatch(self, method):
-        if not self._consume_body():
-            return self._error(413, 'request too large')
+        # Who is asking is checked before the body is read: a request from another page (wrong Host, no session
+        # token) is refused without taking in up to MAX_BODY bytes.
         if not self._host_ok():
-            return self._error(403, 'forbidden host')
+            return self._refuse(403, 'forbidden host')
         url = urlparse(self.path)
         path = url.path
         if not path.startswith('/api/'):
             if method not in ('GET', 'HEAD'):
-                return self._error(405, 'method not allowed')
+                return self._refuse(405, 'method not allowed')
+            if not self._consume_body(limit=64 * 1024):
+                return self._refuse(413, 'request too large')
             return self._static(path)
         query = parse_qs(url.query)
         token = self.headers.get('X-Viewer-Token', '')
         if not token and (path == '/api/bye' or (method == 'GET' and path.startswith('/api/library/thumb/'))):
             # sendBeacon and <img> cannot set headers
             token = (query.get('token') or [''])[0]
-        if not secrets.compare_digest(token, self.state.token):
-            return self._error(401, 'missing or invalid session token')
+        if not secrets.compare_digest(token.encode('utf-8', 'replace'), self.state.token.encode()):
+            return self._refuse(401, 'missing or invalid session token')
+        if not self._consume_body():
+            return self._refuse(413, 'request too large')
         self.state.last_seen = time.time()
         if path != '/api/bye':
             self.state.closing_at = None
@@ -574,7 +588,7 @@ class Handler(BaseHTTPRequestHandler):
                 'python_plugins': [{'id': p.id, 'name': p.name, 'path': p.path} for p in st.py_plugins],
                 'plugin_errors': st.plugin_errors,
                 'plugin_dirs': [str(p) for p in st.plugin_dirs],
-                'demo': bool(P.demo_dir()), 'website': WEBSITE, 'update': _update_settings()})
+                'demo': bool(P.demo_dir()), 'website': WEBSITE})
         if parts and parts[0] == 'documents':
             if method == 'GET' and len(parts) == 1:
                 return self._json([summary(e.doc) for e in st.entries.values()])
@@ -699,6 +713,15 @@ class Handler(BaseHTTPRequestHandler):
                 cache = (now, find_packages(st.library_roots))
                 st._library_cache = cache
             return self._json({'roots': [str(r) for r in st.library_roots], 'packages': cache[1]})
+        if parts and parts[0] == 'modifications':
+            # modified nucleotides (0.7.6): the catalogue for the sequence form, and a check of a sequence line
+            from rnafold3d import modifications as modcat
+            if method == 'GET' and len(parts) == 1:
+                return self._json(modcat.catalogue())
+            if method == 'POST' and parts == ['modifications', 'parse']:
+                seq, mods, problems = modcat.parse(str(self._body().get('sequence') or ''))
+                return self._json({'sequence': seq, 'modifications': mods, 'problems': problems,
+                                   'summary': modcat.summary(mods)})
         if method == 'GET' and parts == ['browse']:
             return self._json(browse((query.get('path') or [''])[0]))
         if method == 'POST' and parts == ['settings']:
@@ -723,16 +746,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(recipes.import_text(str(self._body().get('text') or '')))
             if method == 'DELETE' and len(parts) == 2:
                 return self._json(recipes.delete(parts[1]))
-        if parts and parts[0] == 'update':
-            # check for a newer RCV (Help > Check for updates, and once a day at start-up in installed builds)
-            from . import update
-            if method == 'GET' and parts == ['update']:
-                if (query.get('auto') or [''])[0]:
-                    return self._json({'checked': False} if (r := update.auto_check()) is None else {'checked': True, **r})
-                return self._json({'checked': True, **update.check()})
-            if method == 'POST' and parts == ['update', 'settings']:
-                body = self._body()
-                return self._json(update.save(body.get('auto'), body.get('skip')))
         if parts and parts[0] == 'af3':
             from . import alphafold
             if method == 'GET' and parts == ['af3', 'settings']:
@@ -877,7 +890,8 @@ class Handler(BaseHTTPRequestHandler):
             elif what == 'variants':
                 text = str(body.get('text') or '')[:4000]
                 key = ('variants', doc['id'], ab, cond.key(), text)
-                run = lambda: insight.variants(doc['sequence'], ensemble_states(doc), cond, text, ab[0], ab[1])
+                run = lambda: insight.variants(doc['sequence'], ensemble_states(doc), cond, text, ab[0], ab[1],
+                                               numbers=[r.get('num') for r in doc.get('residues') or []])
             elif what == 'cotranscription':
                 key = ('cotranscription', doc['id'], ab, cond.key())
                 run = lambda: insight.cotranscriptional(doc['sequence'], cond, ensemble_states(doc), ab[0], ab[1])
@@ -1073,6 +1087,9 @@ class Handler(BaseHTTPRequestHandler):
             msg = str(body.get('message', ''))[:2000].replace('\n', ' | ')
             sys.stderr.write(f"[client {str(body.get('level', 'info'))[:8]}] {msg}\n")
             sys.stderr.flush()
+            return self._json({'ok': True})
+        if method == 'GET' and parts == ['ping']:
+            # sign of life of the window (see the idle check in app.run)
             return self._json({'ok': True})
         if method == 'POST' and parts == ['bye']:
             # the window was closed (or reloaded): quit a few seconds later unless it reconnects

@@ -1,5 +1,282 @@
 # Changelog
 
+## Package 0.7.6 — 2026-11-21 — RCV · RNA Conformation Viewer (engine rnafold3d 2.5.0)
+
+Modified nucleotides in the prediction from sequence: 2D and 3D structures of RNA with m6A, pseudouridine,
+A-to-I editing, oxidative damage, 2′-O-methyl, LNA, phosphorothioate and more (`docs/RCV.md` §3.3). Z-RNA:
+left-handed helices marked in every displayed frame, and optionally predicted (§3.4). An audit of the basic
+functions (2026-11-20): cancelling stops the whole computation, more PDB entries open, ligands, ions and
+partner chains are shown next to the RNA, the 2D structure can be exported as dot-bracket, CT or BPSEQ, and
+errors are reported in words.
+
+### Added
+- **Catalogue of 97 modified nucleotides** (`src/rnafold3d/modifications.py`): methylations (m6A, m1A, m5C,
+  m7G, m2,2G …), pseudouridine and m1Ψ, dihydrouridine, A-to-I (inosine) and C-to-U editing, damage (8-oxo-G,
+  8-oxo-A, O6-methyl-G), thio and halogen bases, 27 hypermodified tRNA nucleosides (t6A, i6A, queuosine,
+  wybutosine, mnm5s2U …), sugar and backbone modifications (Nm, 2′-F, LNA, deoxy, phosphorothioate) and
+  synthetic analogues (2-aminopurine, 2,6-diaminopurine, 5-bromo-U …). Each has its MODOMICS short name,
+  aliases, PDB chemical component, parent base, effect on pairing, the atoms to build and a note.
+- **Sequence notation**: `GGC[m6A]CU[Y]A*G` (brackets for a modified nucleotide, `*` for a phosphorothioate),
+  in the start page, FASTA files, batches and on the command line; `rnafold3d predict --modifications
+  POS:CODE,...`; `rnafold3d modifications [--json]` lists the catalogue.
+- **2D with modifications**: ViennaRNA's measured parameters (m6A, Ψ, inosine, dihydrouridine, purine,
+  7-deaza-A); generated soft constraints with estimated corrections for the others, including new pairs that
+  only the modification allows (8-oxo-G·A, m2,2G·A, k2C·A); hard constraints keeping Watson-Crick-blocking
+  modifications unpaired. They work together with probing data and alignments, and in `evaluate`.
+- **3D with modifications, inside the search** (`fold.py`, `loops.py`, `search.py`):
+  - sugar pucker preferences in the loop conformers drawn for non-helical residues (D and dN → C2′-endo; Nm,
+    2′-F, s2U, Ψ → C3′-endo; LNA locked C3′-endo); helical residues keep A-form;
+  - syn/anti: a chi prior with a syn well for 8-oxo-G, 8-oxo-A and m8A (1.5–3 kT) and an anti bias for LNA and
+    2′-F, used by the annealing, the loop-closure torsion energy and the chi refinement;
+  - modification atoms as *riders* of the model, placed from their base, sugar or phosphate frame before every
+    contact evaluation and scored with the other atoms; removed atoms (O2′ of dN, N2 of I, O2 of s2U) left out;
+  - interactions of the modification itself (`modinteract.py`, score term `modification`): hydrogen bonds of
+    the polar groups it adds and of the donors it creates (Ψ N1-H, 8-oxo N7-H), with parent-atom roles updated
+    for methylation; the Ψ N1-H water bridge to its own or the preceding phosphate (not for m1Ψ); a stacking
+    change for residues outside helices (Ψ, m1Ψ, m5C, m6A, i6A/t6A, wybutosine, 5-halo-U stronger; D weaker);
+  - a local relaxation of the modified residues and their neighbourhood at full steric weight;
+  - the finished models get the final atoms (rotamers against the whole model); the manifest reports per
+    modified residue its pucker and syn/anti against the preference, and the contacts before and after relaxation.
+  Pairs a modification allows become helix restraints. PDB output writes HETATM and MODRES records, mmCIF the
+  one-letter sequence with (CCD) and a `_chem_comp` loop with the parent. Unmodified sequences sample exactly as
+  before.
+- **Start page ▸ Ψ Modified nucleotides…**: an editor window — clickable sequence map, searchable list per base
+  with pairing badges and notes, phosphorothioate linkages, presets (m6A at DRACH motifs, every U → m1Ψ / Ψ)
+  and a summary table. The status line counts the modifications.
+- **Viewer**: *Colour by ▸ Modified nucleotides* with a legend by kind, the modification in the hover tip,
+  `select modified` and `resn m6A` in the console, a paragraph in the methods text; modified residues of opened
+  PDB/mmCIF files are recognised by their PDB component.
+- **AlphaFold 3 (local)** passes modifications with a PDB component in its input JSON.
+- `GET /api/modifications`, `POST /api/modifications/parse`; `tests/test_v076.py`.
+
+- **Z-RNA identification** (`src/rnafold3d/zrna.py`, `src/rcv/static/js/zrna.js`), on by default: regions of
+  at least three stacked Watson-Crick pairs with left-handed two-step twist and syn purines / anti pyrimidines,
+  found on every displayed frame (conformations, morphs, scrubbing, video, pulling) and drawn with their own
+  theme — halo, dashed axis and badge in 3D, halo and tag in 2D, also in image, panel and video exports. *View ▸
+  Z-RNA regions* switches it; `select zrna` in the console; `zrna_regions` per model in the manifest. Finds the
+  Z duplexes of PDB 2GXB and 1T4X (12/12 models) and nothing in the 3964 chains of the template library.
+- **Z-RNA prediction** (*Advanced settings ▸ Predict Z-RNA (left-handed helices) when likely*, off by default;
+  `rnafold3d predict --zrna auto --zrna-salt M --zrna-binder`): an estimated A→Z free energy per helix segment
+  (dinucleotide steps, salt, junctions, 8-substituted purines, Z-binding protein); below +3 kcal/mol a hypothesis
+  with that segment built as a Z-form stem (`build_stem(..., form='Z')`, torsions fitted to 1T4X and 2GXB, 1.1–1.4 Å
+  from them) and the junction pairs opened, with a quarter more trajectories. The estimate and the candidates
+  are in the manifest (`input.zrna`) and the methods text.
+- **m8G and 8-Br-G** in the modification catalogue (syn guanosines; Z-RNA promoters).
+- `tests/test_zrna.py`, `tests/js/zrna_unit.mjs` (Python and JavaScript detectors give the same regions),
+  `tests/data/zrna_2gxb_duplex.pdb`; smoke scenarios `zrna`, `zrnashot`.
+
+- **Microsoft Store package (MSIX)** for Windows: `packaging/windows/build_msix.ps1` packs the PyInstaller
+  build with a manifest template (`packaging/windows/msix/AppxManifest.xml.in`: full-trust desktop app, `.rcv`
+  file association, identity from Partner Center), tile and Store icons at every scale (`msix/Assets/`, drawn by
+  `make_assets.py`) and a `resources.pri`; the *Build installers* workflow builds it as the artifact
+  `store-msix-x64` (identity from the repository variables `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER`,
+  `MSIX_PUBLISHER_DISPLAY_NAME`). Submission steps: `packaging/README.md`.
+- `RCV.exe` carries a Windows version resource (publisher, product, description, version).
+
+- **What is bound to the RNA is shown** (audit C5; `rcv/data.py` `context_of`, `static/js/viewer/context.js`,
+  `contextctl.js`). Opening a PDB entry kept the RNA chain and dropped everything else, so a riboswitch appeared
+  without its ligand and an RNA–protein complex as bare RNA. Now ligands are drawn as sticks, ions as spheres
+  and protein, DNA and other RNA chains as thin traces (one point per residue), named on hover. They move with
+  their conformation (superposition, morphs, scrubbing, mechanism playback, figure panels, videos), are stored
+  in `.rcv` files and shown on the interactive HTML page. One switch: *View ▸ Bound molecules*. They are context
+  only: no analysis uses them. In an ensemble only what every conformation has is shown; hydrogens and water are
+  left out; above 6000 atoms or 30 000 residues the parts nearest to the RNA are kept. AlphaFold 3 results with
+  partner chains show them the same way. Smoke scenarios `bound`, `boundshot`.
+- **Export of the secondary structure** (requested): *Export ▸ Secondary structure (dot-bracket, CT, BPSEQ)…*,
+  the download button of the 2D window, and `rcv ss INPUT [-o FILE] [--format dbn|ct|bpseq] [--which
+  distinct|all] [--conformation N]`. Dot-bracket is the ViennaRNA form (`>name`, sequence, structure) read by
+  RNAfold, RNAplot, forna, VARNA and RNAstructure; CT is the connect table of mfold and RNAstructure (the last
+  column keeps the residue numbers of the file); BPSEQ. The shown conformation, every different 2D structure once
+  (with the conformations that share it) or all; preview, copy and save. Window and command line write the
+  same text (`rcv/ss2dexport.py`, `static/js/export/secondary.js`; compared in the tests).
+- `tests/test_v076_audit.py` (51 tests), `tests/js/audit_unit.mjs`, `tests/js/notes_unit.mjs`; smoke scenarios
+  `audit76`, `langstart` and `langnotes`.
+### Changed
+- **Sequences copied from a database record can be pasted as they are** (audit C1): position numbers, spaces
+  and a closing `//` are ignored (`1 ggcagatctg agcctgggag …`), in the start page, FASTA files, batches and
+  `rnafold3d predict --sequence`. Digits inside the brackets of a modified nucleotide (`[m2,2G]`) are kept.
+- **A known 2D structure is checked before the run** (audit C2): length, unmatched and unclosed brackets with
+  their position, characters that are not dot-bracket, and hairpin loops shorter than 3 nt (which made every
+  trajectory fail after minutes). The same check in the start page, the batch list, the server and the engine.
+- **Cancel** (audit C3): a run older than a minute asks first, because what was computed is discarded and a
+  cancelled run cannot be continued; the button shows *Cancelling…* until the engine has stopped.
+- **Notes of a running prediction can be read** (audit C4): the list follows the newest note only while it is
+  scrolled to the bottom; it is refilled only when a note arrives, so a selection in it survives.
+- **Start page wording** (audit C6): the empty box no longer says twice that the demo sequence will be used.
+- **The window says when something is missing or breaks** (audit B1–B3, B5): a lost connection to the engine is
+  stated in the progress card, which keeps the last known state and reconnects (before: an empty card after one
+  failed request); without WebGL 2 a page explains the usual reasons instead of a blank window; a lost graphics
+  context is announced and the view redrawn when it is back; errors that no code handles are shown in a note and
+  written to the log. In browser-window mode RCV quits ten minutes after its window is gone, unless a
+  computation is running; a computer that slept does not count.
+- **Local server** (audit B6): the session token is checked before the body of a request is read; a body that
+  is not a JSON object, and numbers given as words, are answered with status 400 and a sentence naming the value.
+- **Messages for files that cannot be read** (audit B4): a truncated ATOM line, a coordinate that is not a
+  number and an incomplete mmCIF atom table are reported with the file, the line or atom and what is wrong; a
+  file without RNA says what it holds (“protein (129 residues) and 2 ligands or ions (MG, SAM)”). The engine's
+  command line reports impossible values (`--models 0`, `--seed -1`, `--modifications abc:m6A`) in one line.
+- Mirror-image RNA (L-nucleotides) opens with a note that the analyses are made for natural D-RNA, and is left
+  out when the template library is rebuilt.
+- CASP16 result files, figure and tables regenerated from the 0.7.6 runs (`benchmark/casp16/results/`).
+- **Engine 2.5.0: the fit onto the template is repeated instead of given up** (`predict.py`,
+  `PredictConfig.template_fit_attempts`, default 4). The last stage of a template model moves every atom onto
+  the template. When the result failed the geometry checks, the fit was discarded and the model kept the looser
+  shape of the torsion-space search — in about half of the template models. Now the residues with the problems
+  and their neighbours (one more on each side per attempt) are released from the template and the fit is
+  repeated, up to 35% of the chain; models whose fit is still rejected rank after those with an accepted fit.
+  Measured with the step on and off, same seeds:
+  - 48 library chains with a template, released after their templates (`benchmark/template_models.py`):
+    rejected fits 73 of 150 → 8 of 138; mean TM-score of model 1 0.582 → 0.605 (+0.023, 95% interval +0.007 to
+    +0.043; 8 chains better by more than 0.02, 2 worse), best of 5 0.613 → 0.622 (+0.009, −0.001 to +0.023).
+  - CASP16, 15 targets (`runs_v076` against `runs_v076_fit1`, which reproduces 0.7.5 exactly): model 1
+    0.495 → 0.501 (+0.006, −0.000 to +0.017; R1271 0.39 → 0.47, the others unchanged), best of 5 0.527 → 0.527;
+    right global fold on 9 of 15 targets (8), median RMSD of model 1 7.8 → 6.0 Å; 68 minutes for the 15
+    targets with and without the step.
+  - The six chains with a template of the 26-chain development set: model 1 0.508 → 0.497 (two chains −0.02 to
+    −0.03; within the noise of six).
+  - Five templates instead of three (`max_templates=5`, run `fit4_t5`): model 1 +0.0001, best of 5 +0.0003 on
+    the 48 chains; three stay the default.
+  Runs without a template are unchanged; template runs differ from 0.7.5 for the same seed.
+  `template_fit_attempts=1` gives the former behaviour.
+- **Confidence model checked blind on CASP16** (`benchmark/casp16/confidence_check.py`, `docs/V07_VALIDATION.md`
+  §F): colour bands in the right order, the *high* band somewhat optimistic; models fitted onto a distant
+  template are over-rated (the model reads coordinates only). Stated in the manual (§8.5). A correction with
+  the template's rank score and choosing model 1 by confidence were tested and not adopted. The model itself is
+  unchanged.
+- **Variants (Switch tab)**: one entry that cannot be read no longer stops the whole list; the others are
+  analysed and the unusable ones are listed with the reason. Positions are the residue numbers RCV shows (a
+  structure whose file starts at residue 17 was addressed by counting from 1 while the table showed the file's
+  numbers). `34G>U` and an `n.`/`r.` prefix are read; a variant entered twice counts once.
+- **Target sites (Details tab) about 100 times faster, and every window on long RNAs.** The opening energy of
+  all windows now comes from one pass over the ensemble (the unpaired probabilities of RNAplfold with window and
+  pair span set to the full length) instead of one constrained partition function per window. The numbers are
+  the same (difference below 0.0001 kcal/mol on RNAs of 76–3000 nt, at 37 °C/1 M and 25 °C/0.15 M Na⁺): 300 nt
+  take 0.2 s instead of 20 s, 1500 nt 15 s instead of about 40 min. RNAs longer than 400 nt are no longer
+  sampled at every n-th window. The former method remains as a fallback for a ViennaRNA without that interface.
+- The Pull tool stands out in the toolbar: accent-coloured, its label shown at every window width, and a small
+  dot marks it until it is first used.
+- Base-pair annotation accepts a pair whose non-central hydrogen bond is missing only for three-bond pairs, so
+  inosine–C (two hydrogen bonds) is annotated.
+- Pairs across a chain break (O3′–P not bonded) are annotated even when the residues are fewer than four apart,
+  and the 2D energy of such a model is the co-folding energy of its strands. The RNA chain option accepts
+  several chains joined, e.g. `A+B`, to show both strands of a duplex.
+
+### Fixed
+- **`rcv batch` went silent after 60 notes** (audit F1). The command printed the notes it had not shown yet by
+  counting them, but a job reports only its newest 60, so a batch of more than a few sequences stopped printing
+  although it went on and finished correctly. Every note is printed now. Ctrl+C stops the running prediction
+  and its worker processes before the command ends (exit code 130; measured: all processes gone after 0.2 s);
+  before, an interrupt that reached only the command left the engine running.
+- **Lines of the start page that stayed English in the other ten languages** (audit F2). The status line under
+  the sequence, the time estimate, the progress card of a running prediction (per cent, time left, stages and
+  their details, AlphaFold 3 steps, “Failed:”), the list and the results table of a batch, the running jobs in
+  the viewer and the variants table of the Switch tab (headings, effect, explanation, “Not analysed” with its
+  reasons) had no translation, or only for one wording of a line that is put together from parts: “3D sampling
+  · 12 of 32 trajectories” came out half translated. Such lines are now built from separately translated
+  parts, and 66 texts were added to each language file. The smoke scenario `langstart` walks these states in
+  German and Japanese and fails on English text left in both.
+- **The notes of a running prediction were English in every language** (audit F5), although the guide listed
+  them as translated. The lines under the progress bar (“Sampling 32 independent trajectories on 4 CPU
+  cores.”, “30 of 32 trajectories passed all-atom validation; …”, the template and 2D-structure lines, the
+  notes of a pull exploration, a batch and an AlphaFold 3 run, and the engine's five warnings) now follow the
+  interface language: 63 texts were added to each language file (with F8). A note tells the page which parts of it are
+  data (the results folder, the title of a template structure, the reason a trajectory was rejected, a command
+  line, a system error) and which name stands in front of it (the sequence of a batch); those parts are shown
+  as they are. Lines printed by AlphaFold 3 itself and errors of other programs stay English. `rcv batch` on
+  the command line prints the same English text as before. A test reads every note text from the source and
+  fails when one has no entry in the language files.
+- **The note naming a template never appeared** (audit F7). The engine's line about a template says in brackets
+  how it was found (`… pairs 46/46 [sequence] 'title'`); RCV's reader of that line did not expect the brackets,
+  so “Template 8UYJ_A (title): sequence identity 100%, covers 100% of the sequence, E-value …” was shown only
+  for the additional template of a part the first one left uncovered. Checked on the 15 CASP16 logs: 28
+  template lines, 28 notes (before: none of them).
+- **Internal labels in the notes about 2D structures** (audit F8). With probing data, an alignment, a
+  pseudoknot hypothesis or Z-RNA the note read “ss1 (vienna_mfe_probing, …)”, “alignment_consensus”,
+  “vienna_pseudoknot”, “Z-RNA form of ss1 (vienna_mfe)”. They now read “minimum free energy with probing
+  data”, “suboptimal with probing data”, “consensus of your alignment”, “with a pseudoknot” and “Z-RNA form of
+  ss1 (minimum free energy)”, in every interface language. A test reads the labels from the engine's source and
+  fails when one has no words.
+- **Traditional Chinese: “passed” was written 透過** (“by means of”) in two entries (audit F9); now 通過 and
+  通過全原子驗證.
+- **The GUI smoke test lost a scenario now and then to a browser that never loaded the test page** (audit
+  F10; six times on 2026-11-21, each ending after the full time limit without a line from the page). Under WSL
+  the Windows browser kept its temporary profile on the Linux disk, which Windows reaches through
+  `\\wsl.localhost`. Measured with 1200 bare browser starts: 7 of 800 with the profile there never loaded a
+  page (five of them within the same 30 seconds, while starts with the profile on the Windows disk went on
+  working), 0 of 400 with the profile on the Windows disk; a start took 5.6 s against 1.1 s. Turning the
+  browser's crash reporter off did not help (2 of 400). `tools/viewer_smoketest.py` now keeps the profiles in
+  the Windows temporary folder when it drives a Windows browser from WSL and removes them afterwards. As a second
+  safeguard the test page reports that it has loaded; a scenario whose browser has not reported within 30 s
+  (`--start-timeout`) is started once more, and the report names it. The move brought one new problem, found
+  in the first full run and removed: with its profile on the fast disk the browser stood still for up to 13 s
+  about 45 s after its start, which pushed the longest scenario (`langstart`, 49 s) to 59–85 s in six runs
+  and once past its 90 s limit. The test browser is now started with its background work switched off
+  (component updates, background networking, sync, timer throttling); `langstart` then took 45 s in three
+  runs. Which of these switches is the one that matters was not separated. Full smoke test: 540 s, before
+  about 730 s.
+- **“2 min” and “40 s” kept the English unit letters inside translated lines** (audit F6), next to “1 小時 5
+  分鐘” for longer times. Short durations are now written like long ones in Japanese, Korean, Russian and both
+  Chinese variants (German, Spanish, French, Italian and Portuguese keep the international symbols). The entry
+  for a bare unit takes a number only, so a sentence that ends in “ s” is not touched.
+- **Cancel left the computation running** (audit A1). Cancelling a prediction stopped the engine process but
+  not its worker processes, which went on using every chosen core until their trajectories ended (minutes),
+  also after RCV was closed. The engine now ends its workers when it is told to stop, every worker ends by
+  itself when the engine is gone, and RCV stops the whole process tree (`jobs.stop_process_tree`; a launcher
+  script of a local AlphaFold 3 with its children at once). Measured with four workers: all gone 0.2 s after
+  Cancel.
+- **Pull exploration of an RNA with modified nucleotides lost the modifications** (audit A2): the options of
+  the exploration replaced those of the sequence notation instead of being added to them.
+- **Structures that did not open** (audit A3, A4; `structure_io.py`): entries whose models are told apart by
+  the alternate-conformer label (1ZEV), mirror-image RNA (0A/0C/0G/0U; 2G32, 2GPM, 2GQ4–2GQ7), residues whose
+  component declares a DNA parent while they are 2′-substituted RNA (3P4A), components without a declared
+  parent (the base is read from the atoms), and PDB files that give the parent in MODRES or the residue in
+  SEQRES only. Of two alternate positions of an atom the first in the file is used (before: only the one
+  labelled A, so residues with conformers B and C lost atoms). A free base or another hetero group without a
+  sugar is no longer taken for a residue of the chain. All 327 cached PDB entries of the benchmarks open
+  (320 before).
+- **“No valid model” was reported as a fragment of JSON** (audit A5): the message now says that no trajectory
+  passed the all-atom validation and what to try; other engine failures show the engine's own sentence.
+- **Batch predictions ignored the Z-RNA option** of the start page (audit A6); probing data and alignments,
+  which belong to one sequence, are said not to be used in a batch instead of being dropped silently.
+- **Seed 0 became seed 42**, and a word in a number field stopped the request with a Python error (audit A7):
+  numbers are read in one place, with their range and a sentence for the user.
+- **`rcv extract` could write outside the chosen folder** when an `.rcv` file carried conformation names with
+  path separators (audit A8): names are reduced to letters, digits, `_ . -` and made unique.
+- **Modified nucleotides checked against the wwPDB chemical component dictionary** (`modifications.COMPONENTS`,
+  `tests/test_components.py`, reference data in `tests/data/pdb_components.json`). Every modified residue RCV
+  writes under a PDB component name now is that component: same atoms, same bonds, same configuration at every
+  stereocentre, and the dictionary's atom names (before, 14 of the 25 components were written with RCV's own
+  names, e.g. `CM6` for the methyl that 6MZ calls `C9`, so other programs could not match the atoms).
+  61 entries now have a component (25 before), among them LNA (LCA/LCC/LCG/TLN), 2′-fluoro
+  (AF2/CFZ/GF2/UFT), m1Ψ (B8H), ac4C (4AC), s2U (SUR), lysidine (M3X), mnm5s2U (U8U), mcm5s2U (70U), 8-bromo-G,
+  2,6-diaminopurine; 67 components are recognised when a structure is opened. Entries without a nucleotide
+  component of exactly that chemistry keep the parent name. Consequences: more modifications are recognised in
+  opened PDB entries, and more are passed to AlphaFold 3 (which takes them as PDB components).
+  - queuosine is written as 56B (QUO, used before, is an analogue with a saturated ring; still read) and m7G as
+    G7M (7MG is the 8-hydro form; still read);
+  - **queuosine** was built as the wrong diastereomer (trans-diol, either hand at the ring carbon): now the
+    (1S,4S,5R)-cis-diol with the ring geometry of the component;
+  - **t6A, ms2t6A, m6t6A**: the side-chain rotamer search could turn L-threonine into D- or allo-threonine;
+    a stereocentre now takes its second substituent relative to the first, so no rotamer can invert it;
+  - **LNA**: the methylene bridge was 2.1 Å from C4′ (a bond is 1.56 Å). O2′ and the methylene are now fitted
+    together to the bicyclic sugar (bonds within 0.05 Å on a C3′-endo sugar);
+  - **lysidine**: the carboxyl carbon was named `CL` and written as chlorine;
+  - both hydroxyls of queuosine can donate hydrogen bonds in the search (one before).
+- **Z-RNA prediction: a left-handed model was always ranked last**, also when the engine's own estimate said
+  Z is the major form (r(CG)₆ with a Z-binding protein: ΔG(A→Z) −1.5 kcal/mol, 92 % Z, yet models 4 and 5).
+  The 3D score is calibrated on A-form helices and scores a Z stem about 50 units worse. The best Z model is
+  now set level with the best model of its parent structure, so the estimated ΔG(A→Z), already part of the 2D
+  energy, decides: model 1 when Z is favoured, next to the first models when it is a minor form
+  (`helix_form_score_excluded` and `z_fraction_estimate` in the manifest; `docs/RCV.md` §3.4).
+
+### Removed
+- **Check for updates** (0.7.5): *Help ▸ Check for updates…*, the daily check at start-up, its Preferences
+  option, `/api/update`, `src/rcv/update.py`, `static/js/update.js`, `tests/test_update.py` and its texts. RCV no
+  longer contacts any server on its own and never points to or opens an installer; Store copies are updated by
+  the Store, the other installers from the website. (Store policy does not allow apps to update themselves, and
+  programs that fetch installers are what antivirus heuristics look for.) The Inno Setup script no longer sets
+  `AppUpdatesURL`.
+
 ## Package 0.7.5 — 2026-11-15 — RCV · RNA Conformation Viewer (engine rnafold3d 2.3.0)
 
 First public release since 0.7.3: it also contains everything listed under 0.7.4, which was not released on its own.

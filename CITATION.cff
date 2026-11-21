@@ -5,8 +5,8 @@ title: "RCV: RNA Conformation Viewer"
 authors:
   - family-names: Wang
     given-names: Zixiang
-version: 0.7.5
-date-released: 2026-11-15
+version: 0.7.6
+date-released: 2026-11-21
 doi: 10.5281/zenodo.24163503
 url: "https://doi.org/10.5281/zenodo.24163503"
 repository-code: "https://github.com/PrinceWang2018/RNAconformer"

@@ -3,8 +3,9 @@
 import { el, slug, loadPref, savePref, readFileText, fmt } from './util.js';
 import { icon } from './icons.js';
 import { toast } from './ui.js';
-import { watchJob, fmtDuration } from './jobs.js';
+import { watchJob, cancelJob, fmtDuration } from './jobs.js';
 import { af3SettingsDialog, af3Configured, af3Summary, loadAf3Settings, AF3_SERVER } from './af3.js';
+import * as modseq from './modseq.js';
 
 const SAMPLING = { fast: [2, 6, 'Fast'], standard: [4, 8, 'Standard'], thorough: [8, 16, 'Thorough'] };
 const trajSeconds = n => 45 + n + 0.004 * n * n;          // same rough model as the job runner
@@ -12,28 +13,57 @@ const trajSeconds = n => 45 + n + 0.004 * n * n;          // same rough model as
 export const DEMO = { name: 'HIV1_TAR_demo', sequence: 'GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', label: 'HIV-1 TAR, 29 nt' };
 
 // FASTA (several records) or one bare sequence -> [{ name, sequence, structure }] (mirrors rcv.jobs.parse_fasta).
+// A sequence may hold modified nucleotides in brackets (GGC[m6A]CU, modseq.js): `sequence` keeps them as written,
+// `length` and the checks use the parent bases, `mods` lists them.
 export function parseFastaRecords(text) {
   const recs = [];
   let cur = null;
   for (const raw of String(text || '').split(/\r?\n/)) {
     const line = raw.trim();
-    if (!line || line.startsWith(';') || line.startsWith('#')) continue;
+    if (!line || line.startsWith(';') || line.startsWith('#') || line === '//') continue;
     if (line.startsWith('>')) { cur = { name: line.slice(1).trim().split(/\s+/)[0] || '', sequence: '', structure: '' }; recs.push(cur); continue; }
     if (!cur) { cur = { name: '', sequence: '', structure: '' }; recs.push(cur); }
     const tok = line.split(/\s+/)[0];
     if (/^[().\[\]{}<>]+$/.test(tok) && cur.sequence) cur.structure += tok;
-    else cur.sequence += line.replace(/\s+/g, '').toUpperCase().replace(/T/g, 'U');
+    else cur.sequence += modseq.cleanLine(line);
   }
   const seen = new Map();
   return recs.filter(r => r.sequence).map((r, k) => {
     const base = slug(r.name || `seq${k + 1}`);
     const n = seen.get(base) || 0;
     seen.set(base, n + 1);
-    const bad = [...new Set(r.sequence.replace(/[ACGU]/g, ''))];
-    const problem = bad.length ? `letters ${bad.join('')}` : r.sequence.length < 8 ? 'shorter than 8 nt' : r.sequence.length > 400 ? 'longer than 400 nt'
-      : r.structure && r.structure.length !== r.sequence.length ? 'dot-bracket length differs' : null;
-    return { ...r, name: n ? `${base}_${n + 1}` : base, problem };
+    const p = modseq.parse(r.sequence);
+    const len = p.seq.length;
+    const bad = p.bad;
+    const problem = p.problems.length ? p.problems[0] : bad.length ? `letters ${bad.join('')}` : len < 8 ? 'shorter than 8 nt' : len > 400 ? 'longer than 400 nt'
+      : r.structure && r.structure.length !== len ? 'dot-bracket length differs' : r.structure ? dotBracketProblem(r.structure, len) : null;
+    return { ...r, name: n ? `${base}_${n + 1}` : base, problem, length: len, mods: p.mods };
   });
+}
+
+// Why a dot-bracket cannot be used, in words, or null when it is fine (mirrors rnafold3d.annotate.check_dotbracket).
+// A line made of parts, joined by " · ". Each part is its own text node, so it is translated on its own whatever stands
+// next to it (the interface languages translate whole text nodes; see i18n.js).
+function setParts(node, parts) {
+  const shown = parts.filter(Boolean);
+  node.replaceChildren(...shown.flatMap((p, i) => (i ? [' · ', el('span', { text: p })] : [el('span', { text: p })])));
+}
+
+export function dotBracketProblem(ss, n) {
+  if (n && ss.length !== n) return `dot-bracket has ${ss.length} characters, the sequence ${n} nt`;
+  const close = { ')': '(', ']': '[', '}': '{', '>': '<' };
+  const stacks = { '(': [], '[': [], '{': [], '<': [] };
+  for (let k = 0; k < ss.length; k++) {
+    const ch = ss[k];
+    if (stacks[ch]) stacks[ch].push(k + 1);
+    else if (close[ch]) {
+      const i = stacks[close[ch]].pop();
+      if (i === undefined) return `dot-bracket: "${ch}" at position ${k + 1} has no opening bracket`;
+      if (k + 1 - i < 4) return `dot-bracket: the pair ${i}–${k + 1} closes a loop of fewer than 3 nt`;
+    } else if (!'.-_,:'.includes(ch)) return `dot-bracket: "${ch}" at position ${k + 1} is not allowed (use . ( ) [ ] { } < >)`;
+  }
+  const open = Object.entries(stacks).filter(([, st]) => st.length).map(([o, st]) => [st[st.length - 1], o]).sort((a, b) => a[0] - b[0])[0];
+  return open ? `dot-bracket: "${open[1]}" at position ${open[0]} is never closed` : null;
 }
 
 export function parseSequenceInput(text) {
@@ -42,11 +72,14 @@ export function parseSequenceInput(text) {
   const parts = [];
   for (const l of lines) {
     if (l.startsWith('>')) { if (!name) name = l.slice(1).trim().split(/\s+/)[0] || ''; continue; }
+    if (/^\s*\/\/\s*$/.test(l)) continue;             // the end mark of a GenBank sequence block
     parts.push(l);
   }
-  const raw = parts.join('').replace(/\s+/g, '').toUpperCase().replace(/T/g, 'U');
-  const bad = [...new Set(raw.replace(/[ACGU]/g, ''))];
-  return { name, seq: raw, bad };
+  const raw = modseq.cleanLine(parts.join(''));
+  const p = modseq.parse(raw);
+  const bad = p.bad;
+  // seq: parent bases (what is folded); raw: as written, with [modifications] (what is sent to the engine)
+  return { name, seq: p.seq, raw, bad, mods: p.mods, problems: p.problems, unchecked: p.unknown };
 }
 
 export class Welcome {
@@ -95,7 +128,7 @@ export class Welcome {
     const app = this.app, p = this.prefs;
     this.nameIn = el('input', { class: 'input', placeholder: 'from the FASTA header', 'aria-label': 'Project name', maxlength: 60 });
     this.seqIn = el('textarea', { class: 'input wl-seq', rows: 4, spellcheck: 'false', 'aria-label': 'RNA sequence',
-      placeholder: 'Paste an RNA sequence or FASTA (several sequences = batch)…  Empty: the demo sequence is used.' });
+      placeholder: 'Paste an RNA sequence or FASTA (several sequences = batch)…' });
     this.seqStatus = el('div', { class: 'wl-seqstatus' });
     this.modelsIn = el('input', { class: 'input', type: 'number', min: 1, max: 30, value: p.models ?? 8, 'aria-label': 'Conformations to keep' });
     this.samplingSeg = el('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'Sampling depth' },
@@ -105,9 +138,18 @@ export class Welcome {
     this.coresIn = el('input', { type: 'range', min: 1, max: 8, value: 7, 'aria-label': 'CPU cores' });
     this.coresLabel = el('span', { class: 'muted' });
     this.ssIn = el('input', { class: 'input mono', placeholder: 'e.g. ((((((...((((......))))))))))', 'aria-label': 'Known secondary structure' });
-    this.seedIn = el('input', { class: 'input', type: 'number', value: 42, 'aria-label': 'Random seed' });
+    this.seedIn = el('input', { class: 'input', type: 'number', min: 0, step: 1, value: 42, 'aria-label': 'Random seed' });
     this.templatesIn = el('input', { type: 'checkbox', checked: p.templates !== false, 'aria-label': 'Use related experimental structures' });
     this.templatesIn.addEventListener('change', () => { this.prefs.templates = this.templatesIn.checked; savePref('predictForm', this.prefs); });
+    // Z-RNA prediction (off by default: it adds trajectories); salt and Z-binding protein shown only when on
+    this.zrnaIn = el('input', { type: 'checkbox', checked: !!p.zrna, 'aria-label': 'Predict left-handed Z-RNA helices' });
+    this.zSaltIn = el('input', { class: 'input wl-zsalt', type: 'number', min: 5, max: 6000, step: 5, value: p.zrnaSaltMM || 150, 'aria-label': 'Na+ in mM for Z-RNA' });
+    this.zBinderIn = el('input', { type: 'checkbox', checked: !!p.zrnaBinder, 'aria-label': 'Z-binding protein present' });
+    this.zOpts = el('span', { class: 'wl-zopts' }, el('span', { class: 'muted', text: 'Na⁺ (mM)' }), this.zSaltIn,
+      el('label', { class: 'check', title: 'ADAR1 Zα, ZBP1 or PKZ bound: they stabilise left-handed RNA strongly.' }, this.zBinderIn, el('span', { text: 'Z-binding protein (Zα)' })));
+    const zSave = () => { this.prefs.zrna = this.zrnaIn.checked; this.prefs.zrnaSaltMM = +this.zSaltIn.value || 150; this.prefs.zrnaBinder = this.zBinderIn.checked; this.zOpts.hidden = !this.zrnaIn.checked; savePref('predictForm', this.prefs); this._estimate(); };
+    for (const c of [this.zrnaIn, this.zSaltIn, this.zBinderIn]) c.addEventListener('change', zSave);
+    this.zOpts.hidden = !this.zrnaIn.checked;
     // a recipe (0.7.5): its prediction settings fill the form, its steps run on the result
     this.recipe = null;
     this.recipeSel = el('select', { class: 'select', 'aria-label': 'Recipe' }, el('option', { value: '', text: 'None' }));
@@ -170,6 +212,9 @@ export class Welcome {
         el('div')),
       el('label', { class: 'check wl-templates', title: 'The built-in library holds about 4000 RNA chains from the PDB (21 MB). Related structures (sequence identity, covering at least about half of the sequence) guide the 3D model; switch off for a physics-only prediction.' },
         this.templatesIn, el('span', { text: 'Use related experimental structures (templates) when the library has one' })),
+      el('div', { class: 'wl-zrna' },
+        el('label', { class: 'check', title: 'Adds a hypothesis with one helix built left-handed (Z-RNA: syn purines, zig-zag backbone) when alternating purine-pyrimidine pairs (CG, CA/UG repeats) could turn under these conditions: high salt, 8-substituted purines (m8G, 8-Br-G) or a Z-binding protein. About a quarter more run time.' },
+          this.zrnaIn, el('span', { text: 'Predict Z-RNA (left-handed helices) when likely' })), this.zOpts),
       el('div', { class: 'wl-adv-links' },
         el('button', { class: 'linkbtn', type: 'button', onclick: () => this.useDemo() }, `Fill in the demo sequence (${DEMO.label})`)));
     return el('section', { class: 'wl-card wl-main-card' },
@@ -178,7 +223,10 @@ export class Welcome {
       el('div', { class: 'wl-engine' }, el('span', { class: 'flabel', text: 'Engine' }), this.engineSeg), this.af3Row,
       el('div', { class: 'wl-actions' },
         this.predictBtn,
-        el('button', { class: 'btn', onclick: () => this.chooseFasta() }, icon('open'), 'Load a FASTA file…')),
+        el('button', { class: 'btn', onclick: () => this.chooseFasta() }, icon('open'), 'Load a FASTA file…'),
+        this.modBtn = el('button', { class: 'btn ghost', type: 'button', onclick: () => this.editModifications(),
+          title: 'Modified nucleotides (m6A, Ψ, inosine from A-to-I editing, 8-oxo-G, 2\'-O-methyl, LNA …): choose them on the sequence. They change base pairing in the 2D structures and are built into the 3D models. In the sequence they are written in brackets, e.g. GGC[m6A]CU.' },
+          el('span', { class: 'wl-modmark', translate: 'no', text: 'Ψ' }), 'Modified nucleotides…')),
       this.adv);
   }
 
@@ -220,6 +268,7 @@ export class Welcome {
     this.af3Row.classList.toggle('warn', af3 && !af3Configured(this.af3));
     for (const c of [this.samplingSeg, this.modelsIn, this.ssIn]) c.closest('.field')?.classList.toggle('disabled', af3);
     this.templatesIn.closest('label')?.classList.toggle('disabled', af3);
+    this.zrnaIn.closest('.wl-zrna')?.classList.toggle('disabled', af3);
   }
 
   // ---------------------------------------------------------------- state
@@ -245,6 +294,7 @@ export class Welcome {
       sys ? el('span', { class: 'grow' }) : null,
       sys ? el('span', { class: 'muted', title: sys.projects_dir, text: `Projects: ${sys.projects_dir}` }) : null,
       el('span', { class: 'muted', text: `RCV ${app.info?.version || ''}` }));
+    if (!modseq.getCatalogue() && app.api.online) modseq.loadCatalogue(app.api).then(c => { if (c) this._estimate(); });
     this._estimate();
     if (this.job) this._showProgress(true);
     await this._fillRecipes();
@@ -279,7 +329,7 @@ export class Welcome {
     if (records.length >= 2) return this._estimateBatch(records);
     const af3 = this.engine === 'alphafold3';
     this.predictBtn.lastChild.textContent = af3 ? 'Predict with AlphaFold 3' : this.seqIn.value.trim() ? 'Predict conformations' : 'Predict the demo sequence';
-    const { seq, bad, name } = parseSequenceInput(this.seqIn.value);
+    const { seq, bad, name, mods, problems } = parseSequenceInput(this.seqIn.value);
     if (name && !this.nameIn.value) this.nameIn.placeholder = name;
     for (const b of this.samplingSeg.children) b.classList.toggle('on', b.dataset.s === this.sampling);
     const cores = +this.coresIn.value;
@@ -290,20 +340,26 @@ export class Welcome {
     const n = seq.length;
     const ss = this.ssIn.value.trim();
     let msg = '', cls = '';
-    if (!n) msg = `Paste a sequence or load a FASTA file (several sequences run as a batch); T is read as U. Empty: the demo sequence (${DEMO.label}) is used.`;
+    const more = [];                                   // further parts of the status line
+    if (!n) msg = `No sequence yet: Predict runs the demo sequence (${DEMO.label}). T is read as U; position numbers and spaces are ignored.`;
+    else if (problems.length) { msg = `${problems[0][0].toUpperCase()}${problems[0].slice(1)}. Modified nucleotides are written in brackets, e.g. GGC[m6A]CU.`; cls = 'bad'; }
     else if (bad.length) { msg = `Unsupported letters: ${bad.join(' ')}. Only A, C, G, U (T) are modelled.`; cls = 'bad'; }
     else if (n < 8) { msg = `${n} nt — at least 8 nt are needed.`; cls = 'bad'; }
     else if (n > 400) { msg = `${n} nt — above the 400-nt limit of the engine.`; cls = 'bad'; }
     else {
       const comp = ['A', 'C', 'G', 'U'].map(b => `${b} ${(seq.match(new RegExp(b, 'g')) || []).length}`).join(' · ');
-      msg = `${n} nt · ${comp}${n > 200 ? ' · above the tested 200-nt range' : ''}`;
+      msg = `${n} nt · ${comp}`;
+      if (n > 200) more.push('above the tested 200-nt range');
+      if (mods.length) more.push(`${mods.length} modified: ${modseq.summary(mods)}`);
       cls = n > 200 ? 'warn' : 'ok';
     }
-    if (ss && n && ss.length !== n) { msg += ` · dot-bracket has ${ss.length} characters`; cls = 'bad'; }
-    this.seqStatus.textContent = msg;
+    const ssBad = ss && n && !af3 ? dotBracketProblem(ss, n) : null;
+    if (ssBad) { more.push(ssBad); cls = 'bad'; }
+    setParts(this.seqStatus, [msg, ...more]);
     this.seqStatus.className = `wl-seqstatus ${cls}`;
     const empty = !this.seqIn.value.trim();
-    const ok = (empty || (n >= 8 && n <= 400 && !bad.length && !(ss && ss.length !== n))) && this.app.api.online && !this.job;
+    const ok = (empty || (n >= 8 && n <= 400 && !bad.length && !problems.length && !ssBad)) && this.app.api.online && !this.job;
+    this.modBtn?.classList.toggle('on', mods.length > 0);
     this.predictBtn.disabled = !ok;
     const nn = empty ? DEMO.sequence.length : n;
     if (af3) {
@@ -311,7 +367,8 @@ export class Welcome {
       this.estimate.textContent = `AlphaFold 3 · ${seeds * 5} models (${seeds} seed${seeds > 1 ? 's' : ''} × 5) · on the GPU`;
       return;
     }
-    this.estimate.textContent = nn >= 8 && !bad.length ? `${traj} trajectories · about ${fmtDuration(trajSeconds(nn) * Math.ceil(traj / cores) + 15)} on ${cores} core${cores > 1 ? 's' : ''}` : '';
+    const zx = this.zrnaIn?.checked ? Math.max(2, Math.round(0.25 * traj)) : 0;      // Z-RNA: up to this many extra
+    this.estimate.textContent = nn >= 8 && !bad.length ? `${traj}${zx ? ` (+${zx} Z-RNA)` : ''} trajectories · about ${fmtDuration(trajSeconds(nn) * Math.ceil((traj + zx) / cores) + 15 + (zx ? 10 : 0))} on ${cores} core${cores > 1 ? 's' : ''}` : '';
   }
 
   _estimateBatch(records) {
@@ -322,19 +379,32 @@ export class Welcome {
     const [per, low] = SAMPLING[this.sampling];
     const traj = Math.max(low, per * models);
     const bad = records.filter(r => r.problem);
-    const lens = records.map(r => r.sequence.length);
-    const total = records.reduce((s, r) => s + trajSeconds(r.sequence.length) * Math.ceil(traj / cores) + 25, 0);
-    this.seqStatus.textContent = bad.length ? `${records.length} sequences · ${bad.length} cannot be predicted (see the list)` : `${records.length} sequences (batch) · ${Math.min(...lens)}–${Math.max(...lens)} nt · one .rcv file per sequence`;
+    const lens = records.map(r => r.length);
+    const zx = this.zrnaIn?.checked ? Math.max(2, Math.round(0.25 * traj)) : 0;      // Z-RNA: up to this many extra
+    const total = records.reduce((s, r) => s + trajSeconds(r.length) * Math.ceil((traj + zx) / cores) + 25, 0);
+    const unused = this.probingFile || this.alignmentFile ? ' · probing data and alignments apply to one sequence: not used in a batch' : '';
+    this.seqStatus.textContent = bad.length ? `${records.length} sequences · ${bad.length} cannot be predicted (see the list)` : `${records.length} sequences (batch) · ${Math.min(...lens)}–${Math.max(...lens)} nt · one .rcv file per sequence${unused}`;
     this.seqStatus.className = `wl-seqstatus ${bad.length ? 'bad' : 'ok'}`;
     this.batchList.replaceChildren(...records.slice(0, 200).map((r, i) => el('div', { class: `wl-bitem ${r.problem ? 'bad' : ''}` },
-      el('span', { class: 'n', text: String(i + 1) }), el('b', { text: r.name }), el('span', { class: 'muted', text: `${r.sequence.length} nt${r.structure ? ' · with 2D' : ''}` }),
+      el('span', { class: 'n', text: String(i + 1) }), el('b', { text: r.name }), el('span', { class: 'muted', text: `${r.length} nt${r.mods?.length ? ` · ${r.mods.length} modified` : ''}${r.structure ? ' · with 2D' : ''}` }),
       el('span', { class: 'grow' }), r.problem ? el('span', { class: 'state-bad', text: r.problem }) : el('span', { class: 'state-ok' }, icon('check')))));
     this.predictBtn.lastChild.textContent = `Predict ${records.length} sequences`;
     this.predictBtn.disabled = !!bad.length || records.length > 100 || !this.app.api.online || !!this.job;
-    this.estimate.textContent = `${records.length} × ${traj} trajectories · about ${fmtDuration(total)} on ${cores} core${cores > 1 ? 's' : ''}` + (records.length > 100 ? ' · at most 100 sequences per batch' : '');
+    this.estimate.textContent = `${records.length} × ${traj}${zx ? ` (+${zx} Z-RNA)` : ''} trajectories · about ${fmtDuration(total)} on ${cores} core${cores > 1 ? 's' : ''}` + (records.length > 100 ? ' · at most 100 sequences per batch' : '');
   }
 
   // ---------------------------------------------------------------- input helpers
+  // Modified nucleotides: a sub-window to choose them on the sequence; the result is written back as [code] tokens.
+  async editModifications() {
+    const recs = parseFastaRecords(this.seqIn.value);
+    if (recs.length > 1) { toast('Choose modifications for one sequence at a time. In a batch, write them in brackets in each sequence, e.g. GGC[m6A]CU.', 'info', 'Modified nucleotides', 7000); return; }
+    const m = await import('./modifications.js');
+    await m.modificationsDialog(this.app, {
+      text: this.seqIn.value.trim() ? this.seqIn.value : `>${DEMO.name}\n${DEMO.sequence}`,
+      onApply: text => { this.seqIn.value = text; this._estimate(); },
+    });
+  }
+
   useDemo() {
     this.seqIn.value = `>${DEMO.name}\n${DEMO.sequence}`;
     this.nameIn.value = '';
@@ -382,6 +452,16 @@ export class Welcome {
   }
 
   // ---------------------------------------------------------------- prediction
+  // The random seed as entered: 0 is a seed like any other; an empty or unusable field gives the default 42.
+  _seed() {
+    const v = String(this.seedIn.value).trim(), n = Math.trunc(Number(v));
+    return v !== '' && Number.isFinite(n) && n >= 0 && n <= 2147483647 ? n : 42;
+  }
+
+  _zrnaParams() {
+    return { zrna: 'auto', zrna_salt: (+this.zSaltIn.value || 150) / 1000, zrna_binder: this.zBinderIn.checked };
+  }
+
   async startPrediction() {
     const app = this.app;
     if (!this.seqIn.value.trim()) {
@@ -393,10 +473,11 @@ export class Welcome {
     if (af3 && !af3Configured(this.af3)) { af3SettingsDialog(app, sv => { this.af3 = sv; this._engineUi(); this._estimate(); }); return; }
     if (af3 && records.length > 1) { toast('AlphaFold 3 runs one sequence at a time here. Predict the sequences one by one, or use the RCV engine for a batch.', 'error', 'AlphaFold 3'); return; }
     if (records.length > 1) return this.startBatch(records);
-    const { seq, name: fastaName } = parseSequenceInput(this.seqIn.value);
+    const { raw, name: fastaName } = parseSequenceInput(this.seqIn.value);
     const name = this.nameIn.value.trim() || fastaName || 'rna';
-    const params = { name: slug(name), sequence: seq, structure: this.ssIn.value.trim(), models: +this.modelsIn.value || 8,
-      sampling: this.sampling, cores: +this.coresIn.value, seed: +this.seedIn.value || 42, templates: this.templatesIn.checked ? 'auto' : 'off',
+    const params = { name: slug(name), sequence: raw, structure: this.ssIn.value.trim(), models: +this.modelsIn.value || 8,
+      sampling: this.sampling, cores: +this.coresIn.value, seed: this._seed(), templates: this.templatesIn.checked ? 'auto' : 'off',
+      ...(this.zrnaIn.checked && !af3 ? this._zrnaParams() : {}),
       ...(af3 ? { engine: 'alphafold3' } : { probing_text: this.probingFile?.text || '', alignment_text: this.alignmentFile?.text || '' }) };
     this.prefs = { ...this.prefs, models: params.models, sampling: params.sampling, cores: params.cores };
     savePref('predictForm', this.prefs);
@@ -424,7 +505,8 @@ export class Welcome {
   async startBatch(records) {
     const app = this.app;
     const params = { records: records.map(r => ({ name: r.name, sequence: r.sequence, structure: r.structure })), models: +this.modelsIn.value || 8,
-      sampling: this.sampling, cores: +this.coresIn.value, seed: +this.seedIn.value || 42, templates: this.templatesIn.checked ? 'auto' : 'off' };
+      sampling: this.sampling, cores: +this.coresIn.value, seed: this._seed(), templates: this.templatesIn.checked ? 'auto' : 'off',
+      ...(this.zrnaIn.checked ? this._zrnaParams() : {}) };
     this.prefs = { ...this.prefs, models: params.models, sampling: params.sampling, cores: params.cores };
     savePref('predictForm', this.prefs);
     try {
@@ -467,7 +549,9 @@ export class Welcome {
         el('td', { class: 'num', text: ok ? String(it.n_conformations ?? '–') : '–' }), el('td', { class: 'num', text: it.best_score !== null && it.best_score !== undefined ? fmt(it.best_score, 1) : '–' }),
         el('td', { class: 'num', text: it.dg_mfe !== null && it.dg_mfe !== undefined ? fmt(it.dg_mfe, 1) : '–' }), el('td', { class: 'num', text: it.distinct_2d ?? '–' }),
         el('td', { class: 'num', text: it.elapsed_s ? `${Math.round(it.elapsed_s)} s` : '–' }),
-        el('td', {}, ok ? el('span', { class: 'state-ok', text: 'done' }) : el('span', { class: 'state-bad', text: it.error ? `failed: ${it.error.slice(0, 60)}` : it.status })));
+        el('td', {}, ok ? el('span', { class: 'state-ok', text: 'done' })
+          : it.error ? el('span', { class: 'state-bad' }, el('span', { text: 'failed' }), ': ', el('span', { text: it.error.slice(0, 60), translate: 'no' }))
+            : el('span', { class: 'state-bad', text: it.status })));
       tr.addEventListener('click', e => { if (ok && e.target !== radio) { radio.checked = true; radio.dispatchEvent(new Event('change')); } });
       return tr;
     });
@@ -500,26 +584,58 @@ export class Welcome {
       el('div', {}, el('b', { text: s.label }), s.detail ? el('span', { text: s.detail }) : null))));
     const pct = Math.round((j.progress || 0) * 100);
     const finished = ['done', 'failed', 'cancelled'].includes(j.status);
-    const meta = j.status === 'running' || j.status === 'queued'
-      ? `${pct}% · ${j.eta_s ? 'about ' + fmtDuration(j.eta_s) + ' left' : 'estimating time'} · ${fmtDuration(j.elapsed_s)} elapsed`
-      : j.status === 'done' ? `Finished in ${fmtDuration(j.elapsed_s)} — opening the viewer…` : j.status === 'cancelled' ? 'Cancelled' : `Failed: ${j.error || ''}`;
-    const notes = el('ul', { class: 'wl-notes', 'aria-live': 'polite' }, ...(j.notes || []).map(n => el('li', { class: `nt-${n.level}` },
-      el('span', { class: 'nt-t', text: `${Math.floor(n.t / 60)}:${String(Math.floor(n.t % 60)).padStart(2, '0')}` }), icon(n.level === 'error' ? 'warn' : n.level === 'warning' ? 'warn' : 'info'), el('span', { text: n.text }))));
+    const cancelling = !finished && (j.cancelling || this._cancelling === j.id);
+    const meta = j.lost && !finished ? 'The connection to the RCV engine was lost; the last known state is shown. RCV keeps trying to reconnect. If RCV itself was closed, the run has stopped: start RCV again.'
+      : cancelling ? 'Cancelling… stopping the computation'
+      : j.status === 'running' || j.status === 'queued'
+        ? `${pct}% · ${j.eta_s ? 'about ' + fmtDuration(j.eta_s) + ' left' : 'estimating time'} · ${fmtDuration(j.elapsed_s)} elapsed`
+        : j.status === 'done' ? `Finished in ${fmtDuration(j.elapsed_s)} — opening the viewer…` : j.status === 'cancelled' ? 'Cancelled' : null;
     const actions = el('div', { class: 'wl-row end' });
+    const back = () => { this.stopWatch?.(); this.job = null; this._cancelling = null; this._showProgress(false); this._estimate(); };
     if (!finished) {
-      actions.append(el('button', { class: 'btn', onclick: () => this.app.api.post(`/api/jobs/${j.id}/cancel`, {}) }, 'Cancel'));
+      if (j.lost) actions.append(el('button', { class: 'btn', onclick: back, title: 'Leave this page. A run that is still going on continues in the background.' }, 'Back to the start page'));
+      actions.append(el('button', { class: 'btn', disabled: cancelling || j.lost ? true : null, onclick: async () => {
+        if (await cancelJob(this.app, this.job || j)) { this._cancelling = j.id; if (this.job) this._render(this.job); }
+      } }, cancelling ? 'Cancelling…' : 'Cancel'));
     } else if (j.status !== 'done') {
-      actions.append(el('button', { class: 'btn primary', onclick: () => { this.stopWatch?.(); this.job = null; this._showProgress(false); this._estimate(); } }, 'Back'));
+      actions.append(el('button', { class: 'btn primary', onclick: back }, 'Back'));
     }
-    this.progress.replaceChildren(el('div', { class: 'wl-pg-card' },
-      el('div', { class: 'wl-pg-head' }, el('h2', { text: j.kind === 'batch' ? `Batch prediction · ${j.title || ''}` : `Predicting conformations · ${j.title || ''}` }),
-        el('span', { class: 'muted', text: j.kind === 'batch' ? `${(j.result?.items || []).length} sequences, one after another, on ${j.result?.cores} CPU cores` : j.result?.engine === 'alphafold3' ? `AlphaFold 3 · ${j.result.seeds} seed(s) × 5 samples` : j.result?.cores ? `${j.result.trajectories} trajectories on ${j.result.cores} CPU cores` : '' })),
-      steps,
-      el('div', { class: `progress big ${j.status === 'failed' ? 'bad' : ''}` }, el('i', { style: { width: `${pct}%` } })),
-      el('div', { class: 'wl-pg-meta', text: meta }),
-      el('div', { class: 'section-title', style: { marginTop: '14px' } }, 'Notes'),
-      notes, actions));
-    notes.scrollTop = notes.scrollHeight;
+    // The card is built once per run and its parts are refreshed in place. The notes list stays in the page: it is
+    // refilled only when a note was added (a selection in it survives the refresh every second), and it follows the
+    // newest note only while the user has not scrolled up to read.
+    let c = this._card;
+    if (!c || c.job !== j.id || !c.root.isConnected) {
+      c = this._card = { job: j.id, sig: '', head: el('div', { class: 'wl-pg-head' }), steps: el('div'), bar: el('div'), meta: el('div'),
+        notes: el('ul', { class: 'wl-notes', 'aria-live': 'polite' }), actions: el('div') };
+      c.root = el('div', { class: 'wl-pg-card' }, c.head, c.steps, c.bar, c.meta,
+        el('div', { class: 'section-title', style: { marginTop: '14px' } }, 'Notes'), c.notes, c.actions);
+      this.progress.replaceChildren(c.root);
+    }
+    c.head.replaceChildren(el('h2', { text: j.kind === 'batch' ? `Batch prediction · ${j.title || ''}` : `Predicting conformations · ${j.title || ''}` }),
+      el('span', { class: 'muted', text: j.kind === 'batch' ? `${(j.result?.items || []).length} sequences, one after another, on ${j.result?.cores} CPU cores` : j.result?.engine === 'alphafold3' ? `AlphaFold 3 · ${j.result.seeds} seed(s) × 5 samples` : j.result?.cores ? `${j.result.trajectories} trajectories on ${j.result.cores} CPU cores` : '' }));
+    c.steps.replaceChildren(steps);
+    c.bar.replaceChildren(el('div', { class: `progress big ${j.status === 'failed' || (j.lost && !finished) ? 'bad' : ''}` }, el('i', { style: { width: `${pct}%` } })));
+    // a failure: "Failed:" and the reason are two texts, so the first is translated also when the reason is not
+    c.meta.replaceChildren(meta !== null ? el('div', { class: `wl-pg-meta${j.lost && !finished ? ' lost' : ''}`, text: meta })
+      : el('div', { class: 'wl-pg-meta' }, el('span', { text: 'Failed:' }), ' ', el('span', { text: j.error || '' })));
+    c.actions.replaceChildren(actions);
+    const sig = `${(j.notes || []).length}|${(j.notes || []).at(-1)?.t ?? ''}|${(j.notes || []).at(-1)?.text ?? ''}`;
+    if (sig !== c.sig && j.notes) {
+      const follow = c.notes.scrollHeight - c.notes.scrollTop - c.notes.clientHeight < 28;
+      const top = c.notes.scrollTop;
+      // lead: a name in front of the text (the sequence of a batch); keep: data inside the text (a path, a title).
+      // Neither is translated (i18n.js, data-i18n-keep).
+      c.notes.replaceChildren(...j.notes.map(n => {
+        const lead = n.lead && n.text.startsWith(n.lead) ? n.lead : '';
+        return el('li', { class: `nt-${n.level}` },
+          el('span', { class: 'nt-t', text: `${Math.floor(n.t / 60)}:${String(Math.floor(n.t % 60)).padStart(2, '0')}` }), icon(n.level === 'error' ? 'warn' : n.level === 'warning' ? 'warn' : 'info'),
+          el('span', {}, lead ? el('span', { translate: 'no', text: lead }) : null,
+            el('span', { text: n.text.slice(lead.length), 'data-i18n-keep': n.keep?.length ? JSON.stringify(n.keep) : null })));
+      }));
+      c.notes.scrollTop = follow ? c.notes.scrollHeight : top;
+      c.sig = sig;
+    }
+    if (finished) this._cancelling = null;
     this._estimate();
   }
 }

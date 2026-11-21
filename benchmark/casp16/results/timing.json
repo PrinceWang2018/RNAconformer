@@ -33,5 +33,5 @@
  ],
  "logical_cpus": 16,
  "version": "0.7.4",
- "note": "4-core runs and peak memory measured with RCV 0.7.4 on an idle machine; 0.7.5 does not change the run time (CHANGELOG 0.7.5, Speed)"
+ "note": "4-core runs and peak memory measured with RCV 0.7.4 on an idle machine; 0.7.5 does not change the run time (CHANGELOG 0.7.5, Speed); 0.7.6 measured side by side with 0.7.5 on 16 cores (R1209, twice each): 86-93 s against 82-83 s"
 }

@@ -38,8 +38,9 @@ export class SecondaryInset {
     const btn = (ic, title, fn) => el('button', { class: 'ss-btn', title, 'aria-label': title, onclick: e => { e.stopPropagation(); fn(); } }, icon(ic));
     this.sizeBtn = btn('expand', 'Window size (small / medium / large)', () => this.cycleSize());
     this.cornerBtn = btn('corner', 'Move to another corner', () => this.cycleCorner());
+    this.saveBtn = btn('download', 'Export the sequence and 2D structure (dot-bracket, CT, BPSEQ)…', () => app.exportSecondary());
     this.head = el('div', { class: 'ss-head', 'data-win-head': '' }, el('span', { class: 'ss-tt' }, this.title, this.sub), el('span', { class: 'grow' }),
-      this.cornerBtn, this.sizeBtn, el('span', { class: 'win-btns', 'data-win': 'ss2d' }));
+      this.saveBtn, this.cornerBtn, this.sizeBtn, el('span', { class: 'win-btns', 'data-win': 'ss2d' }));
     this.maxed = false;
     this.svg = svg('svg', { class: 'ss-svg', role: 'img' });
     this.legend = el('div', { class: 'ss-legend' });
@@ -148,7 +149,7 @@ export class SecondaryInset {
     this.svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
     const g = svg('g');
     const dark = document.documentElement.dataset.theme === 'dark';
-    this._geom = drawStructure2D(svgTarget(g), ens, orientForBox(ens, this.shown, w, h), { k: fr ? fr.to : k, prev, from: fr ? fr.from : null, t: fr ? fr.t : 1, colors, sel: app.state.selection, hover: this.hover, box: [4, 4, w - 8, h - 8], dark });
+    this._geom = drawStructure2D(svgTarget(g), ens, orientForBox(ens, this.shown, w, h), { k: fr ? fr.to : k, prev, from: fr ? fr.from : null, t: fr ? fr.t : 1, colors, sel: app.state.selection, hover: this.hover, box: [4, 4, w - 8, h - 8], dark, zres: app.zrna?.enabled ? app.zrna.residues : null });
     this.svg.replaceChildren(g);
     const c = ens.conformations[k];
     const npk = c.pairs.filter(p => p[3]).length;
@@ -199,6 +200,6 @@ export class SecondaryInset {
       ctx.restore();
     }
     const pad = Math.min(w, h) * 0.04;
-    drawStructure2D(canvas2DTarget(ctx), ens, coords, { k, prev: from ?? app.state.prev, from, t, colors, box: [x + pad, y + pad, w - 2 * pad, h - 2 * pad], dark, sel: new Set(), unit });
+    drawStructure2D(canvas2DTarget(ctx), ens, coords, { k, prev: from ?? app.state.prev, from, t, colors, box: [x + pad, y + pad, w - 2 * pad, h - 2 * pad], dark, sel: new Set(), unit, zres: app.zrna?.enabled ? app.zrna.residues : null });
   }
 }

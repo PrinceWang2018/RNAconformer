@@ -213,8 +213,9 @@ def conformations_from_doc(doc):
     from .data import ENGINE_TERMS, Conformation
     xyz = doc_coords(doc).astype(np.float64)
     names = doc['atoms']['names']
+    contexts = contexts_from_doc(doc)
     out = []
-    for c, x in zip(doc['conformations'], xyz):
+    for ci, (c, x) in enumerate(zip(doc['conformations'], xyz)):
         residues = []
         for ri, r in enumerate(doc['residues']):
             s = r['first_atom']
@@ -235,7 +236,27 @@ def conformations_from_doc(doc):
         meta = {k: val for k, val in meta.items() if val is not None}
         src = c.get('source') or {}
         out.append(Conformation(c.get('label') or c.get('id'), src.get('file') or 'rcv', src.get('model'),
-                                src.get('chain') or 'A', residues, meta, src.get('title') or ''))
+                                src.get('chain') or 'A', residues, meta, src.get('title') or '', contexts[ci]))
+    return out
+
+
+def contexts_from_doc(doc):
+    """What is bound to the RNA (doc['context']) as one data.context_of structure per conformation, or None each."""
+    ctx = doc.get('context')
+    n = len(doc['conformations'])
+    if not ctx or len(ctx.get('coords') or []) != n:
+        return [None] * n
+    out = []
+    for b64 in ctx['coords']:
+        x = np.frombuffer(base64.b64decode(b64), '<f4').reshape(-1, 3).astype(np.float64)
+        groups = [{'chain': g['chain'], 'num': g['num'], 'comp': g['comp'],
+                   'names': ctx['atoms']['names'][g['first_atom']:g['first_atom'] + g['n_atoms']],
+                   'elements': ctx['atoms']['elements'][g['first_atom']:g['first_atom'] + g['n_atoms']],
+                   'xyz': x[g['first_atom']:g['first_atom'] + g['n_atoms']]} for g in ctx.get('groups', [])]
+        base = len(ctx['atoms']['names'])
+        traces = [{'kind': t['kind'], 'chain': t['chain'], 'nums': t['nums'], 'comps': t['comps'],
+                   'xyz': x[base + t['first']:base + t['first'] + t['n']]} for t in ctx.get('traces', [])]
+        out.append({'groups': groups, 'traces': traces})
     return out
 
 

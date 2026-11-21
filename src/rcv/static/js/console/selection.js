@@ -6,8 +6,10 @@
 //   resn A+G   A   C   G   U              nucleotide type
 //   chain A                              chain identifier
 //   paired | unpaired | pk               base-paired / unpaired / pseudoknotted in the shown conformation
+//   zrna                                 in a left-handed Z-RNA helix of the shown frame (zrna.js)
 //   helix H2 | helix 2                   residues of a helix family
 //   switching                            pairing partner differs between conformations of the ensemble
+//   modified                             modified nucleotides (m6A, Ψ, inosine ...; also resn PSU, resn m6A)
 //   changed                              pairing differs between the previous and the shown conformation
 //   rmsf > 3   rmsf < 1.5                per-residue flexibility across the ensemble (Å)
 //   moved > 2                            displacement between the previous and the shown conformation (Å)
@@ -18,7 +20,7 @@
 //   12-18                                shorthand for pos 12-18
 // combined with  and / or / not  (also & | !) and parentheses.
 
-const KEYWORDS = ['all', 'none', 'sele', 'resi', 'pos', 'resn', 'chain', 'paired', 'unpaired', 'pk', 'helix', 'switching', 'changed',
+const KEYWORDS = ['all', 'none', 'sele', 'resi', 'pos', 'resn', 'chain', 'paired', 'unpaired', 'pk', 'zrna', 'helix', 'switching', 'modified', 'changed',
   'rmsf', 'moved', 'within', 'of', 'name', 'first', 'last', 'and', 'or', 'not', 'A', 'C', 'G', 'U'];
 export const SELECTION_KEYWORDS = KEYWORDS;
 
@@ -93,8 +95,10 @@ export function evaluateSelection(src, ctx) {
         return where(r => { const v = parseInt(ens.residues[r].num, 10); return rs.some(([a, b]) => v >= a && v <= b); });
       }
       case 'pos': { const rs = ranges(next()); return where(r => rs.some(([a, b]) => r + 1 >= a && r + 1 <= b)); }
-      case 'resn': { const set = new Set(next().toUpperCase().split('+')); return where(r => set.has(ens.residues[r].name) || set.has((ens.residues[r].comp || '').toUpperCase())); }
+      case 'resn': { const set = new Set(next().toUpperCase().split('+')); return where(r => set.has(ens.residues[r].name) || set.has((ens.residues[r].comp || '').toUpperCase()) || set.has((ens.residues[r].mod || '').toUpperCase())); }
+      case 'modified': case 'modification': case 'modifications': { const s = new Set(); for (const m of ens.doc.modifications || []) s.add(m.index); return s; }
       case 'chain': { const c = next(); return where(r => (ens.residues[r].chain || '') === c); }
+      case 'zrna': case 'z-rna': case 'zform': return new Set(ctx.zrna ? ctx.zrna() : []);
       case 'paired': case 'stem': { const p = partner(ctx.conf); return where(r => p[r] >= 0); }
       case 'unpaired': case 'loop': { const p = partner(ctx.conf); return where(r => p[r] < 0); }
       case 'pk': case 'pseudoknot': { const s = new Set(); for (const [a, b, , pk] of ens.conformations[ctx.conf].pairs) if (pk) { s.add(a); s.add(b); } return s; }

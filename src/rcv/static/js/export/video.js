@@ -145,6 +145,7 @@ export async function recordVideo(app, o, { onProgress = () => {}, signal } = {}
       }
       const r = cap.frame();
       ctx.drawImage(r.canvas, 0, 0);
+      if (o.annotations !== false) app.zrna?.drawTo(ctx, r.project, o.width, o.height, Math.max(0.25, r.scale), app.display);
       if (o.annotations !== false) app.annotations?.drawTo(ctx, r.project, o.width, o.height, Math.max(0.25, r.scale), app.display);
       if (o.overlay) (o.content === 'transition' ? drawTransitionOverlay : drawOverlay)(ctx, app, fr, o, frames);
       if (o.inset2d && app.ss2d) {

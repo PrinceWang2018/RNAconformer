@@ -54,6 +54,35 @@ def methods_text(doc, vienna_version=None):
                 kept += f' after clustering at {cl:.1f} Å C4′ RMSD'
             parts.append(f'{tr} independent trajectories were sampled (random seed {par.get("seed", "–")}); '
                          f'{stats.get("valid", "–")} passed validation and {kept}.')
+        mods = prov.get('modifications') or {}
+        if mods.get('sites'):
+            parts.append(f'The sequence carried {len(mods["sites"])} modified nucleotide'
+                         f'{"s" if len(mods["sites"]) != 1 else ""} ({mods.get("summary", "")}), written as '
+                         f'{mods.get("sequence", "")}. Their effect on base pairing entered the secondary structures as '
+                         'ViennaRNA soft constraints (measured nearest-neighbour parameters where available; otherwise '
+                         'Turner 2004 stacks of a reference pair with an estimated correction) and hard constraints for '
+                         'nucleotides whose Watson-Crick edge is blocked. In the 3D search the modifications set the '
+                         'sugar pucker and syn/anti preferences of non-helical residues (conformer draws and torsion '
+                         'prior), their atoms were placed from the parent groups and scored for steric contacts at '
+                         'every step, together with the hydrogen bonds of the groups they add, the water bridge of '
+                         'pseudouridine N1-H to the phosphate and their change in base stacking outside helices, and '
+                         'the neighbourhood of each modified nucleotide was relaxed locally; helical '
+                         "residues kept the A-form C3'-endo sugar.")
+        z = prov.get('zrna') or {}
+        if z:
+            cond = f'{z.get("salt_M", 0.15) * 1000:g} mM Na+' + (' with a Z-binding protein' if z.get('binder') else '')
+            if z.get('hypothesis'):
+                zh = next((s for s in prov.get('secondary_structures') or [] if s.get('id') == z['hypothesis']), {})
+                zi = zh.get('zrna') or {}
+                parts.append(f'Left-handed Z-RNA was considered ({cond}): the helix segment with the lowest estimated '
+                             f'A-to-Z free energy ({zi.get("dG_kcal_mol", "–")} kcal/mol; dinucleotide-step, salt, '
+                             'junction, 8-substituted purine and protein terms) was built as a Z-form duplex '
+                             '(syn purines with C3′-endo and anti pyrimidines with C2′-endo sugars; backbone fitted to '
+                             'PDB 1T4X and 2GXB) in an additional hypothesis, with the base pair at each A–Z junction '
+                             'opened.')
+            else:
+                parts.append(f'Left-handed Z-RNA was considered ({cond}) but no helix segment had an estimated A-to-Z '
+                             'free energy low enough to be modelled.')
         if par.get('ionic_conditions'):
             parts.append(f'Ionic conditions: {par["ionic_conditions"].replace(" A ", " Å ")}.')
         explored = [c for c in doc.get('conformations', []) if c.get('explored')]

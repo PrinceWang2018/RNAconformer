@@ -1,4 +1,5 @@
-# Build the RCV installers on GitHub's machines: Windows (x64 setup), macOS (Apple Silicon and Intel disk
+# Build the RCV installers on GitHub's machines: Windows (x64 setup, and the MSIX package for the Microsoft
+# Store), macOS (Apple Silicon and Intel disk
 # images) and Linux (.deb and .rpm, x86_64). macOS installers cannot be built on Windows, so this is the way to
 # make them without a Mac. The Linux packages are built on Debian 11 (old glibc: they run on Ubuntu 20.04+,
 # Debian 11+, Fedora, RHEL/Rocky/Alma 9+) and test-installed on several distributions.
@@ -61,6 +62,30 @@ jobs:
         run: |
           choco install innosetup --no-progress -y
           powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1 -Python python
+
+      - name: Windows MSIX package (Microsoft Store)
+        # The package identity comes from Partner Center (Product identity); set the repository variables
+        # MSIX_IDENTITY_NAME, MSIX_PUBLISHER and MSIX_PUBLISHER_DISPLAY_NAME. Without them a test identity is used.
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+        run: |
+          $a = @{}
+          if ($env:MSIX_IDENTITY_NAME) { $a.IdentityName = $env:MSIX_IDENTITY_NAME }
+          if ($env:MSIX_PUBLISHER) { $a.Publisher = $env:MSIX_PUBLISHER }
+          if ($env:MSIX_PUBLISHER_DISPLAY_NAME) { $a.PublisherDisplayName = $env:MSIX_PUBLISHER_DISPLAY_NAME }
+          & packaging\windows\build_msix.ps1 @a
+
+      # unsigned: for upload to Partner Center (the Store signs it), so it is not attached to the website release
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Windows'
+        with:
+          name: store-msix-x64
+          path: dist/msix/*.msix
+          if-no-files-found: error
 
       - name: macOS disk image
         if: runner.os == 'macOS'
@@ -138,6 +163,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: installers
+          pattern: RCV-*
           merge-multiple: true
       - run: ls -la installers
       - name: Checksums

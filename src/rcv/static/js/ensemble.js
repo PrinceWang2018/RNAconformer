@@ -6,6 +6,31 @@ const PURINE_OUTLINE = ['C4', 'N9', 'C8', 'N7', 'C5', 'C6', 'N1', 'C2', 'N3'];
 const SIX = ['N1', 'C2', 'N3', 'C4', 'C5', 'C6'];
 const FIVE = ['C4', 'N9', 'C8', 'N7', 'C5'];      // same rotational sense as the purine outline
 
+const CONTEXT_GAP = { protein: 4.3, dna: 8.0, rna: 8.0 };       // longest step between neighbours of a chain drawn as connected (Å)
+
+// What is bound to the RNA (document.context, written by rcv/data.py) as typed arrays: ligand and ion atoms, then one
+// point per residue of the protein, DNA and other RNA chains. null when the document has none.
+export function parseContext(ctx, nConf) {
+  if (!ctx || !Array.isArray(ctx.coords) || ctx.coords.length !== nConf) return null;
+  const nAtoms = ctx.atoms.names.length, nPoints = ctx.n_points || 0;
+  const coords = ctx.coords.map(b64ToFloat32);
+  if (!nAtoms && !nPoints) return null;
+  if (coords.some(c => c.length !== 3 * (nAtoms + nPoints))) return null;
+  const pointTrace = new Int32Array(nPoints);
+  ctx.traces.forEach((t, ti) => { for (let i = 0; i < t.n; i++) pointTrace[t.first + i] = ti; });
+  // trace segments: neighbours in the chain that are close enough in the first conformation
+  const c0 = coords[0], segs = [];
+  ctx.traces.forEach(t => {
+    const lim = CONTEXT_GAP[t.kind] || 8;
+    for (let i = 0; i + 1 < t.n; i++) {
+      const a = 3 * (nAtoms + t.first + i), b = a + 3;
+      if (Math.hypot(c0[a] - c0[b], c0[a + 1] - c0[b + 1], c0[a + 2] - c0[b + 2]) <= lim) segs.push(t.first + i);
+    }
+  });
+  return { nAtoms, nPoints, names: ctx.atoms.names, elements: ctx.atoms.elements, group: Int32Array.from(ctx.atoms.group), groups: ctx.groups,
+    bonds: Int32Array.from(ctx.bonds || []), traces: ctx.traces, pointTrace, segs: Int32Array.from(segs), coords, summary: ctx.summary || '', radius: 0 };
+}
+
 export class Ensemble {
   constructor(doc, opts = {}) {
     if (!doc || !DOC_SCHEMAS.includes(doc.schema)) throw new Error('not an RCV ensemble document');
@@ -24,6 +49,7 @@ export class Ensemble {
     this.conformations = doc.conformations;
     this.n = doc.conformations.length;
     this.coords = doc.conformations.map(c => b64ToFloat32(c.coords));
+    this.context = parseContext(doc.context, doc.conformations.length);
     this.rmsf = doc.ensemble.rmsf;
     this.rmsd = doc.ensemble.rmsd_c4;
     this.embedding = doc.ensemble.embedding;
@@ -73,6 +99,11 @@ export class Ensemble {
     }
     this.center = [cx, cy, cz];
     this.radius = Math.sqrt(r2) + 2.5;
+    if (this.context) {                            // reach of what is bound to the RNA (camera depth range)
+      let m = 0;
+      for (const c of this.context.coords) for (let i = 0; i < c.length; i += 3) { const dx = c[i] - cx, dy = c[i + 1] - cy, dz = c[i + 2] - cz; m = Math.max(m, dx * dx + dy * dy + dz * dz); }
+      this.context.radius = Math.sqrt(m) + 2.5;
+    }
     // framing radius: median over conformations of each conformation's extent around the common centre
     const ext = this.coords.map(c => {
       let m = 0;
@@ -163,6 +194,7 @@ export class Ensemble {
       if (k === ref) continue;
       const { R, t } = kabsch(this.coords[k], target, atoms);
       applyTransform(this.coords[k], R, t);
+      if (this.context) applyTransform(this.context.coords[k], R, t);      // what is bound moves with its conformation
     }
     this._bounds();
   }

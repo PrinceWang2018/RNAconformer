@@ -338,7 +338,6 @@ export function preferencesDialog(app) {
   const elemCol = el('input', { type: 'checkbox', checked: app.viewer.settings.elementColors ? true : null });
   const devMode = el('input', { type: 'checkbox', checked: app.prefs.devMode ? true : null });
   const confModel = el('input', { type: 'checkbox', checked: app.prefs.confidence !== false ? true : null });
-  const autoUpdate = el('input', { type: 'checkbox', checked: app.info?.update?.auto ? true : null, disabled: app.api.online ? null : true });
   const projDir = el('input', { class: 'input', value: app.info?.system?.projects_dir || '', 'aria-label': 'Projects folder', disabled: app.api.online ? null : true });
   const browseDir = el('button', { class: 'btn', type: 'button', hidden: !app.native?.available(), onclick: async () => { const d = await app.native.chooseFolder(); if (d) projDir.value = d; } }, 'Choose…');
   dialog({
@@ -350,7 +349,6 @@ export function preferencesDialog(app) {
       el('div', { class: 'grid2' }, field('Outline colour', outline), field('Uniform colour scheme', uniform)),
       el('label', { class: 'check' }, elemCol, 'Colour N, O, P atoms by element in atom representations'),
       el('label', { class: 'check' }, confModel, 'Confidence model: predict the local accuracy of every nucleotide (small neural network, computed on this computer)'),
-      el('label', { class: 'check' }, autoUpdate, 'Check for updates when RCV starts (asks before downloading; nothing is installed automatically)'),
       el('label', { class: 'check' }, devMode, 'Developer mode (for plugin authors): F12 / Ctrl+Shift+I open the browser developer tools, Shift+right-click shows the browser menu'),
       el('div', { class: 'field', style: { marginTop: '12px' } }, el('label', { text: 'Projects folder (new predictions are saved here)' }),
         el('div', { class: 'row', style: { gap: '8px' } }, projDir, browseDir))),
@@ -359,7 +357,6 @@ export function preferencesDialog(app) {
         app.info.system = await app.api.post('/api/settings', { projects_dir: projDir.value.trim() });
         toast(`New predictions are saved in ${app.info.system.projects_dir}`, 'ok', 'Projects folder');
       }
-      if (app.api.online && autoUpdate.checked !== !!app.info?.update?.auto) app.info.update = await app.api.post('/api/update/settings', { auto: autoUpdate.checked });
       app.setTheme(theme.value);
       if (lang.value !== currentLanguage()) await app.setLanguage(lang.value);
       app.viewer.settings.quality = quality.value;

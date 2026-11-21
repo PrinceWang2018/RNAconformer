@@ -42,11 +42,13 @@ export async function composePanels(app, o) {
       const x = (i % cols) * pw, y = Math.floor(i / cols) * ph;
       app.display.set(ens.coords[k]);
       v.setCoords(app.display);
+      app.context?.at(k);
       v.setResidueColorsLinear(app.colorsFor(k, o.confs[i - 1] ?? null).lin);
       // with a 2D inset, the 3D model gets the left part of the panel and the 2D drawing its own column
       const w3 = o.inset2d ? Math.round(pw * 0.7) : pw;
       const r = v.renderImage({ width: w3, height: ph, transparent: !bg, background: bg });
       ctx.drawImage(r.canvas, x, y);
+      if (o.annotations !== false && app.zrna) { ctx.save(); ctx.translate(x, y); app.zrna.drawTo(ctx, r.project, w3, ph, Math.max(0.25, r.scale), ens.coords[k], k); ctx.restore(); }
       if (o.annotations !== false && app.annotations) { ctx.save(); ctx.translate(x, y); app.annotations.drawTo(ctx, r.project, w3, ph, Math.max(0.25, r.scale), ens.coords[k]); ctx.restore(); }
       const font = (px, w = 600) => `${w >= 600 ? 'bold' : 'normal'} ${Math.round(px * s)}px ${FIG_FONT}`;
       ctx.textBaseline = 'alphabetic';

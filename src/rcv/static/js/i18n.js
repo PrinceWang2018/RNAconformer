@@ -73,6 +73,10 @@ export function onLanguage(fn) { listeners.add(fn); return () => listeners.delet
 
 // ------------------------------------------------------------------ translation
 const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// A duration as RCV writes it ("40 s", "2 min", "1.5 h"). Its pattern ("{0} s") takes a number only, so that a sentence
+// ending in " s" is not caught; and it is looked up although it has fewer letters than other interface text.
+const UNIT_KEY = /^\{0\} (?:s|min|h)$/;
+const DURATION = /^\d[\d.,]* (?:s|min|h)$/;
 
 function compile(strings) {
   dict = new Map();
@@ -83,7 +87,8 @@ function compile(strings) {
     if (/\{\d\}/.test(src)) {
       const parts = src.split(/(\{\d\})/);
       const order = [];
-      const re = parts.map(p => { const m = /^\{(\d)\}$/.exec(p); if (m) { order.push(+m[1]); return '([\\s\\S]*?)'; } return escRe(p); }).join('');
+      const value = UNIT_KEY.test(src) ? '(\\d[\\d.,]*)' : '([\\s\\S]*?)';
+      const re = parts.map(p => { const m = /^\{(\d)\}$/.exec(p); if (m) { order.push(+m[1]); return value; } return escRe(p); }).join('');
       const lits = parts.filter(p => p && !/^\{\d\}$/.test(p));
       const anchor = [...lits].sort((a, b) => b.length - a.length)[0] || '';
       const weight = lits.reduce((n, p) => n + p.length, 0);        // more literal text = more specific
@@ -98,7 +103,7 @@ export function t(s) {
   if (!dict || typeof s !== 'string') return s;
   const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s);
   const core = m[2];
-  if (!core || !/[A-Za-z]{2}/.test(core)) return s;
+  if (!core || !(/[A-Za-z]{2}/.test(core) || DURATION.test(core))) return s;
   let out = cache.get(core);
   if (out === undefined) {
     out = lookup(core);
@@ -128,7 +133,7 @@ function lookup(core, depth = 0) {
     let ok = true;
     p.order.forEach((k, i) => {
       const v = r[i + 1], vt = v.trim();
-      const tv = dict.get(vt) ?? (depth < 2 && /[A-Za-z]{3}/.test(vt) ? (lookup(vt, depth + 1) ?? undefined) : undefined);
+      const tv = dict.get(vt) ?? (depth < 2 && (/[A-Za-z]{3}/.test(vt) || DURATION.test(vt)) ? (lookup(vt, depth + 1) ?? undefined) : undefined);
       if (tv === undefined && PROSE.test(v)) ok = false;
       vals[k] = tv === undefined ? v : v.replace(v.trim(), tv);
     });
@@ -154,11 +159,29 @@ function skipped(node, forAttrs = false) {
   return false;
 }
 
+// Data inside a text (a file path, the title of a structure, a line written by another program) is named by the element:
+// data-i18n-keep holds a JSON list of such parts. They are put aside while the text is translated, so they are neither
+// translated nor taken for an English sentence that a pattern should not have caught.
+const KEEP_OPEN = '\uE000', KEEP_CLOSE = '\uE001', KEEP_BASE = 0xE100;
+export function tKeep(src, keep) {
+  if (!Array.isArray(keep) || !keep.length || typeof src !== 'string') return t(src);
+  let masked = src;
+  keep.slice(0, 200).forEach((k, i) => {
+    if (typeof k === 'string' && k && masked.includes(k)) masked = masked.replace(k, () => KEEP_OPEN + String.fromCharCode(KEEP_BASE + i) + KEEP_CLOSE);
+  });
+  return t(masked).replace(/\uE000([\uE100-\uE1FF])\uE001/g, (_, ch) => keep[ch.charCodeAt(0) - KEEP_BASE]);
+}
+function tNode(node, src) {
+  const raw = node.parentNode?.getAttribute?.('data-i18n-keep');
+  if (!raw) return t(src);
+  try { return tKeep(src, JSON.parse(raw)); } catch { return t(src); }
+}
+
 function doText(node, force = false) {
   const cur = node.data;
   let src;
   if (textOut.get(node) === cur) { if (!force) return; src = textSrc.get(node) ?? cur; } else src = cur;
-  const out = lang === 'en' ? src : t(src);
+  const out = lang === 'en' ? src : tNode(node, src);
   if (out !== src) { textSrc.set(node, src); textOut.set(node, out); }
   else { textSrc.delete(node); textOut.delete(node); }
   if (out !== cur) node.data = out;

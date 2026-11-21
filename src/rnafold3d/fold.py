@@ -21,7 +21,8 @@ import math
 
 import numpy as np
 
-from .build import (ResidueBuilder, load_geometry, build_stem, atom_order, BASE_ATOMS, GLY, SUGAR_ATOMS)
+from .build import (ResidueBuilder, load_geometry, build_stem, atom_order, BASE_ATOMS, GLY, SUGAR_ATOMS,
+                    Z_TORSIONS, Z_PUCKER)
 from .geomutil import kabsch, rotation_about_axis, dihedral
 
 TOR = {'alpha': 0, 'beta': 1, 'gamma': 2, 'epsilon': 3, 'zeta': 4, 'chi': 5}
@@ -102,8 +103,11 @@ def check_pairs(n, pairs, min_hairpin=3):
 class FoldModel:
     """Kinematic all-atom model for one sequence and one nested secondary structure."""
 
-    def __init__(self, sequence, pairs, rb: ResidueBuilder | None = None, explicit_loops: bool = True):
+    def __init__(self, sequence, pairs, rb: ResidueBuilder | None = None, explicit_loops: bool = True,
+                 modifications=None, mod_pairs=(), z_pairs=()):
         self.explicit_loops = explicit_loops
+        self.z_pairs = {(min(i, j), max(i, j)) for i, j in z_pairs or ()}   # helices built left-handed (Z-RNA)
+        self.modifications = list(modifications or ())
         self.seq = sequence
         self.n = len(sequence)
         self.pairs = sorted((min(i, j), max(i, j)) for i, j in pairs)
@@ -111,10 +115,12 @@ class FoldModel:
         self.rb = rb or ResidueBuilder(load_geometry())
         self.geom = self.rb.g
         self._index_atoms()
+        self._index_riders(mod_pairs)
         self._make_bodies()
         self._make_linkers()
         self._make_tree()
         self._assign_atoms()
+        self._assign_riders()
         self._make_dofs()
         self._make_exclusions()
         self.tor = np.zeros((self.n, 6))
@@ -122,6 +128,14 @@ class FoldModel:
         for k, name in TOR.items():
             self.tor[:, name] = aform[k]
         self.puck = np.array(['C3endo'] * self.n, dtype=object)
+        for r, (pk, p) in self.pref_pucker.items():
+            if p >= 1.0 and self.res_body[r] < 0:
+                self.puck[r] = pk
+        for r in self.z_residues:                   # Z helix: syn purines (C3'-endo), anti pyrimidines (C2'-endo)
+            kind = 'purine' if self.seq[r] in 'AG' else 'pyrimidine'
+            for name, k in TOR.items():
+                self.tor[r, k] = Z_TORSIONS[kind][name]
+            self.puck[r] = Z_PUCKER[kind]
         self.xyz = np.zeros((self.n_atoms, 3))
         self.present = np.zeros(self.n_atoms, bool)
         self.set_loops_active(explicit_loops)
@@ -165,10 +179,10 @@ class FoldModel:
         names = sorted({nm for b in 'ACGU' for nm in atom_order(b)})
         code = {nm: k for k, nm in enumerate(names)}
         K = len(names)
-        self._name_code = np.array([code[nm] for nm in self.atom_name])
+        self._name_code = np.array([code.get(nm, K) for nm in self.atom_name])     # K: a modification atom
         self._K = K
-        same = np.zeros((4, K, K), bool)      # per base type of the residue
-        link = np.zeros((4, 4, K, K), bool)   # (base i, base i+1): atom of i, atom of i+1
+        same = np.zeros((4, K + 1, K + 1), bool)      # per base type of the residue
+        link = np.zeros((4, 4, K + 1, K + 1), bool)   # (base i, base i+1): atom of i, atom of i+1
         bidx = {b: k for k, b in enumerate('ACGU')}
 
         def graph(bases):
@@ -206,6 +220,29 @@ class FoldModel:
         self._excl_same = same
         self._excl_link = link
         self._res_bidx = np.array([bidx[b] for b in self.seq])
+        self._rider_excl = None
+        if self.riders:
+            # a modification atom does not meet the atoms of its own group (within ~3 bonds), the other modification
+            # atoms of its residue, nor (phosphorothioate S) the O3'/C3' of the residue before
+            from .build import BASE_ATOMS
+            keys = []
+            N = self.n_atoms
+            for rd in self.riders:
+                r = rd['res']
+                if rd['group'] == 'base':
+                    own = list(BASE_ATOMS[self.seq[r]]) + ["C1'"]
+                    near = [(r, nm) for nm in own]
+                elif rd['group'] == 'sugar':
+                    near = [(r, nm) for nm in SUGAR_ATOMS] + [(r, GLY[self.seq[r]])]
+                else:
+                    near = [(r, nm) for nm in ('P', 'OP1', 'OP2', "O5'", "C5'")] + [(r - 1, "O3'"), (r - 1, "C3'")]
+                near += [(r, o['name']) for o in self.riders if o['res'] == r and o is not rd]
+                for key in near:
+                    k = self.idx.get(key)
+                    if k is not None:
+                        a, b = min(k, rd['k']), max(k, rd['k'])
+                        keys.append(a * N + b)
+            self._rider_excl = np.unique(np.array(keys, np.int64))
 
     def nonbonded_mask(self, i, j):
         """For atom index arrays i, j: True where the pair is NOT within 3 bonds."""
@@ -222,6 +259,13 @@ class FoldModel:
         s1 = rb_ - ra == 1
         if s1.any():
             excl[s1] = self._excl_link[self._res_bidx[ra[s1]], self._res_bidx[rb_[s1]], ca[s1], cb[s1]]
+        if self._rider_excl is not None:
+            rr = self.is_rider[i] | self.is_rider[j]
+            if rr.any():
+                lo, hi = np.minimum(i[rr], j[rr]), np.maximum(i[rr], j[rr])
+                excl[rr] |= np.isin(lo.astype(np.int64) * self.n_atoms + hi, self._rider_excl)
+        if self.ghost.any():
+            excl |= self.ghost[i] | self.ghost[j]
         return ~excl
 
     def atom_overlap_energy(self, cutoff=2.8, polar_cutoff=2.5, skin=2.0):
@@ -229,6 +273,7 @@ class FoldModel:
 
         Exact (identical to atom_clashes) as long as no atom moved more than skin/2 since the
         list was built; the list is rebuilt automatically otherwise or when atoms appear/disappear."""
+        self.update_riders()
         key = (int(self.present.sum()), cutoff, polar_cutoff)
         vl = getattr(self, '_verlet', None)
         if vl is not None and vl['key'] == key:
@@ -265,6 +310,7 @@ class FoldModel:
 
         Returns (i, j, overlap) arrays. Polar N/O pairs use polar_cutoff (hydrogen bonds)."""
         from scipy.spatial import cKDTree
+        self.update_riders()
         ids = np.where(self.present)[0]
         if len(ids) < 2:
             return np.zeros(0, int), np.zeros(0, int), np.zeros(0)
@@ -303,14 +349,138 @@ class FoldModel:
         self.n_atoms = len(names)
         self.element = np.array([('O' if nm.startswith('OP') else nm[0]) for nm in names])
 
+    # ------------------------------------------------------------------ modified nucleotides in the search
+    def _index_riders(self, mod_pairs=()):
+        """Atoms of the modifications (rnafold3d.modifications) as riders: extra atoms placed from the frame of the
+        rigid group they hang on (base, sugar, phosphate) before every contact evaluation, so that they take part in
+        the clash scoring of the search; the pucker and syn/anti preferences of the modifications."""
+        self.riders = []
+        self.pref_pucker, self.pref_chi = {}, {}
+        self.modified_residues = sorted({m['pos'] - 1 for m in self.modifications})
+        self.ghost = np.zeros(self.n_atoms, bool)
+        self.is_rider = np.zeros(self.n_atoms, bool)
+        if not self.modifications:
+            return
+        from . import modifications as M
+        prefs = M.sampling_preferences(self.modifications)
+        self.pref_pucker, self.pref_chi = prefs['pucker'], prefs['chi']
+        paired = {i for p in self.pairs for i in p} | {i for p in (mod_pairs or ()) for i in p}
+        riders, ghosts = M.rider_templates(self.rb, self.seq, self.modifications, paired)
+        names, res = list(self.atom_name), list(self.atom_res)
+        for rd in riders:
+            if not all((rd['res'], f) in self.idx for f in rd['frame']):
+                continue
+            key = (rd['res'], rd['name'])
+            if key in self.idx:
+                continue
+            self.idx[key] = len(names)
+            names.append(rd['name'])
+            res.append(rd['res'])
+            rd['k'] = self.idx[key]
+            rd['f'] = [self.idx[(rd['res'], f)] for f in rd['frame']]
+            self.riders.append(rd)
+        self.atom_name = names
+        self.atom_res = np.array(res)
+        self.n_atoms = len(names)
+        from .structure_io import element_of
+        self.element = np.array([('O' if nm.startswith('OP') else (element_of(nm) if k >= len(self.element) else self.element[k]))
+                                 for k, nm in enumerate(names)])
+        self.ghost = np.zeros(self.n_atoms, bool)
+        for r, nm in ghosts:
+            k = self.idx.get((r, nm))
+            if k is not None and k < len(self.ghost):
+                self.ghost[k] = True
+        self.is_rider = np.zeros(self.n_atoms, bool)
+        if self.riders:
+            self.is_rider[[rd['k'] for rd in self.riders]] = True
+            self._rk = np.array([rd['k'] for rd in self.riders])
+            self._rf = np.array([rd['f'] for rd in self.riders])
+            self._rres = np.array([rd['res'] for rd in self.riders])
+            self._rloc = {pk: np.array([rd['local'][pk] for rd in self.riders]) for pk in ('C3endo', 'C2endo')}
+            self._rsugar = np.array([rd['group'] == 'sugar' for rd in self.riders])
+
+    def _assign_riders(self):
+        """Riders belong to the body or linker of their frame atoms (they leave and return with a regrown loop)."""
+        if not self.riders:
+            return
+        self.atom_owner[self._rk] = self.atom_owner[self._rf[:, 0]]
+        for L in self.linkers:
+            if L.atoms is None or not len(L.atoms):
+                continue
+            mine = self._rk[np.isin(self._rf[:, 0], L.atoms)]
+            if len(mine):
+                L.atoms = np.concatenate([L.atoms, mine])
+
+    def update_riders(self):
+        """Place the modification atoms from the current parent atoms (vectorised; cheap)."""
+        if not self.riders:
+            return
+        F = self._rf
+        ok = self.present[F[:, 0]] & self.present[F[:, 1]] & self.present[F[:, 2]]
+        self.present[self._rk] = ok
+        if not ok.any():
+            return
+        a, b, c = self.xyz[F[:, 0]], self.xyz[F[:, 1]], self.xyz[F[:, 2]]
+        e1 = b - a
+        e1 /= np.linalg.norm(e1, axis=1)[:, None] + 1e-12
+        v = c - a
+        e2 = v - np.einsum('ij,ij->i', v, e1)[:, None] * e1
+        e2 /= np.linalg.norm(e2, axis=1)[:, None] + 1e-12
+        e3 = np.cross(e1, e2)
+        c2 = (self.puck[self._rres] == 'C2endo') & self._rsugar
+        loc = np.where(c2[:, None], self._rloc['C2endo'], self._rloc['C3endo'])
+        pos = a + loc[:, :1] * e1 + loc[:, 1:2] * e2 + loc[:, 2:3] * e3
+        self.xyz[self._rk[ok]] = pos[ok]
+
+    def draw_row(self, rng, r):
+        """A loop-library conformer (alpha..chi) for residue r, following the pucker and syn/anti preference of a
+        modification at r. For an unmodified residue this is exactly one uniform draw from the library."""
+        lib = self.geom.loop_library
+        pref = self.pref_pucker.get(r)
+        if pref is None and r not in self.pref_chi:
+            return lib[rng.integers(len(lib))]
+        if pref is not None and rng.random() < pref[1]:
+            byp = getattr(self, '_lib_by_pucker', None)
+            if byp is None:
+                c2 = lib[:, 3] > 115
+                byp = self._lib_by_pucker = {'C2endo': np.where(c2)[0], 'C3endo': np.where(~c2)[0]}
+            ids = byp[pref[0]]
+            row = lib[ids[rng.integers(len(ids))]].copy()
+        else:
+            row = lib[rng.integers(len(lib))].copy()
+        ch = self.pref_chi.get(r)
+        if ch is not None and rng.random() < ch[1]:
+            from .modifications import SYN_CHI, ANTI_CHI
+            row[6] = float((rng.normal(SYN_CHI if ch[0] == 'syn' else ANTI_CHI, 15.0) + 180.0) % 360.0 - 180.0)
+        return row
+
+    def pucker_of_row(self, r, row):
+        """Pucker for residue r from a library row (a locked sugar stays C3'-endo)."""
+        pref = self.pref_pucker.get(r)
+        if pref is not None and pref[1] >= 1.0:
+            return pref[0]
+        return 'C2endo' if row[3] > 115 else 'C3endo'
+
+    def rider_contacts(self, cutoff=2.8, polar_cutoff=2.5):
+        """Overlaps of the modification atoms with the rest of the model: (count, sum of squared overlaps)."""
+        if not self.riders:
+            return 0, 0.0
+        self.update_riders()
+        i, j, ov = self.atom_clashes(cutoff, polar_cutoff, subset=self.is_rider)
+        return int(len(ov)), float(np.sum(ov ** 2))
+
     def _make_bodies(self):
         self.bodies = []
         self.res_body = np.full(self.n, -1)
         self.stem_reports = []
+        self.z_residues = set()
         for k, run in enumerate(stems_from_pairs(self.pairs)):
             res = sorted([p[0] for p in run] + [p[1] for p in run])
             body = Body(len(self.bodies), 'stem', res, run)
-            local, rep = build_stem(self.rb, self.seq, run)
+            z = len(run) >= 2 and all(tuple(p) in self.z_pairs for p in run)
+            local, rep = build_stem(self.rb, self.seq, run, form='Z' if z else 'A')
+            if z:
+                self.z_residues.update(res)
             body._local_atoms = local
             self.stem_reports.append(rep)
             for r in res:
@@ -568,11 +738,11 @@ class FoldModel:
         for L in self.linkers:
             free_res.update(L.loop)
         for r in free_res:
-            row = lib[rng.integers(len(lib))]
+            row = self.draw_row(rng, r)
             for k, nm in enumerate(LIB_COLS):
                 if nm in TOR:
                     self.tor[r, TOR[nm]] = row[k]
-            self.puck[r] = 'C2endo' if row[3] > 115 else 'C3endo'
+            self.puck[r] = self.pucker_of_row(r, row)
         for L in self.linkers:
             junction = []
             if L.a is not None:
@@ -603,7 +773,7 @@ class FoldModel:
                     continue
                 self.tor[r, TOR[nm]] = float(v)
             if vals[3] is not None and self.res_body[r] < 0:
-                self.puck[r] = 'C2endo' if vals[3] > 115 else 'C3endo'
+                self.puck[r] = self.pucker_of_row(r, vals)
 
     # ------------------------------------------------------------------ building
     def _res_atoms(self, r, names):

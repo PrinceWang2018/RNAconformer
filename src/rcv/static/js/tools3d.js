@@ -11,7 +11,7 @@ import { SLOTS } from './colors.js';
 
 export const TOOLS = [
   ['select', 'Select', 'cursor', 'V', 'Select residues (click; Shift adds)'],
-  ['pull', 'Pull', 'hand', 'G', 'Pull a residue to switch conformation'],
+  ['pull', 'Pull', 'hand', 'G', 'Try it: drag any residue and the structure switches to the nearest stable conformation'],
   ['paint', 'Paint', 'brush', 'B', 'Paint residues or atoms with a colour (drag; Shift restores the scheme colour)'],
   ['label', 'Label', 'tag', 'T', 'Add and edit labels (click the structure; Alt = atom label; drag labels to move)'],
   ['measure', 'Measure', 'ruler', 'M', 'Measure: click two atoms'],
@@ -24,7 +24,9 @@ export class MouseTools {
     this.paintAtoms = false;
     this.stroke = null;
     const seg = el('div', { class: 'seg tool-seg', role: 'radiogroup', 'aria-label': 'Mouse tool' });
-    for (const [id, label, ic, key, tip] of TOOLS) seg.append(el('button', { 'data-tool': id, title: `${tip} (${key})`, 'aria-label': label }, icon(ic), el('span', { text: label })));
+    for (const [id, label, ic, key, tip] of TOOLS) seg.append(el('button', { 'data-tool': id, title: `${tip} (${key})`, 'aria-label': label, class: id === 'pull' ? 'feature' : '' }, icon(ic), el('span', { text: label })));
+    this.pullBtn = seg.querySelector('[data-tool="pull"]');
+    this.pullBtn.classList.toggle('try', !app.prefs.pullTried);    // a pulsing dot until the Pull tool is first used
     seg.addEventListener('click', e => { const t = e.target.closest('button')?.dataset.tool; if (t) this.set(t === app.tool && t !== 'select' ? 'select' : t); });
     this.chip = el('button', { class: 'paint-chip', title: 'Paint colour', 'aria-label': 'Paint colour', onclick: e => this.colorMenu(e.currentTarget) }, el('span'));
     this.root = el('div', { class: 'tb-group tool-group' }, seg, this.chip);
@@ -39,7 +41,10 @@ export class MouseTools {
     if (app.tool === 'pull') app.pullCtl.setMode(false);
     if (app.tool === 'measure') app.toggleMeasureMode(false, { quiet: true });
     app.tool = tool;
-    if (tool === 'pull') app.pullCtl.setMode(true);
+    if (tool === 'pull') {
+      app.pullCtl.setMode(true);
+      if (!app.prefs.pullTried) { app.prefs.pullTried = true; app.savePrefs(); this.pullBtn.classList.remove('try'); }
+    }
     if (tool === 'measure') app.toggleMeasureMode(true, { quiet: true });
     if (tool !== 'label') app.annotations.closeEditor();
     app.viewer.container.dataset.tool = tool;

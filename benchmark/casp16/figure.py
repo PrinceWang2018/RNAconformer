@@ -32,7 +32,7 @@ FONTS = HERE.parents[1] / 'src' / 'rcv' / 'static' / 'fonts'
 # its full-accuracy (MSA) mode, as stated in its documentation. Python/CUDA/PyTorch/JAX environments are not
 # counted for the other tools, so their numbers are lower bounds. Checked 2026-11-07.
 FOOTPRINT = [
-    {'tool': 'RCV 0.7.5', 'kind': 'physics + templates · CPU', 'model': None, 'full': None,
+    {'tool': 'RCV 0.7.6', 'kind': 'physics + templates · CPU', 'model': None, 'full': None,
      'note': 'complete installer: Python, engine, ViennaRNA, viewer and the 21.5 MB structure library'},
     {'tool': 'trRosettaRNA2', 'kind': 'deep learning', 'model': 108, 'full': 108 + 32_000, 'full_label': '32 GB',
      'note': 'weights params_trRNA2.tar.bz2 108 MB (measured); RNAcentral database ~32 GB uncompressed (README, optional)',
@@ -50,8 +50,8 @@ FOOTPRINT = [
 ]
 
 # what each tool gives for an RNA with several states (documented outputs; '–' = not part of the documented output)
-TOOLS = ['RCV 0.7.5', 'AlphaFold 3', 'trRosettaRNA2', 'RhoFold+', 'RoseTTAFold2NA']
-HEAD = {'RCV 0.7.5': ('RCV', '0.7.5'), 'AlphaFold 3': ('AlphaFold', '3'), 'trRosettaRNA2': ('trRosetta-', 'RNA2'),
+TOOLS = ['RCV 0.7.6', 'AlphaFold 3', 'trRosettaRNA2', 'RhoFold+', 'RoseTTAFold2NA']
+HEAD = {'RCV 0.7.6': ('RCV', '0.7.6'), 'AlphaFold 3': ('AlphaFold', '3'), 'trRosettaRNA2': ('trRosetta-', 'RNA2'),
         'RhoFold+': ('RhoFold+', ''), 'RoseTTAFold2NA': ('RoseTTA-', 'Fold2NA')}
 CAPABILITIES = [
     ('Conformations per run', ['ensemble¹', '5 per seed²', '1³', '1', '1']),
@@ -149,7 +149,7 @@ def panel_size(o, x, y, w, installer):
             mid = (lo_mb + hi_mb) / 2
             if hi_mb > lo_mb:
                 o.append(f'<line class="span" x1="{X(lo_mb):.1f}" x2="{X(hi_mb):.1f}" y1="{cy:.1f}" y2="{cy:.1f}"/>')
-            o.append(dot(X(mid), cy, 's1 ring', 6.5, f"RCV 0.7.5 installer: {lo_mb:.0f}–{hi_mb:.0f} MB, {f['note']}"))
+            o.append(dot(X(mid), cy, 's1 ring', 6.5, f"RCV 0.7.6 installer: {lo_mb:.0f}–{hi_mb:.0f} MB, {f['note']}"))
             lab = f'{lo_mb:.0f}–{hi_mb:.0f} MB, everything included' if hi_mb > lo_mb else f'{mid:.0f} MB, everything included'
             o.append(T(X(hi_mb) + 12, cy + 4, lab, 't1', 11.5))
             continue
@@ -162,7 +162,7 @@ def panel_size(o, x, y, w, installer):
 
 def panel_speed(o, x, y, w, rows, timing):
     panel_title(o, x, y, 'b', 'Time per RNA on a laptop CPU, no GPU',
-                f"RCV 0.7.5, 5 models from 40 trajectories, CASP16 targets. {timing.get('cpu_short', 'Laptop CPU')}.")
+                f"RCV 0.7.6, 5 models from 40 trajectories, CASP16 targets. {timing.get('cpu_short', 'Laptop CPU')}.")
     left, right, top, bottom = x + 56, x + w - 24, y + 62, y + 300
     pts = [(int(r['length']), float(r['rcv_wall_time_s']) / 60, r['target']) for r in rows]
     for t in timing.get('extra16', []):
@@ -219,7 +219,7 @@ def panel_states(o, x, y, w, ens):
         o.append(T(X(v), bottom + 16, f'{v:.1f}', 't3', 11, 'middle'))
     o.append(T((left + right) / 2, bottom + 34, 'Coverage of the experimental conformations (TM-score)', 't2', 11.5, 'middle'))
     lx, ly = x + 20, y + 62
-    for cls, shape, lab in [('s1 ring', 'circle', 'RCV 0.7.5'), ('s2 ring', 'diamond', 'AlphaFold 3'),
+    for cls, shape, lab in [('s1 ring', 'circle', 'RCV 0.7.6'), ('s2 ring', 'diamond', 'AlphaFold 3'),
                             ('oth ring', 'triangle', 'trRosettaRNA, Vfold, GuangzhouRNA (CASP16)')]:
         o.append(dot(lx + 6, ly - 4, cls, 5, shape=shape))
         o.append(T(lx + 16, ly, lab, 't2', 11.5))
@@ -241,7 +241,7 @@ def panel_states(o, x, y, w, ens):
             o.append(dot(X(m['304']['coverage']), cy, 's2 ring', 5.5, f"{r['target']} AlphaFold 3: coverage "
                          f"{m['304']['coverage']:.2f}, spread {m['304']['spread']:.2f}", 'diamond'))
         if 'rcv' in m:
-            o.append(dot(X(m['rcv']['coverage']), cy, 's1 ring', 6, f"{r['target']} RCV 0.7.5: coverage "
+            o.append(dot(X(m['rcv']['coverage']), cy, 's1 ring', 6, f"{r['target']} RCV 0.7.6: coverage "
                          f"{m['rcv']['coverage']:.2f}, spread {m['rcv']['spread']:.2f}"))
             o.append(T(X(m['rcv']['coverage']), cy - 11, f"{m['rcv']['coverage']:.2f}", 't2', 10.5, 'middle'))
 

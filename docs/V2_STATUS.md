@@ -1,6 +1,6 @@
 # RNAfold3D v2 engine — validation and modification report
 
-**Date:** 2026-11-13 · **Engine:** `rnafold3d-v2-foldtree` 2.3.0 (current; motif fragments, §4.0000; structure-aware template search, §4.000; templates and junction geometry, §4.00) ·
+**Date:** 2026-11-20 · **Engine:** `rnafold3d-v2-foldtree` 2.5.0 (current; repeated fit onto the template, §4.00000; modified nucleotides and Z-RNA since 2.4.0; motif fragments, §4.0000; structure-aware template search, §4.000; templates and junction geometry, §4.00) ·
 **Geometry parameters:** `geometry_v1.json` 1.0.0 · **Structure library:** `pdb_rna_v2.npz` (3,964 PDB RNA chains)
 
 **Summary.** The archived pipeline could not turn a sequence into a structure (0/26 benchmark
@@ -13,7 +13,10 @@ on the 26 chains 0.214 → 0.271, and on the blind CASP16 targets 0.251 → 0.49
 template search that also aligns by secondary structure and keeps models from different templates: 0.271 → 0.284
 on the 26 chains; CASP16 model 1 unchanged (0.489), best of 5 0.511 → 0.524 (within the noise of 15 targets). v2.3.0 grafts
 hairpin-loop fragments from the library: 0.284 → 0.291 on the 26 chains (0.216 → 0.227 without a template), CASP16
-model 1 0.489 → 0.495 (within the noise); pseudoknot hypotheses and domain assembly are options, off (§4.0000).
+model 1 0.489 → 0.495 (within the noise); pseudoknot hypotheses and domain assembly are options, off (§4.0000). v2.5.0
+repeats the fit onto the template with the residues at fault released instead of discarding it: on 48 chains
+with a template model 1 0.582 → 0.605, CASP16 model 1 0.495 → 0.501 (§4.00000; v2.4.0 added modified nucleotides
+and left unmodified runs unchanged).
 
 ## 1. Why the prediction engine was reworked
 
@@ -87,10 +90,74 @@ Success thresholds fixed in advance: best-of-K C4' RMSD ≤ 5 Å / ≤ 10 Å, eR
 Two complete runs were made with identical settings: **v2.0.0** (the frozen engine, run once on all
 targets) and **v2.0.1** (after failure analysis: stem refinement for compressed pairs, BLAS
 thread fix; see `CHANGELOG.md`); both are reported in §4.0–4.1. Reports are copied to `docs/benchmark_v1/`.
-The engine v2.1.0 (templates and junction geometry) and the current engine v2.2.0 were measured on the same 26 chains with a
+The engines v2.1.0 (templates and junction geometry), v2.2.0 and v2.3.0 were measured on the same 26 chains with a
 development benchmark that limits every target to structures released before it (§4.00, §4.000).
 
-### 4.0000 v2.3.0 (current engine): motif fragments; pseudoknots, domains and a base–base potential measured
+### 4.00000 v2.5.0 (current engine): the fit onto the template is repeated; where the remaining accuracy is
+
+**Diagnosis** (development data; CASP16 kept as the blind check).
+
+* *A template model is as good as its template and its fit.* The TM-score of a model equals the TM-score of
+  its template under the alignment, as long as the final Cartesian fit onto the template atoms is accepted.
+  In 0.7.5 the fit was discarded whenever the fitted model failed the geometry checks — 73 of 150 template
+  models on the 48-chain set below — and those models kept the looser shape of the torsion-space search (CASP16
+  R1271: restraints satisfied 0.39, 8.6–9.0 Å from the template atoms, TM 0.39–0.41, while the one model with an
+  accepted fit had 0.65).
+* *Upper bound of the library* (`benchmark/template_oracle.py`, 916 queries of `template_selection.py`; US-align,
+  sequence-independent, each query against every chain released before it). 655 queries with a hit: the best
+  chain in the library 0.752, the first-ranked template 0.639, the best template found 0.694; the first-ranked
+  one is more than 0.10 below the best chain for 225 queries. 261 queries without a hit: best chain 0.471;
+  ≥ 0.45 for 124, ≥ 0.70 for 21. CASP16 (`casp16/oracle_templates.py`): best chain 0.573 on average against 0.392
+  for the first template found (0 where none); a chain ≥ 0.45 exists for 10 of 15 targets.
+  Of the difference between the structural and the alignment-based TM-score of the first template (0.664
+  against 0.594, 500 queries) about 0.047 is not real (pairs with identical sequence and full coverage lose as
+  much); the real alignment headroom is about 0.025, in hits covering less than 90%.
+
+**Adopted: `template_fit_attempts` = 4.** After a fit that fails validation, the residues with the problems and
+their neighbours (one more on each side per attempt) are released from the template and the fit is repeated,
+until the model passes or more than 35% of the chain would be released; models whose fit stays rejected rank
+after the models with an accepted fit. Same seeds, the step on and off:
+
+| | one fit (0.7.5) | 2.5.0 | difference (95% interval, bootstrap over targets) |
+|---|---|---|---|
+| 48 chains with a template (`template_models.py`, `fit1`, `fit4`): rejected fits | 73 of 150 | 8 of 138 | |
+| – mean TM-score, model 1 | 0.582 | **0.605** | +0.023 (+0.007 to +0.043); 8 better by > 0.02, 2 worse |
+| – mean TM-score, best of 5 | 0.613 | 0.622 | +0.009 (−0.001 to +0.023) |
+| CASP16, 15 targets (`runs_v076_fit1`, `runs_v076`): model 1 | 0.495 | **0.501** | +0.006 (−0.000 to +0.017) |
+| – best of 5 | 0.527 | 0.527 | +0.000 |
+| – right global fold (TM ≥ 0.45), model 1 | 8 | 9 | |
+| – median RMSD of model 1 | 7.8 Å | 6.0 Å | |
+| – run time, 15 targets, 16 cores | 68 min | 68 min | |
+| 6 chains with a template of the 26-chain set (`dev_templates.py`, `fit1_076`, `fit4_076`): model 1 | 0.508 | 0.497 | −0.011 (1ANR −0.03, 5KPY −0.02) |
+
+The 48 chains are library chains of 40–140 nt released after their templates, CASP16 entries left out; each is
+predicted with templates and junction geometry limited to earlier structures and its own entry excluded.
+`runs_v076_fit1` reproduces `runs_v075` to the last digit. On CASP16 the whole gain is R1271 (0.391 → 0.474);
+with 15 targets it is not established. Runs without a template are unchanged. A side effect on the confidence
+model is described in `docs/V07_VALIDATION.md` §F.
+
+**Measured and not adopted** (each on development data):
+
+| Idea | Result |
+|---|---|
+| Rank templates by the share of the 2D energy they explain | first template 0.586 → 0.55–0.57 |
+| Free partnerless or mismatched residues, or extend helices, in the template's 2D hypothesis | base-pair F1 0.7515 → 0.754 |
+| Structure-only search for queries without a hit (half of 70 such queries have a library chain ≥ 0.45) | accepted candidates average 0.2: no specificity |
+| Helix-aware gap penalties in the alignment | better for tRNAs (one template 0.556 → 0.649), neutral overall (0.5964 → 0.5958; first hits 0.6106 → 0.6076–0.6120) |
+| Template ranking with a gap term, resolution, length; cross-validated linear ranker on 13 features | 0.6105 → +0.002 (best single rule), +0.0046 (ranker); the oracle is 0.653 |
+| Structure alignment replaces the sequence alignment on a tie as well | 228 queries: first template unchanged (0.406 / 0.442); 44 hits better, 5 worse, first templates −0.035 in sum |
+| Choose model 1 by the confidence model when another model leads by ≥ 0.1 | 48 chains, on top of 2.5.0: 0.605 → 0.605 |
+| Five templates instead of three (`max_templates=5`, run `fit4_t5`) | 48 chains, on top of 2.5.0: model 1 +0.0001 (−0.0002 to +0.0005), best of 5 +0.0003 (−0.003 to +0.003) |
+
+Run times of the three 48-chain runs (3,516 s, 5,055 s and 2,960 s for `fit1`, `fit4`, `fit4_t5`) were taken
+while the computer was in other use and do not compare; the two CASP16 runs, taken one after the other, do.
+
+**What limits accuracy now.** With a template: its choice (0.639 against 0.694 for the best one found, 0.752 for
+the best in the library) — the rules tried above do not capture it. Without a hit: 124 of 261 queries have a
+structural relative in the library that sequence and 2D alignment do not find. Without any relative: sampling
+of the tertiary arrangement (§4.0000).
+
+### 4.0000 v2.3.0: motif fragments; pseudoknots, domains and a base–base potential measured
 
 What changed (details in `CHANGELOG.md`, package 0.7.5): hairpin loops of 3–12 nt take torsions and C4′
 distances from library loops with a matching sequence, and grafted junction strands keep their torsions (on).
@@ -272,7 +339,7 @@ and ideal nucleotide templates generated by the v2 builder (its best case):
 
 ### 5.2 / 5.3 Per-target tables (dev and test splits, both modes)
 
-`docs/benchmark_v1/v2_0_1_pilot/benchmark_summary.md` (current engine) and
+`docs/benchmark_v1/v2_0_1_pilot/benchmark_summary.md` (engine v2.0.1) and
 `docs/benchmark_v1/v2_0_pilot/benchmark_summary.md` (frozen v2.0.0): per target valid trajectories,
 top-1 / best-of-5 / best-candidate C4' RMSD, null RMSD, eRMSD, INF-WC, ViennaRNA F1 and wall time.
 Raw data: `per_target.csv`, `per_model.csv`, `failures.csv`, `rerank_analysis.json`;

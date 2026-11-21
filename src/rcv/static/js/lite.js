@@ -36,6 +36,8 @@ viewer.settings.style = view.style && viewer.styles[view.style] ? view.style : '
 viewer.labelMode = 'none';
 const display = ens.coords[state.conf].slice();
 viewer.setEnsemble(ens, display);
+viewer.setContextEnabled(view.context !== false);      // ligands, ions and partner chains, as in the window at export
+viewer.setContextFrame(state.conf);
 viewer.setRepresentation(REPS.some(r => r[0] === view.representation) ? view.representation : 'cartoon');
 viewer.setStyle(viewer.settings.style);
 if (view.camera) viewer.controls.state = view.camera;
@@ -70,11 +72,13 @@ function goTo(k, dur = 1.1) {
   const c0 = colorsLin.slice(), c1 = colorsFor(k).lin;
   const L0 = shown2D ? shown2D.slice() : layoutFor(ens, from), L1 = layoutFor(ens, k);
   const t0 = performance.now();
+  const bound0 = viewer.context.snapshot();
   state.morph = true;
   viewer._addAnimator(() => {
     const t = clamp((performance.now() - t0) / (dur * 1000), 0, 1), e = easeInOut(t);
     for (let i = 0; i < display.length; i++) display[i] = start[i] + (target[i] - start[i]) * e;
     viewer.setCoords(display);
+    viewer.setContextBlend(bound0, k, e);
     const cc = new Float32Array(c0.length);
     for (let i = 0; i < cc.length; i++) cc[i] = c0[i] + (c1[i] - c0[i]) * e;
     colorsLin = cc;
@@ -280,6 +284,7 @@ $('#pw-play').addEventListener('click', () => {
     const t = clamp((performance.now() - t0) / 6000, 0, 1);
     mech.at(t, display);
     viewer.setCoords(display);
+    viewer.setContextFrame(r.a, r.b, t);
     const cc = new Float32Array(c0.length);
     for (let i = 0; i < cc.length; i++) cc[i] = c0[i] + (c1[i] - c0[i]) * t;
     colorsLin = cc;

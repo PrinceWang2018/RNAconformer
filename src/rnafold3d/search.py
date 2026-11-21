@@ -49,6 +49,7 @@ class ScoreWeights:
     restraint: float = 0.5                  # crossing (pseudoknot) / tertiary base-pair restraints
     pull: float = 2.0                       # interactive pull restraints (bias; removed before relaxation)
     template: float = 1.0                   # C4'-C4' distance restraints from a template or junction motif
+    modification: float = 1.0               # interactions made by modified nucleotides (modinteract.py)
 
 
 def is_branched(pairs):
@@ -160,6 +161,11 @@ class Scorer:
         self.dof_names = [d.name for d in model.dofs]
         self.dof_res = np.array([d.res for d in model.dofs], dtype=int)
         self.dof_col = np.array([TOR[d.name] for d in model.dofs], dtype=int)
+        self.modint = None
+        if getattr(model, 'modifications', None):
+            from .modinteract import ModInteractions
+            mi = ModInteractions(model)
+            self.modint = mi if mi.active else None
 
     def _init_distance_restraints(self, dr, loop_of):
         """C4'-C4' flat-bottom distance restraints {'i','j','d','tol'} (template or junction motif).
@@ -344,9 +350,20 @@ class Scorer:
                 self._tor_key = key
                 self._tor_sel = {name: np.array([k for k in act if self.dof_names[k] == name], int)
                                  for name in ('alpha', 'beta', 'gamma', 'epsilon', 'zeta', 'chi')}
+                # modified nucleotides with a syn/anti preference: their own chi prior instead of the library one
+                self._chi_mod = []
+                if m.pref_chi:
+                    for k in self._tor_sel['chi']:
+                        r = int(self.dof_res[k])
+                        if r in m.pref_chi:
+                            mode, _p, kt = m.pref_chi[r]
+                            self._chi_mod.append((r, self.prior.chi_table(mode, kt)))
             for name, sel in self._tor_sel.items():
                 if len(sel):
                     e_t += float(np.sum(self.prior(name, m.tor[self.dof_res[sel], self.dof_col[sel]])))
+            for r, table in self._chi_mod:
+                c = m.tor[r, TOR['chi']]
+                e_t += float(table[int(c + 180.0) % 360] - self.prior('chi', c))
         e_ac = 0.0
         if w.atom_clash and self.clash_scale >= self.atom_clash_from:
             e_ac = m.atom_overlap_energy()
@@ -379,10 +396,12 @@ class Scorer:
             if L.id in m.active_loops:
                 e_cb += m.chainbreak(L)
         e_dr = self.distance_restraint_energy() if self.dr is not None and w.template else 0.0
+        e_mod = self.modint.energy(bc) if self.modint is not None and w.modification else 0.0
         cs = self.clash_scale
         total = (cs * w.clash * e_clash + cs * w.atom_clash * e_ac + cs * w.chainbreak * e_cb
                  + w.restraint * e_rs + w.feasibility * e_f + w.compaction * e_rg + w.stacking * e_st
-                 + w.hairpin * e_hp + w.electro * e_el + w.torsion * e_t + self.dr_scale * w.template * e_dr)
+                 + w.hairpin * e_hp + w.electro * e_el + w.torsion * e_t + self.dr_scale * w.template * e_dr
+                 + w.modification * e_mod)
         pull_bias = self.pull_scale * w.pull * e_pull
         total += pull_bias
         if not detail:
@@ -393,7 +412,7 @@ class Scorer:
                 'electro': w.electro * e_el, 'torsion': w.torsion * e_t, 'rg': rg, 'rg0': self.rg0,
                 'compaction_applied': self.compaction_on,
                 'n_stacked_helix_ends': int(n_stacks), 'pull_bias': pull_bias,
-                'template': self.dr_scale * w.template * e_dr}
+                'template': self.dr_scale * w.template * e_dr, 'modification': w.modification * e_mod}
 
     def pull_energy(self):
         """Flat-bottom harmonic energy of the pull restraints (A^2)."""
@@ -501,7 +520,7 @@ def anneal(model: FoldModel, scorer: Scorer, rng, cfg: AnnealConfig = AnnealConf
         touched = []
         if u < cfg.p_residue_jump:
             r = free_res[rng.integers(len(free_res))]
-            row = lib[rng.integers(len(lib))]
+            row = model.draw_row(rng, r)
             for k in model.active_dof_by_res[r]:
                 nm = model.dofs[k].name
                 target = row[LIB_COLS.index(nm)]
@@ -617,3 +636,52 @@ def fit_restraints(model: FoldModel, scorer: Scorer, iters=40, lam=1.0, max_step
             break
     stats['end'] = e
     return stats
+
+
+def relax_modified(model: FoldModel, scorer: Scorer, rng, radius=5.0, max_moved=150):
+    """Short local relaxation around the modified nucleotides once their atoms are in the model: annealing at full
+    steric weight restricted to the torsions of the modified residues, their sequence neighbours and the residues
+    within `radius` of a modification atom (loop and tail torsions, or backbone torsions that move at most
+    `max_moved` atoms; rigid helices stay where they are). Explicit loops are kept closed by the usual CCD re-closure.
+    Returns a report: residues relaxed, contacts of the modification atoms before and after."""
+    sites = list(model.modified_residues)
+    if not sites:
+        return None
+    from scipy.spatial import cKDTree
+    n0, ov0 = model.rider_contacts()
+    near = {r + d for r in sites for d in (-1, 0, 1) if 0 <= r + d < model.n}
+    rk = np.where(model.present & model.is_rider)[0]
+    if len(rk):
+        ids = np.where(model.present & ~model.is_rider)[0]
+        tree = cKDTree(model.xyz[ids])
+        for hit in tree.query_ball_point(model.xyz[rk], radius):
+            near.update(int(model.atom_res[ids[h]]) for h in hit)
+    loop_ids = {L.id for L in model.linkers if L.kind in ('closure', 'hairpin', 'tail5', 'tail3')}
+    sel = [k for k in model.active_dofs if model.dofs[k].res in near
+           and (model.dofs[k].linker in loop_ids or len(model.dofs[k].moved) <= max_moved)]
+    report = {'residues': sorted(r + 1 for r in near), 'dofs': len(sel),
+              'contacts_before': n0, 'overlap_before_A2': round(ov0, 3)}
+    if not sel:
+        report.update(contacts_after=n0, overlap_after_A2=round(ov0, 3))
+        return report
+    saved = (model.active_dofs, model.active_dof_by_res, model.dof_loops)
+    by_res = {}
+    for k in sel:
+        by_res.setdefault(model.dofs[k].res, []).append(k)
+    model.active_dofs = sel
+    model.active_dof_by_res = by_res
+    model.dof_loops = {k: v for k, v in saved[2].items() if k in set(sel)}
+    scorer._tor_key = None
+    try:
+        steps = min(800, 200 + 30 * len(sel)) if n0 else 300      # contacts left: longer; else a short settle
+        st = anneal(model, scorer, rng, AnnealConfig(steps=steps, t_start=0.4, t_end=0.05,
+                                                     sigma_start=8.0, sigma_end=2.0, p_residue_jump=0.05,
+                                                     p_junction_aform=0.0, clash_scale_start=25.0,
+                                                     clash_scale_end=25.0))
+    finally:
+        model.active_dofs, model.active_dof_by_res, model.dof_loops = saved
+        scorer._tor_key = None
+    n1, ov1 = model.rider_contacts()
+    report.update(contacts_after=n1, overlap_after_A2=round(ov1, 3), steps=st['steps'],
+                  score_before=round(st['initial_score'], 3), score_after=round(st['best_score'], 3))
+    return report

@@ -36,6 +36,32 @@ class TorsionPrior:
         k = (np.asarray(deg, float) + 180.0).astype(int) % 360
         return self.table[name][k]
 
+    def chi_table(self, mode, pref_kT, kappa=4.0, cap=6.0):
+        """-ln p(chi) of a modified nucleotide (rnafold3d.modifications.sampling_preferences): 'syn' adds a syn well
+        (minimum 0 at +62 degrees) and raises the library (anti) prior by pref_kT; 'anti' raises the syn region by
+        pref_kT."""
+        key = ('chi', mode, round(float(pref_kT), 3))
+        cache = self.__dict__.setdefault('_mod_tables', {})
+        if key not in cache:
+            from .modifications import SYN_CHI
+            grid = np.radians(np.arange(-180, 180))
+            lib = self.table['chi']
+            syn_shape = 0.5 * (1.0 + np.cos(grid - math.radians(SYN_CHI)))      # 1 at syn, 0 at anti
+            if mode == 'syn':
+                well = kappa * (1.0 - np.cos(grid - math.radians(SYN_CHI)))
+                cache[key] = np.minimum(np.minimum(lib + pref_kT, well), cap)
+            else:
+                cache[key] = np.minimum(lib + pref_kT * syn_shape, cap)
+        return cache[key]
+
+    def chi_for(self, model, r, deg):
+        """chi prior of residue r of a model: its modification's own table when it has a syn/anti preference."""
+        pref = getattr(model, 'pref_chi', {}).get(r)
+        if pref is None:
+            return self('chi', deg)
+        k = (np.asarray(deg, float) + 180.0).astype(int) % 360
+        return self.chi_table(pref[0], pref[2])[k]
+
 
 def _nerf(a, b, c, bond, ca, sa, ct, st):
     """Tuple NeRF: d from a, b, c with |cd| = bond, cos/sin of angle(b,c,d) and of the dihedral."""
@@ -324,11 +350,11 @@ def grow_loop(model, L, rng, tor, puck, reach, tries=25, cutoff=2.8):
         lim = reach['p995'][min(remaining, len(reach['p995']) - 1)] + 1.5
         best = None
         for t in range(tries):
-            row = lib[rng.integers(len(lib))]
+            row = model.draw_row(rng, m)
             e_prev, z_prev = (row[4], row[5]) if t else (tor[prev_r, 3], tor[prev_r, 4])
             prow = lib[rng.integers(len(lib))]
             e_prev, z_prev = prow[4], prow[5]
-            pk = 'C2endo' if row[3] > 115 else 'C3endo'
+            pk = model.pucker_of_row(m, row)
             P, O5, C5, C4, C3 = rb.forward_link(prev, e_prev, z_prev, row[0], row[1], row[2], pk)
             unit = rb.place_unit_forward(model.seq[m], pk, row[6], C5, C4, C3)
             op = rb.phosphate_oxygens(prev["O3'"], P, O5)
@@ -403,7 +429,8 @@ def _loop_score(model, L, prior):
     i, j, ov = model.atom_clashes(cutoff=2.8, subset=subset)
     d = np.linalg.norm(model.xyz[i] - model.xyz[j], axis=1) if len(i) else np.zeros(0)
     severe = int(np.sum(d < 2.3))
-    e_tor = float(sum(prior(nm, model.tor[r, TOR[nm]]) for r, nm in loop_torsion_residues(L)))
+    e_tor = float(sum(prior.chi_for(model, r, model.tor[r, TOR[nm]]) if nm == 'chi' else prior(nm, model.tor[r, TOR[nm]])
+                      for r, nm in loop_torsion_residues(L)))
     return 30.0 * float(np.sum(ov ** 2)) + 2.0 * len(ov) + 40.0 * severe, e_tor, int(len(ov))
 
 
@@ -523,7 +550,7 @@ def refine_chi(model, L, prior, choices=(-160.0, -120.0, -75.0, 60.0)):
 
         def score():
             _, _, ov = model.atom_clashes(subset=subset)
-            return 30.0 * float(np.sum(ov ** 2)) + float(prior('chi', model.tor[m, TOR['chi']]))
+            return 30.0 * float(np.sum(ov ** 2)) + float(prior.chi_for(model, m, model.tor[m, TOR['chi']]))
         best_val = model.tor[m, TOR['chi']]
         best_score = score()
         for target in choices:

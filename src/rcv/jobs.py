@@ -34,9 +34,151 @@ def plural(n, word, many=None):
     return f'{n} {word if n == 1 else (many or word + "s")}'
 
 
+# Where a 2D hypothesis comes from, in words (the engine's log names it with a label).
+SS_SOURCE = {'vienna_mfe': 'minimum free energy', 'vienna_suboptimal': 'suboptimal', 'user': 'your input',
+             'seed': 'current conformation', 'vienna_mfe_probing': 'minimum free energy with probing data',
+             'vienna_suboptimal_probing': 'suboptimal with probing data',
+             'alignment_consensus': 'consensus of your alignment', 'vienna_pseudoknot': 'with a pseudoknot'}
+
+
+def hypothesis_source(label):
+    """The engine's label of a 2D hypothesis ('vienna_mfe', 'template 8UYJ_A', 'Z-RNA form of ss1 (vienna_mfe)')
+    in words for a note; a label RCV does not know comes back unchanged."""
+    label = str(label).strip()
+    if label.startswith('template '):
+        return 'from experimental structure ' + label.split(' ', 1)[1]
+    m = re.fullmatch(r'Z-RNA form of (\S+) \((.*)\)', label)
+    if m:
+        return f'Z-RNA form of {m.group(1)} ({hypothesis_source(m.group(2))})'
+    return SS_SOURCE.get(label, label)
+
+
+def whole_number(params, key, default, low=None, high=None, what=None):
+    """An integer option of a request. A missing or empty value gives the default; anything that is not a whole
+    number is reported in words (not as "invalid literal for int()"); the value is kept within low..high."""
+    v = params.get(key)
+    if v is None or v == '':
+        v = default
+    if isinstance(v, bool) or (isinstance(v, float) and (v != v or v != int(v))):
+        raise ValueError(f'{what or key} must be a whole number, not {v!r}')
+    try:
+        v = int(v)
+    except (TypeError, ValueError, OverflowError):
+        raise ValueError(f'{what or key} must be a whole number, not {str(v)[:30]!r}') from None
+    if low is not None:
+        v = max(low, v)
+    if high is not None:
+        v = min(high, v)
+    return v
+
+
+def a_number(params, key, default, low, high, what=None):
+    """A decimal option of a request, kept within low..high; text that is not a number is reported in words."""
+    v = params.get(key)
+    if v is None or v == '':
+        return default
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        raise ValueError(f'{what or key} must be a number, not {str(v)[:30]!r}') from None
+    if v != v or v in (float('inf'), float('-inf')):
+        raise ValueError(f'{what or key} must be a number, not {v!r}')
+    return min(high, max(low, v))
+
+
+def a_seed(params):
+    """The random seed of a request: a whole number from 0 (0 is a seed like any other) to 2**31 - 1."""
+    seed = whole_number(params, 'seed', 42, what='the random seed')
+    if not 0 <= seed <= 2 ** 31 - 1:
+        raise ValueError(f'the random seed must be a whole number from 0 to {2 ** 31 - 1}, not {seed}')
+    return seed
+
+
+def cores_of(params):
+    """CPU cores of a request: 1 .. all cores of this computer; by default all but one."""
+    cpu = os.cpu_count() or 1
+    return whole_number(params, 'cores', 0, 0, cpu, 'the number of CPU cores') or max(1, cpu - 1)
+
+
 def safe_name(text, default='rna'):
     name = re.sub(r'[^A-Za-z0-9_.-]+', '_', text or '').strip('_.')
     return (name or default)[:60]
+
+
+def _process_table():
+    """{process id: parent id} of every process, from one `ps` call; {} when that is not possible."""
+    try:
+        out = subprocess.run(['ps', '-A', '-o', 'pid=,ppid='], capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    table = {}
+    for line in out.splitlines():
+        f = line.split()
+        if len(f) == 2 and f[0].isdigit() and f[1].isdigit():
+            table[int(f[0])] = int(f[1])
+    return table
+
+
+def _descendants(pid):
+    """Process ids below pid: its children, their children and so on."""
+    kids = {}
+    for child, parent in _process_table().items():
+        kids.setdefault(parent, []).append(child)
+    found, todo = [], [pid]
+    while todo:
+        for c in kids.get(todo.pop(), ()):
+            if c not in found:
+                found.append(c)
+                todo.append(c)
+    return found
+
+
+def stop_process_tree(proc, grace=5.0, all_at_once=False):
+    """Stop a program started with subprocess.Popen together with everything it started (the engine's worker
+    processes; the programs behind a launcher script). The program is asked to stop first and gets `grace` seconds;
+    whatever is still alive then is killed. all_at_once also asks its descendants at the start, for programs that
+    do not pass the request on (a shell script). On Windows the tree is ended with taskkill."""
+    if proc is None or proc.poll() is not None:
+        return
+    if os.name == 'nt':
+        try:
+            subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'], capture_output=True, timeout=15,
+                           creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        except (OSError, subprocess.SubprocessError):
+            pass
+        if proc.poll() is None:
+            proc.kill()
+        try:
+            proc.wait(grace)
+        except subprocess.TimeoutExpired:
+            pass
+        return
+    import signal
+    below = _descendants(proc.pid)
+    proc.terminate()
+    if all_at_once:
+        for pid in below:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+    try:
+        proc.wait(grace)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        try:
+            proc.wait(grace)
+        except subprocess.TimeoutExpired:
+            pass
+    if not below:
+        return
+    alive = _process_table()                    # still running, whoever adopted them
+    for pid in below:
+        if pid in alive:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
 
 
 class Job:
@@ -63,9 +205,25 @@ class Job:
         self._lock = threading.Lock()
 
     # ---------------------------------------------------------------- reporting
-    def note(self, text, level='info'):
+    def note(self, text, level='info', keep=(), lead=''):
+        """A line for the progress page. keep: parts of the text that are data (a path, the title of a structure, a
+        line of another program); lead: a name in front of the text (the sequence of a batch). Both stay as they are
+        when the interface shows the note in another language."""
+        full = (str(lead) + str(text))[:500]
+        n = {'t': round(time.time() - self.started, 1), 'level': level, 'text': full}
+        kept = [k for k in dict.fromkeys(str(k) for k in keep) if k and k in full]
+        if kept:
+            n['keep'] = kept
+        if lead and full.startswith(str(lead)):
+            n['lead'] = str(lead)
         with self._lock:
-            self.notes.append({'t': round(time.time() - self.started, 1), 'level': level, 'text': str(text)[:500]})
+            self.notes.append(n)
+
+    def notes_from(self, start):
+        """The notes from number `start` on, and how many there are now. info() carries only the newest 60 for the
+        progress page; a reader that prints every note (`rcv batch`) follows them by their number."""
+        with self._lock:
+            return list(self.notes[start:]), len(self.notes)
 
     def stage(self, sid, state, detail=None):
         for s in self.stages:
@@ -82,21 +240,18 @@ class Job:
                     'stages': [dict(s) for s in self.stages], 'progress': round(self.progress, 3),
                     'eta_s': None if self.eta_s is None else round(self.eta_s), 'notes': list(self.notes[-60:]),
                     'elapsed_s': round((self.finished or time.time()) - self.started, 1), 'document': self.document,
-                    'result': self.result, 'error': self.error, 'log_tail': self.lines[-15:]}
+                    'result': self.result, 'error': self.error, 'log_tail': self.lines[-15:],
+                    'cancelling': bool(self.cancelled and self.status in ('queued', 'running'))}
 
     # ---------------------------------------------------------------- lifecycle
     def start(self):
         threading.Thread(target=self._main, daemon=True, name=f'job-{self.id}').start()
 
+    stop_all_at_once = False          # True for programs that do not pass a stop request on to what they started
+
     def cancel(self):
         self.cancelled = True
-        p = self.proc
-        if p and p.poll() is None:
-            p.terminate()
-            try:
-                p.wait(5)
-            except subprocess.TimeoutExpired:
-                p.kill()
+        stop_process_tree(self.proc, all_at_once=self.stop_all_at_once)
 
     def _main(self):
         self.status = 'running'
@@ -146,8 +301,25 @@ class Job:
         if self.cancelled:
             raise RuntimeError('cancelled')
         if code != 0:
-            tail = [l for l in self.lines[-6:] if l.strip()]
-            raise RuntimeError('the prediction engine stopped with an error: ' + (' | '.join(tail) or f'exit code {code}'))
+            raise RuntimeError(self.engine_failure(code))
+
+    no_model_message = ('none of the trajectories gave a model that passed the all-atom validation, so there is no '
+                        'conformation to show. Run it again with more sampling (Advanced settings ▸ Sampling ▸ '
+                        'Thorough) or another random seed, or give a known secondary structure')
+
+    def engine_failure(self, code):
+        """What to tell the user when the engine ended with an error code: the case of no valid model in words, else
+        the engine's own one-line error, else the end of its output."""
+        if self.result.get('valid') == 0:
+            return self.no_model_message
+        with self._lock:
+            lines = list(self.lines[-60:])
+        for line in reversed(lines):
+            m = re.search(r'rnafold3d [\w-]+: error: (.+)', line)
+            if m:
+                return m.group(1).strip()
+        tail = [l for l in lines[-6:] if l.strip() and not re.fullmatch(r'[\s{}\[\],]*|\s*"[\w ]+": .*', l)]
+        return 'the prediction engine stopped with an error: ' + (' | '.join(tail) or f'exit code {code}')
 
     # Engine log lines -> stages, progress, notes (format of rnafold3d.predict).
     def on_line(self, line):
@@ -166,17 +338,16 @@ class Job:
                        if k else 'No related experimental structure in the built-in library: physics-only modelling')
                       + (f' ({when})' if when else '') + f' in {m.group(2)} s.')
             return
-        m = re.match(r'template (\S+) E=(\S+) identity (\S+) coverage (\S+) pairs (\S+) \'(.*)\'', msg)
+        # "... pairs 46/46 [sequence] 'title'": how the template was found stands in brackets (not for the additional
+        # template of a part the first one leaves uncovered)
+        m = re.match(r'template (\S+) E=(\S+) identity (\S+) coverage (\S+) pairs (\S+) (?:\[[^\]]*\] )?\'(.*)\'', msg)
         if m:
             self.note(f'Template {m.group(1)} ({m.group(6).strip()}): sequence identity {m.group(3)}, '
-                      f'covers {m.group(4)} of the sequence, E-value {m.group(2)}.')
+                      f'covers {m.group(4)} of the sequence, E-value {m.group(2)}.', keep=[m.group(6).strip()])
             return
         m = re.match(r'(ss\d+) (\S+) (\S+) kcal/mol \[([^\]]+)\]', msg)
         if m:
-            src = {'vienna_mfe': 'minimum free energy', 'vienna_suboptimal': 'suboptimal', 'user': 'your input',
-                   'seed': 'current conformation'}.get(m.group(4), m.group(4))
-            if src.startswith('template '):
-                src = 'from experimental structure ' + src.split(' ', 1)[1]
+            src = hypothesis_source(m.group(4))
             e = '' if m.group(3) == 'None' else f', ΔG {m.group(3)} kcal/mol'
             self.note(f'{m.group(1)} ({src}{e}): {m.group(2)}')
             return
@@ -203,7 +374,7 @@ class Job:
             self.stage('select', 'active', 'validating and clustering')
             if m.group(3) != 'valid':
                 why = re.sub(r"[\[\]']", '', m.group(5).rsplit(' ', 1)[0]).replace('_', ' ') or m.group(3)
-                self.note(f'Trajectory {m.group(1)} ({m.group(2)}) rejected by validation: {why}.', 'warning')
+                self.note(f'Trajectory {m.group(1)} ({m.group(2)}) rejected by validation: {why}.', 'warning', keep=[why])
             return
         m = re.match(r'(\d+)/(\d+) valid models; exported (\d+) conformers', msg)
         if m:
@@ -219,31 +390,56 @@ class Job:
             self.note(msg, 'error')
 
 
+def sequence_with_modifications(text, extra=None):
+    """A sequence, possibly with modified nucleotides ([m6A], [Y], A*G ...; rnafold3d.modifications) -> (canonical
+    sequence of parent bases, modifications [{'pos', 'code'}]). Raises ValueError with a readable message."""
+    from rnafold3d import modifications as modcat
+    raw = _sequence_line(str(text or ''))
+    mods = []
+    if modcat.has_notation(raw):
+        seq, mods, problems = modcat.parse(raw)
+        if problems:
+            raise ValueError('the sequence has ' + '; '.join(problems[:4]) + ' (modified nucleotides are written in '
+                             'brackets, e.g. GGC[m6A]CU, with names from the modification list)')
+    else:
+        seq = raw
+    if not seq or not re.fullmatch(r'[ACGU]+', seq):
+        bad = sorted(set(seq) - set('ACGU'))
+        raise ValueError(f'unsupported letters {" ".join(bad) or "(empty sequence)"}: the sequence may contain only A, C, '
+                         f'G, U (T is read as U) and modified nucleotides in brackets, e.g. GGC[m6A]CU')
+    mods += list(extra or ())
+    return seq, modcat.normalize(mods, seq)
+
+
 class PredictJob(Job):
     kind = 'predict'
     STAGES = (('ss', 'Secondary structures'), ('sample', '3D sampling'), ('select', 'Validation and selection'),
               ('load', 'Opening the viewer'))
 
     def __init__(self, state, params):
-        seq = re.sub(r'\s+', '', params.get('sequence', '')).upper().replace('T', 'U')
-        if not seq or not re.fullmatch(r'[ACGU]+', seq):
-            bad = sorted(set(seq) - set('ACGU'))
-            raise ValueError(f'the sequence may contain only A, C, G, U (T is read as U); found {"".join(bad) or "nothing"}')
+        seq, self.modifications = sequence_with_modifications(params.get('sequence', ''), params.get('modifications'))
         if len(seq) < 8:
             raise ValueError('the sequence is too short (at least 8 nt)')
         if len(seq) > 400:
             raise ValueError('sequences longer than 400 nt are outside the engine design range')
-        structure = (params.get('structure') or '').strip()
-        if structure and len(structure) != len(seq):
-            raise ValueError(f'the dot-bracket has {len(structure)} characters but the sequence has {len(seq)} nt')
+        structure = re.sub(r'\s+', '', str(params.get('structure') or ''))
+        if structure:                                # checked here, so that it is reported before the run starts
+            from rnafold3d.annotate import check_dotbracket
+            problem = check_dotbracket(structure, len(seq))
+            if problem:
+                raise ValueError(problem)
         name = safe_name(params.get('name'), 'rna')
-        super().__init__(state, f'{name} · {len(seq)} nt')
+        super().__init__(state, f'{name} · {len(seq)} nt' + (f' · {len(self.modifications)} modified' if self.modifications else ''))
         self.sequence, self.name, self.structure, self.n_nt = seq, name, structure, len(seq)
-        self.models = max(1, min(50, int(params.get('models', 8))))
-        per, low = SAMPLING.get(params.get('sampling', 'standard'), SAMPLING['standard'])
-        self.trajectories = int(params.get('trajectories') or max(low, per * self.models))
-        self.seed = int(params.get('seed', 42))
+        self.models = whole_number(params, 'models', 8, 1, 50, 'the number of conformations to keep')
+        per, low = SAMPLING.get(params.get('sampling') or 'standard', SAMPLING['standard'])
+        self.trajectories = whole_number(params, 'trajectories', 0, 0, 2000, 'the number of trajectories') \
+            or max(low, per * self.models)
+        self.seed = a_seed(params)
         self.templates = 'off' if params.get('templates') in (False, 'off') else 'auto'
+        self.zrna = 'auto' if params.get('zrna') in (True, 'auto') else 'off'
+        self.zrna_salt = a_number(params, 'zrna_salt', 0.15, 0.005, 6.0, 'the Na+ concentration for Z-RNA')
+        self.zrna_binder = bool(params.get('zrna_binder'))
         # optional probing data and alignment of homologs for the 2D hypotheses (checked here, so that a wrong
         # file is reported before the run starts)
         self.probing_text = str(params.get('probing_text') or '')[:4_000_000]
@@ -254,24 +450,34 @@ class PredictJob(Job):
         if self.alignment_text.strip():
             from rnafold3d.ss import parse_alignment
             parse_alignment(self.alignment_text, seq)
-        cpu = os.cpu_count() or 1
-        self.cores = max(1, min(cpu, int(params.get('cores') or max(1, cpu - 1))))
+        self.cores = cores_of(params)
         self.out = Path(state.projects_dir) / f'{name}_{time.strftime("%Y%m%d-%H%M%S")}'
         per_traj = estimate_trajectory_seconds(len(seq))
-        self.eta_s = per_traj * -(-self.trajectories // self.cores) + 15
+        z_extra = max(2, round(0.25 * self.trajectories)) if self.zrna == 'auto' else 0
+        self.eta_s = per_traj * -(-(self.trajectories + z_extra) // self.cores) + 15 + (10 if z_extra else 0)
         self.result = {'out': str(self.out), 'trajectories': self.trajectories, 'cores': self.cores}
 
     def run(self):
         self.out.parent.mkdir(parents=True, exist_ok=True)
         self.stage('ss', 'active', 'ViennaRNA' if not self.structure else 'from your dot-bracket')
         self.note(f'Prediction of {self.n_nt} nt started on this computer with {plural(self.cores, "CPU core")}; '
-                  f'results are saved in {self.out}.')
+                  f'results are saved in {self.out}.', keep=[self.out])
         if self.n_nt > 200:
             self.note('Sequences above 200 nt are outside the tested range; expect long run times and lower accuracy.',
                       'warning')
-        args = ['predict', '--sequence', self.sequence, '--name', self.name, '--models', str(self.models),
+        seq_arg = self.sequence
+        if self.modifications:
+            from rnafold3d import modifications as modcat
+            seq_arg = modcat.format_sequence(self.sequence, self.modifications)
+            self.note(f'Modified nucleotides: {modcat.summary(self.modifications)}. Their pairing parameters enter the '
+                      '2D structures; their atoms are placed on the 3D models.', keep=[modcat.summary(self.modifications)])
+        args = ['predict', '--sequence', seq_arg, '--name', self.name, '--models', str(self.models),
                 '--trajectories', str(self.trajectories), '--seed', str(self.seed), '--workers', str(self.cores),
                 '--out', str(self.out), '--templates', self.templates]
+        if self.zrna == 'auto':
+            args += ['--zrna', 'auto', '--zrna-salt', f'{self.zrna_salt:g}'] + (['--zrna-binder'] if self.zrna_binder else [])
+            self.note('Z-RNA prediction is on: a left-handed helix hypothesis is added when the estimate allows it '
+                      f'({self.zrna_salt * 1000:g} mM Na+' + (', Z-binding protein' if self.zrna_binder else '') + ').')
         if self.structure:
             args += ['--structure', self.structure]
         else:
@@ -298,12 +504,10 @@ class PredictJob(Job):
                 entry.rcv_path = str(target)
                 self.result.update(rcv=str(target), rcv_bytes=size)
                 self.note(f'Saved {target.name} ({size / 1e6:.2f} MB): all conformations, energies and 2D structures '
-                          'in one file.')
+                          'in one file.', keep=[target.name])
             except Exception as exc:                     # the ensemble is open anyway; saving can be repeated
-                self.note(f'Could not write the .rcv file: {exc}', 'warning')
+                self.note(f'Could not write the .rcv file: {exc}', 'warning', keep=[exc])
         self.stage('load', 'done', plural(summary['n_conformations'], 'conformation'))
-        if self.result.get('valid') == 0:
-            raise RuntimeError('no trajectory produced a valid model; try more sampling or a known secondary structure')
 
 
 # ------------------------------------------------------------------------------------------- pull
@@ -349,17 +553,29 @@ class ExploreJob(Job):
     kind = 'explore'
     STAGES = (('ss', 'Secondary structures'), ('sample', 'Pull-guided sampling'), ('select', 'Relaxation and validation'),
               ('load', 'Adding to the ensemble'))
+    no_model_message = ('no trajectory reached a stable conformation near the pulled shape that passed the all-atom '
+                        'validation, so nothing was added. Try a smaller pull, or pull another residue')
 
     def __init__(self, state, params):
         entry = state.entries.get(params.get('document'))
         if entry is None:
             raise ValueError('unknown ensemble')
         doc = entry.doc
-        k = int(params['conformation'])
-        residue = int(params['residue'])
-        deformed = np.asarray(params['deformed'], float)
         n = len(doc['sequence'])
-        if deformed.shape != (n, 3):
+        for key in ('conformation', 'residue', 'deformed'):
+            if params.get(key) is None:
+                raise ValueError(f'the pull exploration needs "{key}"')
+        k = whole_number(params, 'conformation', 0, what='the conformation index')
+        residue = whole_number(params, 'residue', 0, what='the residue index')
+        if not 0 <= k < len(doc['conformations']):
+            raise ValueError(f'conformation index {k} is out of range (0 to {len(doc["conformations"]) - 1})')
+        if not 0 <= residue < n:
+            raise ValueError(f'residue index {residue} is out of range (0 to {n - 1})')
+        try:
+            deformed = np.asarray(params['deformed'], float)
+        except (TypeError, ValueError):
+            raise ValueError('the deformed trace must be a list of x, y, z positions') from None
+        if deformed.shape != (n, 3) or not np.isfinite(deformed).all():
             raise ValueError('deformed trace must give one C4\' position per residue')
         names = doc['atoms']['names']
         c4 = []
@@ -376,11 +592,17 @@ class ExploreJob(Job):
         self.entry, self.k, self.residue, self.restraints, self.pull_info = entry, k, residue, restraints, info
         self.n_nt = n
         self.sequence = doc['sequence']
+        mods = [{'pos': m['index'] + 1, 'code': m['code']} for m in doc.get('modifications') or () if m.get('code')]
+        if mods:
+            from rnafold3d import modifications as modcat
+            try:
+                self.sequence = modcat.format_sequence(doc['sequence'], modcat.normalize(mods, doc['sequence']))
+            except ValueError:
+                pass
         self.seed_dbn = doc['conformations'][k]['dbn']
-        cpu = os.cpu_count() or 1
-        self.cores = max(1, min(cpu, int(params.get('cores') or max(1, cpu - 1))))
-        self.trajectories = max(2, min(64, int(params.get('trajectories', 8))))
-        self.models = max(1, min(self.trajectories, int(params.get('models', 4))))
+        self.cores = cores_of(params)
+        self.trajectories = whole_number(params, 'trajectories', 8, 2, 64, 'the number of trajectories')
+        self.models = whole_number(params, 'models', 4, 1, self.trajectories, 'the number of conformations to keep')
         self.out = Path(state.projects_dir) / 'explorations' / f'{safe_name(entry.name)}_pull_{time.strftime("%Y%m%d-%H%M%S")}'
         self.eta_s = estimate_trajectory_seconds(n) * 1.15 * -(-self.trajectories // self.cores) + 20
         self.result = {'out': str(self.out), 'pull': info, 'restraints': len(restraints)}
@@ -409,13 +631,20 @@ class ExploreJob(Job):
 
 
 # ------------------------------------------------------------------------------------------ batch
+def _sequence_line(line):
+    """Upper case, T -> U, no spaces and no position numbers (sequences copied from GenBank or a paper read
+    "1 ggcagatctg 11 agcctgggag"); [modification] tokens are kept as written."""
+    parts = re.split(r'(\[[^\[\]]*\])', re.sub(r'\s+', '', line))
+    return ''.join(p if p.startswith('[') else re.sub(r'\d+', '', p).upper().replace('T', 'U') for p in parts)
+
+
 def parse_fasta(text):
     """FASTA (or one bare sequence) -> [{'name', 'sequence', 'structure'}]; a dot-bracket line after a sequence is
     taken as its known secondary structure."""
     records, cur = [], None
     for raw in str(text or '').splitlines():
         line = raw.strip()
-        if not line or line.startswith((';', '#')):
+        if not line or line.startswith((';', '#')) or line == '//':      # // ends a GenBank sequence block
             continue
         if line.startswith('>'):
             cur = {'name': line[1:].strip().split()[0] if line[1:].strip() else '', 'sequence': '', 'structure': ''}
@@ -428,7 +657,7 @@ def parse_fasta(text):
         if re.fullmatch(r'[().\[\]{}<>]+', token) and cur['sequence']:
             cur['structure'] += token
         else:
-            cur['sequence'] += re.sub(r'\s+', '', line).upper().replace('T', 'U')
+            cur['sequence'] += _sequence_line(line)
     seen = {}
     for k, r in enumerate(records, 1):
         base = safe_name(r['name'], f'seq{k}')
@@ -452,7 +681,7 @@ class BatchJob(Job):
             n = seen.get(base, 0)
             seen[base] = n + 1
             clean.append({'name': base if n == 0 else f'{base}_{n + 1}',
-                          'sequence': re.sub(r'\s+', '', str(r.get('sequence') or '')).upper().replace('T', 'U'),
+                          'sequence': _sequence_line(str(r.get('sequence') or '')),
                           'structure': str(r.get('structure') or '').strip()})
         records = [r for r in clean if r['sequence']]
         if not records:
@@ -461,29 +690,42 @@ class BatchJob(Job):
             raise ValueError(f'{len(records)} sequences; a batch can hold at most {self.MAX_SEQUENCES}')
         problems = []
         for r in records:
-            seq = r['sequence']
-            bad = sorted(set(seq) - set('ACGU'))
-            if bad:
-                problems.append(f'{r["name"]}: unsupported letters {"".join(bad)}')
-            elif not 8 <= len(seq) <= 400:
+            try:                                     # modified nucleotides in brackets are allowed (0.7.6)
+                seq, _mods = sequence_with_modifications(r['sequence'])
+                r['length'] = len(seq)
+            except ValueError as exc:
+                problems.append(f'{r["name"]}: {exc}')
+                continue
+            if not 8 <= len(seq) <= 400:
                 problems.append(f'{r["name"]}: {len(seq)} nt (8–400 nt supported)')
-            elif r.get('structure') and len(r['structure']) != len(seq):
-                problems.append(f'{r["name"]}: dot-bracket length {len(r["structure"])} differs from {len(seq)} nt')
+            elif r.get('structure'):
+                from rnafold3d.annotate import check_dotbracket
+                problem = check_dotbracket(r['structure'], len(seq))
+                if problem:
+                    problems.append(f'{r["name"]}: {problem}')
         if problems:
             raise ValueError('; '.join(problems[:6]) + (f' (+{len(problems) - 6} more)' if len(problems) > 6 else ''))
-        self.STAGES = tuple((f'item{k}', f'{r["name"]} · {len(r["sequence"])} nt') for k, r in enumerate(records))
+        self.STAGES = tuple((f'item{k}', f'{r["name"]} · {r["length"]} nt') for k, r in enumerate(records))
         super().__init__(state, f'Batch of {plural(len(records), "sequence")}')
         self.records = records
-        self.params = {k: params.get(k) for k in ('models', 'sampling', 'cores', 'seed', 'templates')}
-        cpu = os.cpu_count() or 1
-        self.cores = max(1, min(cpu, int(params.get('cores') or max(1, cpu - 1))))
+        # the options of a single prediction that also apply to every sequence of a batch (Z-RNA since 0.7.6);
+        # probing data and alignments belong to one sequence and are not used here
+        self.params = {k: params.get(k) for k in ('models', 'sampling', 'cores', 'seed', 'templates', 'zrna',
+                                                  'zrna_salt', 'zrna_binder') if params.get(k) is not None}
+        self.unused = [w for k, w in (('probing_text', 'probing data'), ('alignment_text', 'an alignment'))
+                       if str(params.get(k) or '').strip()]
+        self.cores = cores_of(params)
+        a_seed(params)
         self.out = Path(state.projects_dir) / f'batch_{time.strftime("%Y%m%d-%H%M%S")}'
-        models = max(1, min(50, int(params.get('models', 8))))
-        per, low = SAMPLING.get(params.get('sampling', 'standard'), SAMPLING['standard'])
+        models = whole_number(params, 'models', 8, 1, 50, 'the number of conformations to keep')
+        per, low = SAMPLING.get(params.get('sampling') or 'standard', SAMPLING['standard'])
         traj = max(low, per * models)
-        self.estimates = [estimate_trajectory_seconds(len(r['sequence'])) * -(-traj // self.cores) + 25 for r in records]
+        if params.get('zrna') in (True, 'auto'):
+            a_number(params, 'zrna_salt', 0.15, 0.005, 6.0, 'the Na+ concentration for Z-RNA')
+            traj += max(2, round(0.25 * traj))
+        self.estimates = [estimate_trajectory_seconds(r['length']) * -(-traj // self.cores) + 25 for r in records]
         self.eta_s = sum(self.estimates)
-        self.items = [{'name': r['name'], 'length': len(r['sequence']), 'sequence': r['sequence'], 'status': 'queued'}
+        self.items = [{'name': r['name'], 'length': r['length'], 'sequence': r['sequence'], 'status': 'queued'}
                       for r in records]
         self.result = {'out': str(self.out), 'items': self.items, 'cores': self.cores}
         self.current = None
@@ -514,7 +756,13 @@ class BatchJob(Job):
     def run(self):
         self.out.mkdir(parents=True, exist_ok=True)
         self.note(f'Batch of {plural(len(self.items), "sequence")} started; each prediction uses '
-                  f'{plural(self.cores, "CPU core")}. Results are saved in {self.out}.')
+                  f'{plural(self.cores, "CPU core")}. Results are saved in {self.out}.', keep=[self.out])
+        if self.params.get('zrna') in (True, 'auto'):
+            self.note('Z-RNA prediction is on for every sequence of the batch.')
+        if self.unused:
+            self.note(f'{" and ".join(self.unused).capitalize()} {"were" if len(self.unused) > 1 else "was"} given, but '
+                      'apply to a single sequence: not used in this batch. Predict that sequence on its own to use '
+                      'them.', 'warning')
         for k, (rec, item) in enumerate(zip(self.records, self.items)):
             if self.cancelled:
                 break
@@ -525,10 +773,10 @@ class BatchJob(Job):
             job.result['out'] = str(job.out)
             base_note = job.note
 
-            def relay(text, level='info', _n=rec['name'], _base=base_note):
-                _base(text, level)
+            def relay(text, level='info', keep=(), lead='', _n=rec['name'], _base=base_note):
+                _base(text, level, keep, lead)
                 if level != 'info' or 'Saved' in str(text) or 'passed all-atom validation' in str(text):
-                    self.note(f'{_n}: {text}', level)
+                    self.note(text, level, keep, lead=f'{_n}: ')
             job.note = relay
             self.current = job
             item['status'] = 'running'
@@ -554,8 +802,8 @@ class BatchJob(Job):
                             rcv=job.result.get('rcv'), out=str(job.out), valid=job.result.get('valid'),
                             trajectories=job.result.get('trajectories'))
                 self.stage(f'item{k}', 'done', f'{plural(item["n_conformations"] or 0, "conformation")}')
-                self.note(f'{rec["name"]}: {plural(item["n_conformations"] or 0, "conformation")} '
-                          f'in {time.time() - t0:.0f} s.')
+                self.note(f'{plural(item["n_conformations"] or 0, "conformation")} in {time.time() - t0:.0f} s.',
+                          lead=f'{rec["name"]}: ')
             except Exception as exc:
                 if self.cancelled:
                     item['status'] = 'cancelled'
@@ -563,7 +811,7 @@ class BatchJob(Job):
                     break
                 item.update(status='failed', error=str(exc))
                 self.stage(f'item{k}', 'error', str(exc)[:120])
-                self.note(f'{rec["name"]} failed: {exc}', 'error')
+                self.note(f'failed: {exc}', 'error', lead=f'{rec["name"]} ')
             finally:
                 item['elapsed_s'] = round(time.time() - t0, 1)
                 self.current = None
@@ -593,7 +841,7 @@ class BatchJob(Job):
                                                  encoding='utf-8')
             self.result['summary_csv'] = str(self.out / 'batch_summary.csv')
         except OSError as exc:
-            self.note(f'Could not write the batch summary: {exc}', 'warning')
+            self.note(f'Could not write the batch summary: {exc}', 'warning', keep=[exc])
 
 
 # ------------------------------------------------------------------------------------- AlphaFold 3
@@ -601,6 +849,7 @@ class AlphaFold3Job(Job):
     """Runs a local AlphaFold 3 installation (configured in the AlphaFold 3 settings) on one RNA sequence and opens
     every sampled model as one ensemble. RCV writes the input JSON, starts the program and reads the output."""
     kind = 'predict'
+    stop_all_at_once = True           # the configured command may be a launcher script
     STAGES = (('input', 'AlphaFold 3 input'), ('run', 'AlphaFold 3 (data pipeline and inference)'),
               ('load', 'Opening the viewer'))
     MARKERS = (('Running data pipeline', 'data pipeline (MSA search)', 0.15),
@@ -610,14 +859,13 @@ class AlphaFold3Job(Job):
 
     def __init__(self, state, params):
         from . import alphafold
-        seq = re.sub(r'\s+', '', params.get('sequence', '')).upper().replace('T', 'U')
-        if not seq or not re.fullmatch(r'[ACGU]+', seq):
-            raise ValueError('the sequence may contain only A, C, G, U (T is read as U)')
+        seq, self.modifications = sequence_with_modifications(params.get('sequence', ''), params.get('modifications'))
         name = safe_name(params.get('name'), 'rna')
         super().__init__(state, f'{name} · {len(seq)} nt · AlphaFold 3')
         self.sequence, self.name, self.n_nt = seq, name, len(seq)
         self.settings = {**alphafold.load_settings(), **(params.get('af3') or {})}
-        self.seeds = max(1, min(20, int(params.get('af3_seeds') or self.settings.get('seeds') or 1)))
+        self.seeds = whole_number({'seeds': params.get('af3_seeds') or self.settings.get('seeds')}, 'seeds', 1, 1, 20,
+                                  'the number of AlphaFold 3 seeds')
         self.out = Path(state.projects_dir) / f'{name}_af3_{time.strftime("%Y%m%d-%H%M%S")}'
         self.eta_s = None
         self.result = {'out': str(self.out), 'engine': 'alphafold3', 'seeds': self.seeds}
@@ -627,11 +875,11 @@ class AlphaFold3Job(Job):
             if key.lower() in line.lower():
                 self.stage('run', 'active', label)
                 self.progress = max(self.progress, frac)
-                self.note(f'AlphaFold 3: {line.strip()[:200]}')
+                self.note(f'AlphaFold 3: {line.strip()[:200]}', keep=[line.strip()[:200]])
                 return
         low = line.lower()
         if 'error' in low or 'traceback' in low or 'out of memory' in low:
-            self.note(line.strip()[:300], 'error' if 'error' in low else 'warning')
+            self.note(line.strip()[:300], 'error' if 'error' in low else 'warning', keep=[line.strip()[:300]])
 
     def run(self):
         from . import alphafold
@@ -640,7 +888,19 @@ class AlphaFold3Job(Job):
         self.out.mkdir(parents=True, exist_ok=True)
         self.stage('input', 'active')
         msa_free = not self.settings.get('db_dir')
-        job = alphafold.input_json(self.name, self.sequence, self.seeds, msa_free=msa_free)
+        job = alphafold.input_json(self.name, self.sequence, self.seeds, msa_free=msa_free,
+                                   modifications=self.modifications)
+        if self.modifications:
+            from rnafold3d.modifications import BY_CODE
+            used = [m for m in self.modifications if BY_CODE[m['code']]['ccd']]
+            left = [m for m in self.modifications if not BY_CODE[m['code']]['ccd']]
+            if used:
+                self.note(f'{plural(len(used), "modified nucleotide")} passed to AlphaFold 3 as PDB components '
+                          f'({", ".join(BY_CODE[m["code"]]["ccd"] + str(m["pos"]) for m in used[:12])}).')
+            if left:
+                self.note(f'{plural(len(left), "modification")} without a PDB component code '
+                          f'({", ".join(m["code"] + str(m["pos"]) for m in left[:12])}) cannot be given to AlphaFold 3; '
+                          'those nucleotides are predicted unmodified. The RCV engine models all of them.', 'warning')
         jpath = self.out / f'{self.name}_af3_input.json'
         jpath.write_text(json.dumps(job, indent=1), encoding='utf-8')
         af_out = self.out / 'af3_output'
@@ -648,8 +908,8 @@ class AlphaFold3Job(Job):
         cmd = alphafold.command(self.settings, jpath, af_out)
         self.stage('input', 'done', f'{plural(self.seeds, "seed")} × 5 samples' + (' · without MSA' if msa_free else ''))
         self.note(f'AlphaFold 3 started for {self.n_nt} nt ({plural(self.seeds, "seed")}, 5 samples each'
-                  + (', no MSA search' if msa_free else ', with MSA search') + f'); output in {af_out}.')
-        self.note('Command: ' + ' '.join(cmd)[:400])
+                  + (', no MSA search' if msa_free else ', with MSA search') + f'); output in {af_out}.', keep=[af_out])
+        self.note('Command: ' + ' '.join(cmd)[:400], keep=[' '.join(cmd)[:400]])
         self.stage('run', 'active', 'starting')
         self.progress = 0.05
         flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == 'nt' else 0
@@ -696,7 +956,7 @@ class AlphaFold3Job(Job):
             entry.rcv_path = str(target)
             self.result.update(rcv=str(target), rcv_bytes=size)
         except Exception as exc:
-            self.note(f'Could not write the .rcv file: {exc}', 'warning')
+            self.note(f'Could not write the .rcv file: {exc}', 'warning', keep=[exc])
         self.result.update(conformers=len(confs))
         self.stage('load', 'done', plural(len(confs), 'model'))
         self.note(f'{plural(len(confs), "AlphaFold 3 model")} opened (best ranking score first); colour by Confidence '

@@ -57,7 +57,8 @@ export class CommandSet {
   // ---------------------------------------------------------------- helpers
   ctx() {
     const app = this.app;
-    return { ens: app.ens, conf: app.state.conf, prev: app.state.prev, selection: app.state.selection, named: app.displayOf().named, coords: app.display };
+    return { ens: app.ens, conf: app.state.conf, prev: app.state.prev, selection: app.state.selection, named: app.displayOf().named, coords: app.display,
+      zrna: () => (app.zrna && app.ens ? app.zrna.detect(app.display, app.state.conf).flatMap(z => z.residues) : []) };
   }
   ens() { if (!this.app.ens) throw new CommandError('no ensemble is open'); return this.app.ens; }
   sel(expr, fallback = 'all') {

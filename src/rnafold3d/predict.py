@@ -28,15 +28,15 @@ from pathlib import Path
 import numpy as np
 
 from . import __version__ as PACKAGE_VERSION
-from .annotate import dotbracket_to_pairs, nested_subset, pairs_to_dotbracket
+from .annotate import check_dotbracket, dotbracket_to_pairs, nested_subset, pairs_to_dotbracket
 from .checks import validate_model
 from .fold import FoldModel
 from .loops import TorsionPrior, close_linker, final_relief, finish_closure
-from .search import Scorer, ScoreWeights, AnnealConfig, anneal, fit_restraints
+from .search import Scorer, ScoreWeights, AnnealConfig, anneal, fit_restraints, relax_modified
 from .structure_io import write_pdb, write_mmcif
 
 ENGINE = 'rnafold3d-v2-foldtree'
-ENGINE_VERSION = '2.3.0'
+ENGINE_VERSION = '2.5.0'
 KCAL_TO_KT_37C = 1.0 / (0.0019872 * 310.15)
 
 
@@ -71,6 +71,9 @@ class PredictConfig:
     template_share: float = 0.7      # fraction of trajectories for template hypotheses when hits exist
     motifs: str = 'auto'             # junction geometry from non-homologous library structures ('off': none)
     template_structure: bool = True  # also accept remote homologs confirmed by their secondary structure
+    template_fit_attempts: int = 4   # fits onto the template atoms: after a fit that fails validation, the residues
+                                     # with the problems are released and the fit repeated; models whose fit was
+                                     # rejected rank after the others (1: one fit, order by score, as up to 2.4.0)
     domains: str = 'off'             # 'auto': chains >= 240 nt fold their domains separately, then assemble them
                                      # (experimental: worse than the whole-chain search in benchmark/long_rna.py)
     pseudoknots: str = 'off'         # 'auto': 2D hypothesis with a crossing helix (pseudoknots.py) when it beats the
@@ -79,10 +82,18 @@ class PredictConfig:
     # experimental and evolutionary information for the 2D hypotheses (sequence-only predictions)
     reactivities: tuple = ()         # SHAPE-like reactivity per nucleotide (None = missing), see ss.read_reactivities
     alignment: tuple = ()            # aligned homologous sequences, query first, see ss.read_alignment
+    # modified nucleotides [{'pos' (1-based), 'code'}] (modifications.py); a sequence with [code] tokens also works
+    modifications: tuple = ()
+    # Z-RNA (zrna.py): 'auto' adds a hypothesis with one helix segment built left-handed when its estimated
+    # A -> Z free energy is below zrna.Z_PROPOSE_MAX under these conditions (extra trajectories, about +25 % time)
+    zrna: str = 'off'
+    zrna_salt: float = 0.15          # Na+ (mol/L) for the Z-RNA estimate
+    zrna_binder: bool = False        # a Z-binding protein is present (ADAR1 Zalpha, ZBP1)
 
 
 def normalize_sequence(seq, allow_t=True):
-    s = ''.join(seq.split()).upper()
+    # position numbers are dropped: sequences copied from GenBank or a paper read "1 ggcagatctg 11 agcctgggag"
+    s = ''.join(ch for ch in seq if not ch.isspace() and not ch.isdigit()).upper()
     if allow_t:
         s = s.replace('T', 'U')
     bad = sorted(set(s) - set('ACGU'))
@@ -176,7 +187,112 @@ def run_trajectory(job):
         return _run_trajectory(job)
 
 
+def _worker_init():
+    """Start-up of a trajectory worker: stop as soon as the engine process is gone. Without it, the workers of a
+    cancelled or killed run finish their trajectory (minutes on every core for a long RNA) before they notice."""
+    import multiprocessing as mp
+    import signal
+    import threading
+    try:
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)     # not the engine's handler (inherited with fork)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)      # Ctrl+C is handled by the engine process, which ends the pool
+    except (ValueError, OSError):
+        pass
+    parent = mp.parent_process()
+    if parent is None:
+        return
+    ppid = os.getppid()
+
+    def watch():
+        # the sentinel covers Windows (and spawn); the parent id covers POSIX, where an orphan gets a new parent
+        while parent.is_alive() and (os.name == 'nt' or os.getppid() == ppid):
+            time.sleep(1.0)
+        os._exit(1)
+    threading.Thread(target=watch, daemon=True, name='engine-watch').start()
+
+
+class _StopOnSignal:
+    """While the worker pool runs, a request to stop (SIGTERM; SIGBREAK on Windows) ends the run through the normal
+    exit path, so the pool terminates its workers. Only in the main thread (signal handlers cannot be set elsewhere);
+    the previous handlers are put back afterwards."""
+
+    def __enter__(self):
+        import signal
+        import threading
+        self.saved = {}
+        if threading.current_thread() is not threading.main_thread():
+            return self
+
+        def stop(signum, _frame):
+            raise SystemExit(128 + signum)
+        for name in ('SIGTERM', 'SIGBREAK'):
+            sig = getattr(signal, name, None)
+            if sig is None:
+                continue
+            try:
+                self.saved[sig] = signal.signal(sig, stop)
+            except (ValueError, OSError):
+                pass
+        return self
+
+    def __exit__(self, *exc):
+        import signal
+        for sig, handler in self.saved.items():
+            try:
+                signal.signal(sig, handler if handler is not None else signal.SIG_DFL)
+            except (ValueError, OSError, TypeError):
+                pass
+        return False
+
+
 LOCAL_ISSUES = {'bond_angle', 'bond_length', 'chain_break', 'severe_clash'}
+# fit onto the template atoms (PredictConfig.template_fit_attempts): when the fitted model fails validation, the
+# residues with the problems (and their neighbours, one more on each side per attempt) are released from the
+# template and the fit is repeated; given up when more than this fraction of the chain would be released
+TEMPLATE_FIT_MAX_RELEASED = 0.35
+
+
+def _release_for_refit(issues, attempt, released, n):
+    """Residues (0-based) left out of the next fit onto the template: those already released plus the residues
+    of the validation issues with attempt + 1 neighbours on each side. None when nothing new would be released
+    or more than TEMPLATE_FIT_MAX_RELEASED of the chain would be: the fit is then given up."""
+    bad = {int(i['residue']) - 1 for i in issues}
+    grow = {r + d for r in bad for d in range(-1 - attempt, 2 + attempt) if 0 <= r + d < n} - set(released)
+    if not grow or len(set(released) | grow) > TEMPLATE_FIT_MAX_RELEASED * n:
+        return None
+    return set(released) | grow
+
+
+def _order_template_models(by_template, refit):
+    """Rank keys of the template models, {template rank: [trajectory results]}. Within a template the models are
+    ordered by the 3D score. A model whose fit onto the template atoms was rejected kept the shape of the
+    torsion-space search, which follows the template only loosely: with refit (template_fit_attempts > 1) such
+    models come after all models with an accepted fit, of every template."""
+    unfit = lambda r: int(refit and (r.get('template_fit') or {}).get('accepted') is False)
+    for t_rank, rs in by_template.items():
+        for pos, r in enumerate(sorted(rs, key=lambda r: (unfit(r), r['score_3d']))):
+            r['rank_key'] = (0, unfit(r), pos, t_rank, r['score_3d'])
+
+
+def _written_atom_names(interactions, mods):
+    """The interaction report of the search with the atom names the files carry (a residue written as a PDB chemical
+    component has that component's atom names, modifications.COMPONENTS)."""
+    from .modifications import written_names
+    names = written_names(mods)
+    if not names:
+        return interactions
+    out = []
+    for row in interactions:
+        row = dict(row)
+        own = names.get(row.get('residue'), {})
+        hb = []
+        for h in row.get('hbonds') or ():
+            res, _, atom = str(h.get('partner', '')).partition(':')
+            other = names.get(int(res), {}) if res.isdigit() else {}
+            hb.append({**h, 'atom': own.get(h.get('atom'), h.get('atom')), 'partner': f'{res}:{other.get(atom, atom)}'})
+        row['hbonds'] = hb
+        out.append(row)
+    return out
 
 
 def _run_trajectory(job):
@@ -188,7 +304,8 @@ def _run_trajectory(job):
     if hyp.get('motifs'):
         out['junction_motifs'] = hyp['motifs']
     try:
-        model = FoldModel(seq, hyp['pairs'], explicit_loops=True)
+        model = FoldModel(seq, hyp['pairs'], explicit_loops=True, modifications=cfg.get('modifications'),
+                          mod_pairs=hyp.get('mod_pairs') or (), z_pairs=hyp.get('z_pairs') or ())
         prior = TorsionPrior(model.geom)
         scorer = Scorer(model, weights, prior, restraints=hyp.get('restraints', ()),
                         pull_restraints=cfg.get('pull_restraints') or (),
@@ -270,6 +387,9 @@ def _run_trajectory(job):
                                                      sigma_start=6.0, sigma_end=2.0, clash_scale_start=25.0,
                                                      clash_scale_end=25.0, p_residue_jump=0.02, p_junction_aform=0.0))
             out['pull']['rms_relaxed_A'] = _r3(scorer.pull_deviation())
+        # stage 3c: modified nucleotides — local relaxation with their atoms in the contact scoring
+        if model.riders or model.pref_chi:
+            out['modification_relax'] = relax_modified(model, scorer, rng)
         # stage 4: exact closure from the refined state
         closures = []
         for L in order:
@@ -286,6 +406,8 @@ def _run_trajectory(job):
             out['time_s'] = round(time.time() - t0, 2)
             return out
         out['relief'] = final_relief(model, rng, prior)
+        if scorer.modint is not None:
+            out['modification_interactions'] = scorer.modint.report(scorer.base_centroids())
         residues = model.residues_atoms()
         ideal = residues                     # covalent geometry of the torsion model (ideal bonds and angles)
         val = validate_model(seq, residues, hyp['pairs'], model.geom)
@@ -295,14 +417,32 @@ def _run_trajectory(job):
             from .cartesian import refine_cartesian, template_targets
             targets = template_targets(seq, residues, {int(r): v for r, v in ta['atoms'].items()}, ta['names'],
                                        group={int(r): g for r, g in (ta.get('group') or {}).items()})
-            refined, fit = refine_cartesian(seq, residues, targets, geom=model.geom)
-            if fit is not None:
+            from .cartesian import regularize
+            first, released = None, set()
+            for attempt in range(max(1, int(cfg.get('template_fit_attempts', 4)))):
+                use = {k2: v for k2, v in targets.items() if k2[0] not in released} if released else targets
+                refined, fit = refine_cartesian(seq, residues, use, geom=model.geom)
+                if fit is None:
+                    break
                 # polish: ideal covalent geometry of the torsion model, shape of the refined model
-                from .cartesian import regularize
                 refined, pol = regularize(seq, refined, model.geom, reference=residues)
                 fit['polish_moved_rms_A'] = pol['atoms_moved_rms_A']
                 val2 = validate_model(seq, refined, hyp['pairs'], model.geom)
                 fit['accepted'] = bool(val2['passed'] or (not val['passed'] and len(val2['issues']) <= len(val['issues'])))
+                if released:
+                    fit['released_residues'] = len(released)
+                first = first or (refined, fit, val2)
+                if val2['passed']:
+                    first = (refined, fit, val2)
+                    break
+                # the template asks for a geometry the chain cannot take at these residues (typically next to a gap
+                # of the alignment): leave them and their neighbours to the covalent terms and fit the rest again
+                wider = _release_for_refit(val2['issues'], attempt, released, len(seq))
+                if wider is None:
+                    break
+                released = wider
+            if first is not None:
+                refined, fit, val2 = first      # the first fit that passes validation, else the fit onto all targets
                 if fit['accepted']:
                     residues, val = refined, val2
                 out['template_fit'] = fit
@@ -334,6 +474,9 @@ def _run_trajectory(job):
             'residues': [{a: [round(float(c), 3) for c in xyz] for a, xyz in r.items()} for r in residues],
             'model_summary': model.summary(),
         })
+        if model.modifications:
+            from .modifications import conformation_report
+            out['modification_conformations'] = conformation_report(seq, residues, model.modifications)
     except Exception as exc:          # never let one trajectory kill the run; record it
         out['status'] = 'error'
         out['reasons'] = [f'{type(exc).__name__}: {exc}']
@@ -515,8 +658,16 @@ def _allocate(hyps, n_traj, config):
 # ---------------------------------------------------------------------------- main entry
 def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = PredictConfig(), log=print):
     t_start = time.time()
+    from . import modifications as modmod
+    mods = list(config.modifications or ())
+    if modmod.has_notation(sequence):
+        sequence, parsed, problems = modmod.parse(sequence)
+        if problems:
+            raise ValueError('sequence: ' + '; '.join(problems))
+        mods = parsed + mods
     seq = normalize_sequence(sequence)
     n = len(seq)
+    mods = modmod.normalize(mods, seq)
     out = Path(out_dir)
     for sub in ('input', 'conformations', 'metadata', 'logs'):
         (out / sub).mkdir(parents=True, exist_ok=True)
@@ -533,10 +684,20 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
         warnings.append('sequence longer than the 200-nt design range; results are untested at this size')
     # -------------------------------------------------------------- 2D hypotheses
     if dbn is not None:
-        if len(dbn) != n:
-            raise ValueError('dot-bracket length differs from sequence length')
+        problem = check_dotbracket(dbn, n)
+        if problem:
+            raise ValueError(problem)
         pairs = [(i - 1, j - 1) for i, j in dotbracket_to_pairs(dbn)]
         canon = {'AU', 'UA', 'GC', 'CG', 'GU', 'UG'}
+        if mods:                      # pairs only a modification allows stay (as restraints); blocked bases are freed
+            _rigid, _special, _dropped = modmod.split_pairs(seq, pairs, mods)
+            blocked = modmod.blocked_positions(mods)
+            freed = [(i, j) for i, j in _dropped if i in blocked or j in blocked]
+            if freed:
+                warnings.append(f'{len(freed)} pairs of the user 2D involve a nucleotide whose modification blocks '
+                                f'Watson-Crick pairing; they were dropped: {[(i + 1, j + 1) for i, j in freed][:10]}')
+                pairs = [p for p in pairs if p not in set(freed)]
+            pairs = [p for p in pairs if p not in set(_special)]
         noncanon = [(i, j) for i, j in pairs if seq[i] + seq[j] not in canon]
         if noncanon:
             pairs = [p for p in pairs if p not in set(noncanon)]
@@ -556,7 +717,9 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
             import RNA
             md = RNA.md()
             md.temperature = config.temperature
-            hyps[0]['energy_kcal_mol'] = round(RNA.fold_compound(seq, md).eval_structure(hyps[0]['dbn']), 2)
+            fc_e = modmod.fold_compound(seq, mods, md)[0] if mods else RNA.fold_compound(seq, md)
+            ev_dbn = pairs_to_dotbracket(n, sorted(set(nested) | set(_special)), offset=0) if mods else hyps[0]['dbn']
+            hyps[0]['energy_kcal_mol'] = round(fc_e.eval_structure(ev_dbn), 2)
         except Exception:
             pass
     else:
@@ -566,7 +729,8 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
                 raise ValueError(f'probing data: {len(config.reactivities)} values for {n} nucleotides')
             hyps, ss_meta = predict_structures(seq, config.max_structures, config.temperature,
                                                reactivities=list(config.reactivities) or None,
-                                               alignment=list(config.alignment) or None)
+                                               alignment=list(config.alignment) or None,
+                                               modifications=mods or None)
         except RuntimeError:
             if not config.seed_structures:
                 raise
@@ -604,13 +768,78 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
                 hyps = [h for h in hyps if h.get('template')] + [dh] + [h for h in hyps if not h.get('template')]
                 for k2, h in enumerate(hyps, 1):
                     h['id'] = f'ss{k2}'
+    # -------------------------------------------------------------- modified nucleotides: pairs in 3D
+    mod_meta = None
+    if mods:
+        if dbn is not None and _special:
+            hyps[0]['pairs'] = sorted(set(hyps[0]['pairs']) | set(_special))
+        n_special = n_dropped = 0
+        for h in hyps:
+            rigid, special, dropped = modmod.split_pairs(seq, h['pairs'], mods)
+            h['pairs'] = rigid
+            if special:
+                h['modification_pairs'] = [(i + 1, j + 1) for i, j in special]
+                h['mod_restraints'] = modmod.special_pair_restraints(seq, rigid, special)
+            n_special += len(special)
+            n_dropped += len([p for p in dropped if p[0] in modmod.blocked_positions(mods) or p[1] in modmod.blocked_positions(mods)])
+        mod_meta = {'sites': [{**m, 'name': modmod.BY_CODE[m['code']]['name'], 'ccd': modmod.BY_CODE[m['code']]['ccd'],
+                               'parent': modmod.BY_CODE[m['code']]['parent']} for m in mods],
+                    'sequence': modmod.format_sequence(seq, mods), 'summary': modmod.summary(mods),
+                    'pairs_as_restraints': n_special, 'pairs_dropped_blocked': n_dropped,
+                    'method': '2D: ViennaRNA soft constraints (measured parameters where ViennaRNA has them, otherwise '
+                              'Turner 2004 stacks of a reference pair plus an estimated correction) and hard constraints '
+                              'for blocked Watson-Crick edges; 3D: modifications inside the search — sugar pucker '
+                              'and syn/anti preferences in the conformers drawn for non-helical residues and in the '
+                              'torsion prior, modification atoms placed from their parent groups and scored for '
+                              'contacts at every step, hydrogen bonds, the pseudouridine water bridge and the stacking '
+                              'change of the modification scored in the search (modinteract.py), a local relaxation '
+                              'around the modified residues, and pairs only '
+                              'a modification allows held by A-form distance restraints; helical residues keep the '
+                              "A-form C3'-endo sugar",
+                    'preferences': {'pucker': {str(r + 1): {'pucker': "C2'-endo" if v[0] == 'C2endo' else "C3'-endo",
+                                                            'weight': v[1]}
+                                               for r, v in modmod.sampling_preferences(mods)['pucker'].items()},
+                                    'glycosidic': {str(r + 1): {'mode': v[0], 'weight': v[1], 'preference_kT': v[2]}
+                                                   for r, v in modmod.sampling_preferences(mods)['chi'].items()}}}
+        say(f'modified nucleotides: {mod_meta["summary"]}')
+    # -------------------------------------------------------------- Z-RNA hypothesis (left-handed helix segment)
+    zrna_meta = {'mode': config.zrna}
+    if config.zrna != 'off' and hyps and not guided_run:
+        from . import zrna as zmod
+        zrna_meta.update({'salt_M': config.zrna_salt, 'binder': config.zrna_binder,
+                          'propose_below_kcal_mol': zmod.Z_PROPOSE_MAX})
+        found = []
+        for h in hyps:
+            for c in zmod.candidates(seq, h['pairs'], config.zrna_salt, mods, config.zrna_binder):
+                found.append((c['dG_kcal_mol'], h['id'], c, h))
+        found.sort(key=lambda x: x[0])
+        zrna_meta['candidates'] = [{'hypothesis': hid, 'pairs': [(i + 1, j + 1) for i, j in c['pairs']],
+                                    'dG_kcal_mol': dg, 'z_fraction_estimate': c['z_fraction_estimate']}
+                                   for dg, hid, c, _ in found[:5]]
+        if found and found[0][0] <= zmod.Z_PROPOSE_MAX:
+            dg, hid, c, h = found[0]
+            zh = zmod.hypothesis(seq, h, c)
+            zh['id'] = f'ss{len(hyps) + 1}'
+            hyps.append(zh)
+            zrna_meta['hypothesis'] = zh['id']
+            say(f"Z-RNA: {zh['id']} has pairs {zh['zrna']['pairs'][0]}..{zh['zrna']['pairs'][-1]} left-handed "
+                f"(estimated dG(A->Z) {dg:+.1f} kcal/mol)")
+        elif found:
+            zrna_meta['note'] = (f'best segment dG(A->Z) {found[0][0]:+.1f} kcal/mol is above '
+                                 f'{zmod.Z_PROPOSE_MAX} kcal/mol: no Z-RNA hypothesis')
+        else:
+            zrna_meta['note'] = 'no helix with >= 4 alternating purine-pyrimidine Watson-Crick pairs'
     say(f'{name}: {n} nt; {len(hyps)} secondary-structure hypotheses ({ss_meta.get("program")})')
     for h in hyps:
         say(f"  {h['id']} {h['dbn']} {h.get('energy_kcal_mol')} kcal/mol [{h['source']}]")
     # -------------------------------------------------------------- trajectories
     n_traj = config.trajectories or max(8, 4 * config.n_models)
-    alloc = _allocate(hyps, n_traj, config)
+    z_ids = [k2 for k2, h in enumerate(hyps) if h.get('z_pairs')]
+    alloc = _allocate([h for h in hyps if not h.get('z_pairs')], n_traj, config)
+    for k2 in z_ids:                                     # extra trajectories: the other hypotheses keep theirs
+        alloc.insert(k2, max(2, int(round(0.25 * n_traj))))
     cfg_dict = asdict(config)
+    cfg_dict['modifications'] = mods
     if config.alignment:                      # recorded in input/ and in the 2D method; not copied into every job
         cfg_dict['alignment'] = [f'{len(config.alignment)} aligned sequences']
     motif_mask, motif_cache, motif_meta = None, {}, {'mode': config.motifs, 'fragments': config.fragments}
@@ -625,7 +854,9 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
             hyp_job = {'id': h['id'], 'pairs': h['pairs'], 'restraints': h.get('restraints', []),
                        'distance_restraints': h.get('distance_restraints'), 'torsions': h.get('torsions'),
                        'template_atoms': h.get('template_atoms'),
-                       'template_coverage': (h.get('template') or {}).get('coverage')}
+                       'template_coverage': (h.get('template') or {}).get('coverage'),
+                       'mod_pairs': [(i - 1, j - 1) for i, j in h.get('modification_pairs', ())],
+                       'z_pairs': h.get('z_pairs') or []}
             if motif_mask is not None and not h.get('template'):
                 from .motifs import junction_restraints
                 tors = {} if config.fragments != 'off' else None
@@ -648,6 +879,9 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
                 if dr['i']:
                     hyp_job['distance_restraints'] = dr
                     hyp_job['motifs'] = used
+            if h.get('mod_restraints'):
+                from .fragments import merge_restraints
+                hyp_job['distance_restraints'] = merge_restraints(hyp_job.get('distance_restraints'), h['mod_restraints'])
             jobs.append({'sequence': seq, 'hypothesis': hyp_job, 'index': k, 'seed': config.seed, 'config': cfg_dict})
             k += 1
     say(f'running {len(jobs)} trajectories on {config.workers} worker(s)')
@@ -659,7 +893,8 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
         method = os.environ.get('RNAFOLD3D_MP_START') or ('fork' if sys.platform.startswith('linux') else 'spawn')
         ctx = mp.get_context(method)
         results = []
-        with ctx.Pool(config.workers) as pool:
+        # leaving the block for any reason (finished, error, Ctrl+C, a stop signal) terminates the workers
+        with _StopOnSignal(), ctx.Pool(config.workers, initializer=_worker_init) as pool:
             for r in pool.imap_unordered(run_trajectory, jobs):
                 results.append(r)
                 say(f'  progress {len(results)}/{len(jobs)} trajectories finished')
@@ -697,15 +932,29 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
         r['_residues'] = [{a: np.array(xyz) for a, xyz in res.items()} for res in r['residues']]
         r['_c4'] = _c4(r['_residues'])
         valid.append(r)
+    # Z-RNA hypotheses: the 3D score is calibrated on right-handed helices and scores a left-handed stem tens of
+    # units worse, whatever its free energy. The estimated dG(A->Z) is already in the 2D energy of the hypothesis
+    # (ss_offset_kT). What the 3D score adds for the helix form alone is taken out by setting the best Z model level
+    # with the best model of the hypothesis it was derived from: the Z model then ranks first exactly when the
+    # estimate favours Z (dG < 0) and next to the first models when Z is a minor form, instead of always last.
+    for h in hyps:
+        zs = [r for r in valid if r['ss_id'] == h['id']] if h.get('z_pairs') else []
+        ref = [r for r in valid if r['ss_id'] == h.get('parent') and r['rank_key'][0] == 1] or \
+              [r for r in valid if r['rank_key'][0] == 1 and not hyp_by_id[r['ss_id']].get('z_pairs')]
+        if zs and ref:
+            shift = (min(r['total_score'] - r['ss_offset_kT'] for r in zs)
+                     - min(r['total_score'] - r['ss_offset_kT'] for r in ref))
+            for r in zs:
+                r['helix_form_score_excluded'] = round(shift, 3)
+                r['total_score'] = r['total_score'] - shift
+                r['rank_key'] = (1, 0, r['total_score'])
     # template models: the best model of every template first (templates in rank order), then the second-best of
     # each, so that the exported models cover the different templates instead of one template several times
     by_template = {}
     for r in valid:
         if r['rank_key'][0] == 0:
             by_template.setdefault(r['rank_key'][1], []).append(r)
-    for t_rank, rs in by_template.items():
-        for pos, r in enumerate(sorted(rs, key=lambda r: r['score_3d'])):
-            r['rank_key'] = (0, pos, t_rank, r['score_3d'])
+    _order_template_models(by_template, config.template_fit_attempts > 1)
     rg0 = config.weights.rg_coefficient * n ** (1 / 3)
     threshold = config.cluster_rmsd or float(np.clip(0.15 * rg0, 2.0, 6.0))
     reps = select_diverse(valid, config.n_models, threshold) if valid else []
@@ -714,6 +963,8 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
                         f'{len(valid)} of {len(results)} trajectories produced valid models')
     # -------------------------------------------------------------- write
     (out / 'input' / 'sequence.fasta').write_text(f'>{name}\n{seq}\n')
+    if mods:
+        (out / 'input' / 'sequence_modified.txt').write_text(f'>{name}\n{mod_meta["sequence"]}\n')
     with (out / 'input' / 'secondary_structures.dbn').open('w', encoding='utf-8') as f:
         for h in hyps:
             f.write(f">{name}|{h['id']}|{h['source']}|{h.get('energy_kcal_mol')}\n{seq}\n{h['dbn']}\n")
@@ -726,9 +977,24 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
                    f'SECONDARY STRUCTURE {h["id"]} ({h["source"]}) {h.get("energy_kcal_mol")} KCAL/MOL',
                    f'MODEL SCORE {r["total_score"]:.2f} (ARBITRARY UNITS, NOT A FREE ENERGY)',
                    'PHYSICS-INSPIRED PREDICTION; NOT AN EXPERIMENTAL STRUCTURE']
-        write_pdb(out / 'conformations' / f'{cid}.pdb', r['_residues'], seq, remarks=remarks)
-        write_mmcif(out / 'conformations' / f'{cid}.cif', r['_residues'], seq, entry_id=cid.upper(),
-                    title=f'{name} {cid} predicted by {ENGINE} {ENGINE_VERSION}')
+        residues_out, comps, mod_report = r['_residues'], None, None
+        if mods:
+            residues_out, comps, mod_report = modmod.decorate(seq, r['_residues'], mods,
+                                                              list(h['pairs']) + [(i - 1, j - 1) for i, j in h.get('modification_pairs', ())],
+                                                              sampled=True)
+            mod_report['conformations'] = r.get('modification_conformations') or []
+            if r.get('modification_relax'):
+                mod_report['relaxation'] = r['modification_relax']
+            if r.get('modification_interactions'):
+                mod_report['interactions'] = _written_atom_names(r['modification_interactions'], mods)
+            remarks.append(f'MODIFIED NUCLEOTIDES {mod_meta["summary"]}'[:69])
+        from .zrna import detect as _zdetect
+        z_regions = _zdetect(seq, r['_residues'], h['pairs'])
+        if z_regions:
+            remarks.append(f"Z-RNA (LEFT-HANDED) PAIRS {z_regions[0]['pairs'][0]}..{z_regions[0]['pairs'][-1]}"[:69])
+        write_pdb(out / 'conformations' / f'{cid}.pdb', residues_out, seq, remarks=remarks, comps=comps)
+        write_mmcif(out / 'conformations' / f'{cid}.cif', residues_out, seq, entry_id=cid.upper(),
+                    title=f'{name} {cid} predicted by {ENGINE} {ENGINE_VERSION}', comps=comps)
         cluster_size = sum(1 for c in valid if c['cluster'] == rank)
         conformers.append({
             'id': cid, 'rank': rank, 'files': {'pdb': f'conformations/{cid}.pdb', 'mmcif': f'conformations/{cid}.cif'},
@@ -738,6 +1004,8 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
             **({'junction_motifs': r['junction_motifs'], 'motif_restraints': r.get('template_restraints'),
                 'guide_energy_excluded': r.get('guide_energy_excluded', 0.0)} if r.get('junction_motifs') else {}),
             'ss_free_energy_kcal_mol': h.get('energy_kcal_mol'),
+            **({'helix_form_score_excluded': r['helix_form_score_excluded'],
+                'z_fraction_estimate': h['zrna'].get('z_fraction_estimate')} if 'helix_form_score_excluded' in r else {}),
             'total_score': round(r['total_score'], 3), 'score_3d': r['score_3d'], 'ss_offset_kT': r['ss_offset_kT'],
             'score_terms': r['score_terms'], 'trajectory': r['trajectory'], 'seed': r['seed'],
             'cluster_id': rank, 'cluster_size': cluster_size,
@@ -746,6 +1014,8 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
                            'sugar_puckers', 'pair_recovery', 'restraint_pair_recovery')},
             'loop_closures': r['closures'],
             **({'pull': r['pull']} if r.get('pull') else {}),
+            **({'modifications_3d': mod_report} if mod_report else {}),
+            'zrna_regions': z_regions,
         })
     if config.save_candidates:
         cdir = out / 'candidates'
@@ -786,9 +1056,10 @@ def predict(sequence, out_dir, name='query', dbn=None, config: PredictConfig = P
         'input': {'name': name, 'sequence': seq, 'length': n, 'sha256': hashlib.sha256(seq.encode()).hexdigest(),
                   'secondary_structure_mode': 'user' if dbn is not None else 'predicted_from_sequence',
                   'secondary_structure_method': ss_meta,
-                  'secondary_structures': [{k2: v for k2, v in h.items() if k2 not in ('pairs', 'restraints', 'distance_restraints', 'torsions')}
+                  'secondary_structures': [{k2: v for k2, v in h.items() if k2 not in ('pairs', 'restraints', 'distance_restraints', 'torsions', 'mod_restraints')}
                                            for h in hyps],
-                  'templates': {**template_meta, 'hits': template_hits}, 'junction_motifs': motif_meta, 'domains': domain_meta},
+                  'templates': {**template_meta, 'hits': template_hits}, 'junction_motifs': motif_meta, 'domains': domain_meta,
+                  **({'modifications': mod_meta} if mod_meta else {}), 'zrna': zrna_meta},
         'parameters': {**{k2: v for k2, v in cfg_dict.items() if k2 != 'weights'}, 'weights': cfg_dict['weights'],
                        'trajectories_run': len(jobs), 'trajectory_allocation': dict(zip([h['id'] for h in hyps], alloc)),
                        'cluster_rmsd_threshold': round(threshold, 3), 'ionic_conditions': 'implicit; Debye length 10 A '

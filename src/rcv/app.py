@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import glob
 import json
+import re
 import multiprocessing
 import os
 import sys
@@ -156,10 +157,45 @@ def _extract(argv):
         return 0
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
+    used = set()
     for k, c in enumerate(doc['conformations']):
-        f = out / f"{c['id']}.pdb"
+        # the name comes from the file: only letters, digits, _ . - are kept, so a name such as ../../x cannot leave
+        # the chosen folder (the window's Extract tool does the same)
+        stem = re.sub(r'[^A-Za-z0-9_.-]+', '_', str(c.get('id') or '')).strip('._') or f'conformation_{k + 1}'
+        while stem.lower() in used:
+            stem += f'_{k + 1}'
+        used.add(stem.lower())
+        f = out / f'{stem}.pdb'
         f.write_text(rcvfile.pdb_text(doc, k))
         print(f)
+    return 0
+
+
+def _ss(argv):
+    ap = argparse.ArgumentParser(prog='rcv ss', description='Write the sequence and the 2D structure of the conformations '
+                                 'of an ensemble as dot-bracket (ViennaRNA form), CT or BPSEQ text.')
+    ap.add_argument('paths', nargs='+', help='an .rcv file, or structures / a prediction folder')
+    ap.add_argument('-o', '--out', help='output file (default: print)')
+    ap.add_argument('--format', choices=['dbn', 'ct', 'bpseq'], help='default: from the file name, else dbn')
+    ap.add_argument('--which', choices=['distinct', 'all'], default='distinct',
+                    help='distinct: every different 2D structure once (default); all: one record per conformation')
+    ap.add_argument('--conformation', type=int, metavar='N', help='only conformation N (1 = first)')
+    ap.add_argument('--chain')
+    a = ap.parse_args(argv)
+    from . import rcvfile, ss2dexport
+    from .data import load_document
+    paths = expand_paths(a.paths)
+    if len(paths) == 1 and str(paths[0]).lower().endswith('.rcv'):
+        doc = rcvfile.read(paths[0])[0]
+    else:
+        doc = load_document(paths, a.chain)
+    fmt = a.format or next((f for f in ss2dexport.FORMATS if a.out and a.out.lower().endswith('.' + f)), 'dbn')
+    out = ss2dexport.text(doc, fmt, 'current' if a.conformation else a.which, (a.conformation or 1) - 1)
+    if a.out:
+        Path(a.out).write_text(out, encoding='utf-8')
+        print(a.out)
+    else:
+        sys.stdout.write(out)
     return 0
 
 
@@ -181,15 +217,32 @@ def _batch(argv):
     job = BatchJob(state, {'fasta': Path(a.fasta).read_text(encoding='utf-8'), 'models': a.models,
                            'sampling': a.sampling, 'cores': a.cores, 'seed': a.seed})
     seen = 0
-    job.start()
-    while True:
-        time.sleep(1.0)
-        info = job.info()
-        for n in info['notes'][seen:]:
+
+    def report():
+        nonlocal seen
+        notes, seen = job.notes_from(seen)           # every note once (info() carries only the newest 60)
+        for n in notes:
             print(f"[{n['t']:7.0f}s] {n['text']}", flush=True)
-        seen = len(info['notes'])
-        if info['status'] in ('done', 'failed', 'cancelled'):
-            break
+
+    job.start()
+    try:
+        while True:
+            time.sleep(1.0)
+            info = job.info()
+            report()
+            if info['status'] in ('done', 'failed', 'cancelled'):
+                break
+    except KeyboardInterrupt:                        # Ctrl+C: stop the running prediction and its workers, then leave
+        print('Stopping the running prediction…', file=sys.stderr, flush=True)
+        job.cancel()
+        end = time.time() + 30
+        while job.info()['status'] not in ('done', 'failed', 'cancelled') and time.time() < end:
+            time.sleep(0.2)
+        report()
+        info = job.info()
+        print(json.dumps({'status': 'cancelled' if info['status'] != 'done' else 'done', 'out': job.result['out'],
+                          'items': [{k: it.get(k) for k in ('name', 'status', 'n_conformations', 'rcv')} for it in job.items]}))
+        return 130
     print(json.dumps({'status': info['status'], 'out': job.result['out'],
                       'items': [{k: it.get(k) for k in ('name', 'status', 'n_conformations', 'rcv')} for it in job.items]}))
     return 0 if info['status'] == 'done' else 1
@@ -441,6 +494,19 @@ def _open_group(state, group, chain):
         try_open(files)
 
 
+# An app window says goodbye when it is closed (/api/bye). A browser that crashed or was killed cannot, and RCV
+# would stay in the background for good. The window sends a sign of life every 45 s (/api/ping): without any request
+# for this long, and with no computation running, the window is taken for gone.
+IDLE_QUIT_S = 600
+
+
+def window_gone(state, now=None, idle=IDLE_QUIT_S):
+    now = time.time() if now is None else now
+    if now - state.last_seen < idle:
+        return False
+    return not any(j.status in ('queued', 'running') for j in list(state.jobs.values()))
+
+
 def run(a, ready=None):
     from .desktop import open_external, run_webview, webview_available
     from .server import make_server
@@ -476,10 +542,19 @@ def run(a, ready=None):
         if used != 'none':
             print('opened in an app window' if used == 'window' else 'opened in the default browser', flush=True)
             print('Close the window (or press Ctrl+C here) to quit.', flush=True)
+        tick = time.time()
         while True:
             time.sleep(0.5)
-            if (used != 'none' and not a.keep_running and state.closing_at and time.time() > state.closing_at):
+            now = time.time()
+            if now - tick > 10:                  # the computer was asleep: give the window time to report back
+                state.last_seen = now
+            tick = now
+            if (used != 'none' and not a.keep_running and state.closing_at and now > state.closing_at):
                 print('window closed; quitting', flush=True)
+                return 0
+            if used == 'window' and not a.keep_running and window_gone(state, now):
+                print(f'no sign of the window for {IDLE_QUIT_S // 60} minutes and no computation running; quitting',
+                      flush=True)
                 return 0
     except KeyboardInterrupt:
         print(f'\nstopping {APP_NAME}', flush=True)
@@ -512,7 +587,7 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == 'engine':
         return _engine(argv[1:])
-    sub = {'export-document': _export_document, 'convert': _convert, 'info': _info, 'extract': _extract,
+    sub = {'export-document': _export_document, 'convert': _convert, 'info': _info, 'extract': _extract, 'ss': _ss,
            'batch': _batch, 'html': _html, 'pathway': _pathway, 'probing': _probing, 'confidence': _confidence}
     if argv and argv[0] in sub:
         return _run_tool(argv[0], sub[argv[0]], argv[1:])

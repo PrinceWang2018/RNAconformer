@@ -95,9 +95,26 @@ export const SCHEMES = [
   { id: 'flexibility', label: 'Flexibility (RMSF)' },
   { id: 'displacement', label: 'Displacement from previous' },
   { id: 'position', label: 'Position 5′→3′' },
+  { id: 'modified', label: 'Modified nucleotides' },
   { id: 'nucleotide-classic', label: 'Nucleotide (classic, U red)' },
   { id: 'uniform', label: 'Uniform' },
 ];
+
+// Modified nucleotides (0.7.6) by kind; the same colours mark them in the start page's modification editor.
+export const MOD_CATEGORIES = [
+  ['methyl', 'Methylation', '#2a78d6'], ['isomer', 'Pseudouridine, dihydrouridine', '#1baf7a'], ['editing', 'Editing (A-to-I, C-to-U)', '#eb6834'],
+  ['damage', 'Damage (8-oxo-G …)', '#e34948'], ['thio', 'Thio and halogen', '#eda100'], ['hyper', 'Hypermodified', '#6250d6'],
+  ['sugar', 'Sugar / backbone (Nm, 2′-F, LNA, DNA, PS)', '#e87ba4'], ['analog', 'Base analogue', '#008300'], ['other', 'Other modified residue', '#8f8d86'],
+];
+const MOD_COLOR = Object.fromEntries(MOD_CATEGORIES.map(([k, , c]) => [k, c]));
+function modCategoryOf(ens) {
+  if (ens._modCats) return ens._modCats;
+  const out = new Array(ens.nRes).fill(null);
+  for (const m of ens.doc.modifications || []) {
+    if (m.index >= 0 && m.index < out.length && (out[m.index] === null || m.kind !== 'backbone')) out[m.index] = m.category || 'other';
+  }
+  return (ens._modCats = out);
+}
 
 const custom = new Map();     // plugin-registered schemes
 export function registerScheme(def) {
@@ -164,6 +181,11 @@ export function residueColors(ens, scheme, ctx) {
     case 'position':
       for (let i = 0; i < n; i++) out[i] = sampleRamp(VIRIDIS, n > 1 ? i / (n - 1) : 0);
       return out;
+    case 'modified': {
+      const c = modCategoryOf(ens);
+      for (let i = 0; i < n; i++) out[i] = c[i] ? MOD_COLOR[c[i]] || MOD_COLOR.other : LOOP;
+      return out;
+    }
     default:
       out.fill(ctx.uniform || '#5b7a99');
       return out;
@@ -211,6 +233,13 @@ export function legend(ens, scheme, ctx) {
       return { title: 'Displacement from previous conformation', ramp: ORANGE_RAMP, min: '0 Å', max: `${(ctx.displacementMax || 2).toFixed(1)} Å` };
     case 'position':
       return { title: 'Sequence position', ramp: VIRIDIS, min: '5′', max: '3′' };
+    case 'modified': {
+      const c = modCategoryOf(ens);
+      const used = new Set(c.filter(Boolean));
+      const items = MOD_CATEGORIES.filter(([k]) => used.has(k)).map(([, label, color]) => ({ color, label }));
+      items.push({ color: LOOP, label: used.size ? 'Unmodified' : 'No modified nucleotides' });
+      return { title: 'Modified nucleotides', items };
+    }
     default:
       return { title: 'Uniform', items: [{ color: ctx.uniform || '#5b7a99', label: ens.name }] };
   }

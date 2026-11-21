@@ -45,9 +45,11 @@ def _pair_score(ri, rj):
         return False, None, None
     a, b = (rj, ri) if swap else (ri, rj)
     dists = []
-    for x, y in HBONDS[key]:
+    for k, (x, y) in enumerate(HBONDS[key]):
         if x not in a.atoms or y not in b.atoms:
-            return False, None, None
+            if k == 0 or len(HBONDS[key]) < 3:      # the central bond and both bonds of a two-bond pair are needed;
+                return False, None, None             # a G-C pair without N2 (inosine-C) keeps its other two
+            continue
         dists.append(float(np.linalg.norm(a.atoms[x] - b.atoms[y])))
     if dists[0] > 3.5:                       # central N1-N3 / N1-O2 bond is mandatory
         return False, None, None
@@ -67,6 +69,19 @@ def _pair_score(ri, rj):
     return True, ''.join(sorted((ri.base, rj.base))), float(np.mean(dists))
 
 
+def chain_breaks(residues):
+    """Indices k (residue .index) after which the backbone is broken: O3'(k)-P(k+1) longer than 2.5 A, e.g. between
+    the two strands of a duplex shown as one chain. Residues without these atoms count as connected."""
+    by_index = {r.index: r for r in residues}
+    out = set()
+    for r in residues:
+        nxt = by_index.get(r.index + 1)
+        if nxt is not None and "O3'" in r.atoms and 'P' in nxt.atoms and \
+                float(np.linalg.norm(np.asarray(r.atoms["O3'"]) - np.asarray(nxt.atoms['P']))) > 2.5:
+            out.add(r.index)
+    return out
+
+
 def canonical_pairs(residues):
     """Annotate canonical pairs; residues are objects with .index, .base, .atoms.
 
@@ -74,12 +89,16 @@ def canonical_pairs(residues):
     residue in at most one pair (conflicts resolved by shortest mean H-bond).
     """
     res = [r for r in residues if r.base in 'ACGU']
+    # chain breaks (O3'-P not bonded, e.g. two strands of a duplex shown as one chain): residues on either side of a
+    # break may pair however close their indices are
+    breaks = chain_breaks(residues)
     # Pre-filter with C1' distances when available (fast for 200 nt).
     cands = []
     for a in range(len(res)):
         for b in range(a + 1, len(res)):
             ri, rj = res[a], res[b]
-            if abs(ri.index - rj.index) < 4:
+            lo, hi = min(ri.index, rj.index), max(ri.index, rj.index)
+            if hi - lo < 4 and not any(k in breaks for k in range(lo, hi)):
                 continue
             if "C1'" in ri.atoms and "C1'" in rj.atoms:
                 if np.linalg.norm(ri.atoms["C1'"] - rj.atoms["C1'"]) > 12.5:
@@ -168,6 +187,34 @@ def pairs_to_dotbracket(n, pairs, offset=1):
         chars[i - offset] = brackets[lvl][0]
         chars[j - offset] = brackets[lvl][1]
     return ''.join(chars)
+
+
+def check_dotbracket(structure, n=None):
+    """Why a dot-bracket string cannot be used, in words (positions count from 1), or None when it is fine:
+    wrong length, a character that is not a bracket or a dot, a bracket without partner, or a pair that closes a
+    hairpin loop of fewer than 3 nucleotides."""
+    s = str(structure)
+    if n is not None and len(s) != n:
+        return f'the dot-bracket has {len(s)} characters but the sequence has {n} nt'
+    close = {')': '(', ']': '[', '}': '{', '>': '<'}
+    stacks = {o: [] for o in '([{<'}
+    for k, ch in enumerate(s, 1):
+        if ch in stacks:
+            stacks[ch].append(k)
+        elif ch in close:
+            if not stacks[close[ch]]:
+                return f'the dot-bracket is not balanced: "{ch}" at position {k} has no opening "{close[ch]}"'
+            i = stacks[close[ch]].pop()
+            if k - i < 4:
+                return (f'the pair {i}-{k} of the dot-bracket closes a hairpin loop of {k - i - 1} nt; a hairpin loop '
+                        'needs at least 3 unpaired nucleotides')
+        elif ch not in '.-_,:':
+            return (f'the dot-bracket has the character "{ch}" at position {k}; use . for unpaired nucleotides and '
+                    '( ) [ ] { } < > for base pairs')
+    left = sorted((st[-1], o) for o, st in stacks.items() if st)
+    if left:
+        return f'the dot-bracket is not balanced: "{left[0][1]}" at position {left[0][0]} is never closed'
+    return None
 
 
 def dotbracket_to_pairs(structure, offset=1):

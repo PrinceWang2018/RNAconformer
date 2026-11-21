@@ -16,7 +16,7 @@ const TABS = { energy: 'energy', energies: 'energy', switch: 'switch', switching
   transition: 'pathway', details: 'details', detail: 'details' };
 // colour schemes by the words people use for them
 const SCHEME_WORDS = [
-  [/flexib|rmsf|mobil|motion|dynamic/, 'flexibility'], [/switch/, 'switching'], [/frequen|ensemble pair/, 'pairfreq'],
+  [/modif|methyl|pseudouridin|inosin|edit|oxo/, 'modified'], [/flexib|rmsf|mobil|motion|dynamic/, 'flexibility'], [/switch/, 'switching'], [/frequen|ensemble pair/, 'pairfreq'],
   [/pair/, 'pairing'], [/helix|helices|stem/, 'helix'], [/element|secondary|loop/, 'elements'],
   [/displace|moved|movement|change/, 'displacement'], [/position|rainbow|5.?\s*(to|->)\s*3|order/, 'position'],
   [/classic/, 'nucleotide-classic'], [/nucleotide|base|sequence|residue type|type/, 'nucleotide'], [/uniform|single|one colou?r|plain/, 'uniform'],

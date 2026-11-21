@@ -87,6 +87,7 @@ export async function composeFigure(app, o) {
   const ctx = r.canvas.getContext('2d');
   if (o.labels) drawLabels(ctx, app, r, o.background);
   drawOverlayPrims(ctx, app, r);
+  if (o.annotations !== false) app.zrna?.drawTo(ctx, r.project, o.width, o.height, Math.max(0.25, r.scale));
   if (o.annotations !== false) app.annotations?.drawTo(ctx, r.project, o.width, o.height, Math.max(0.25, r.scale));
   if (o.legend) {
     const lg = app.legendData();

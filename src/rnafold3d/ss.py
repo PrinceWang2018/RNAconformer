@@ -123,12 +123,14 @@ def alignment_consensus(sequence, alignment, temperature=37.0):
 
 
 def predict_structures(sequence, max_structures=3, temperature=37.0, no_lonely_pairs=True,
-                       max_delta=4.0, min_distance=None, reactivities=None, alignment=None):
+                       max_delta=4.0, min_distance=None, reactivities=None, alignment=None, modifications=None):
     """Return a list of hypotheses [{id, dbn, pairs (0-based), energy, source, ...}] (MFE first).
 
     reactivities: SHAPE-like values per nucleotide (None = missing); they enter the folding as pseudo-energies
     (Deigan et al. 2009), so the hypotheses agree with the experiment. alignment: aligned homologs (query
-    first); the covariation-supported consensus structure becomes the first hypothesis."""
+    first); the covariation-supported consensus structure becomes the first hypothesis. modifications:
+    [{'pos', 'code'}] (modifications.py): their nearest-neighbour parameters, extra partners and blocked
+    Watson-Crick edges enter the folding as soft and hard constraints."""
     try:
         import RNA
     except ImportError as exc:
@@ -138,12 +140,20 @@ def predict_structures(sequence, max_structures=3, temperature=37.0, no_lonely_p
     md = RNA.md()
     md.noLP = 1 if no_lonely_pairs else 0
     md.temperature = float(temperature)
-    fc = RNA.fold_compound(sequence, md)
+    mods = list(modifications or ())
+    if mods:
+        from .modifications import fold_compound as mod_fold_compound
+        fc, mod_info = mod_fold_compound(sequence, mods, md)
+    else:
+        fc, mod_info = RNA.fold_compound(sequence, md), None
     probing = reactivities is not None and len(reactivities) == len(sequence)
     if probing:
         fc.sc_add_SHAPE_deigan([-999.0] + [(-999.0 if v is None else max(0.0, float(v))) for v in reactivities],
                                SHAPE_SLOPE, SHAPE_INTERCEPT)
-    plain = RNA.fold_compound(sequence, md, RNA.OPTION_EVAL_ONLY) if probing else None
+    if probing and mods:
+        plain = mod_fold_compound(sequence, mods, md, RNA.OPTION_EVAL_ONLY)[0]
+    else:
+        plain = RNA.fold_compound(sequence, md, RNA.OPTION_EVAL_ONLY) if probing else None
 
     def energies(s, e):
         """Turner free energy; with probing data also the energy that includes the pseudo-energies (ranking)."""
@@ -180,6 +190,9 @@ def predict_structures(sequence, max_structures=3, temperature=37.0, no_lonely_p
     if probing:
         meta['probing'] = {'nucleotides_with_data': sum(v is not None for v in reactivities),
                            'method': f'pseudo-energies, slope {SHAPE_SLOPE} intercept {SHAPE_INTERCEPT} kcal/mol (Deigan et al. 2009)'}
+    if mod_info is not None:
+        meta['modifications'] = {k: v for k, v in mod_info.items() if v}
+        meta['energy_parameters'] += ' with modified-nucleotide parameters (ViennaRNA soft constraints)'
     if alignment:
         cons, _pairs = alignment_consensus(sequence, alignment, temperature)
         meta['alignment'] = {'sequences': len(alignment), 'columns': len(alignment[0]), 'consensus_pairs': cons.count('(')}

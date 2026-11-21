@@ -14,6 +14,7 @@ from . import __version__
 from . import paths as P
 
 MODULES = ['js/lite.js', 'js/viewer/viewer.js', 'js/viewer/controls.js', 'js/viewer/post.js', 'js/viewer/geometry.js',
+           'js/viewer/context.js',
            'js/colors.js', 'js/util.js', 'js/ensemble.js', 'js/ss2dlayout.js', 'js/landscape.js', 'js/mechmorph.js',
            'vendor/three/three.module.min.js']
 

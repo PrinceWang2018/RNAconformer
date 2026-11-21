@@ -229,8 +229,13 @@ export async function pull(app, w, log, sleep) {
   const id = [...app.ensembles.keys()].find(i => /prediction|sequence/i.test(app.ensembles.get(i).name));
   app.selectEnsemble(id);
   app.setColorScheme('helix');
+  const pb = app.tools.pullBtn;
+  if (!pb.classList.contains('feature')) throw new Error('Pull button not featured');
+  const tryBefore = pb.classList.contains('try');
   app.togglePull();
   await sleep(300);
+  if (!pb.classList.contains('on') || pb.classList.contains('try') || !app.prefs.pullTried) throw new Error('Pull button state after first use');
+  log(`pull button: featured, try dot ${tryBefore ? 'shown then cleared' : 'already cleared'}`);
   const ens = app.ens, start = app.state.conf, r = 16, a = ens.trace[r];
   const k = app.order.find(j => j !== start && ens.rmsd[start][j] > 4) ?? app.order[1];
   const hud = await dragResidue(app, w, sleep, r, k);
@@ -931,6 +936,201 @@ export async function lang1(app, w, log, sleep) {
   log(report.join(' || '));
 }
 
+// Notes of a run as the server writes them (rcv/jobs.py): keep = data inside the text, lead = the name of a batch
+// sequence. Used by langstart (every note must be translated) and langnotes (screenshot).
+function sampleNotes() {
+  const out = '/home/some user/RCV predictions/my rna_1', title = "BtCoV-HKU5 5' proximal stem-loop 5, conformation 4";
+  const note = (text, more = {}) => ({ t: 3, level: 'info', text, ...more });
+  return [
+    note(`Prediction of 76 nt started on this computer with 4 CPU cores; results are saved in ${out}.`, { keep: [out] }),
+    note('Modified nucleotides: m6A ×1, Ψ ×1. Their pairing parameters enter the 2D structures; their atoms are placed on the 3D models.', { keep: ['m6A ×1, Ψ ×1'] }),
+    note('Z-RNA prediction is on: a left-handed helix hypothesis is added when the estimate allows it (150 mM Na+, Z-binding protein).'),
+    note('The 2D structures use your probing data (pseudo-energies).'),
+    note('3 related experimental structures found in the built-in library (released before 2024-05-01) in 1.4 s.'),
+    note('No related experimental structure in the built-in library: physics-only modelling in 0.9 s.'),
+    note(`Template 8UYJ_A (${title}): sequence identity 100%, covers 100% of the sequence, E-value 6.2e-55.`, { keep: [title] }),
+    note('6 secondary-structure hypotheses from ViennaRNA.'),
+    note('1 secondary-structure hypothesis from user-supplied.'),
+    note('ss1 (from experimental structure 8UYJ_A, ΔG -36.1 kcal/mol): (((((....)))))'),
+    note('ss2 (minimum free energy, ΔG -16.5 kcal/mol): ((((......))))'),
+    note('ss3 (your input): ((((......))))'),
+    note('ss4 (minimum free energy with probing data, ΔG -17.2 kcal/mol): ((((......))))'),
+    note('ss5 (consensus of your alignment, ΔG -15.9 kcal/mol): ((((......))))'),
+    note('ss6 (with a pseudoknot, ΔG -14.0 kcal/mol): (([[....)).]]'),
+    note('ss7 (Z-RNA form of ss2 (minimum free energy), ΔG -9.5 kcal/mol): ((((......))))'),
+    note('Sampling 32 independent trajectories on 4 CPU cores.'),
+    note('Trajectory 3 (ss1) rejected by validation: loop closure failed.', { level: 'warning', keep: ['loop closure failed'] }),
+    note('only 3 distinct valid conformers (requested 5); 12 of 32 trajectories produced valid models', { level: 'warning' }),
+    note('30 of 32 trajectories passed all-atom validation; 5 structurally distinct conformations kept.'),
+    note('Saved my_rna.rcv (1.25 MB): all conformations, energies and 2D structures in one file.', { keep: ['my_rna.rcv'] }),
+    note('Pulling residue(s) 12, 30 relative to anchors 3, 20, 44 (largest displacement 14.2 Å): 6 temporary distance restraints.'),
+    note('2 new conformation(s) added to the ensemble: P1, P2.'),
+    note(`Batch of 3 sequences started; each prediction uses 4 CPU cores. Results are saved in ${out}.`, { keep: [out] }),
+    note('trna_1: 30 of 32 trajectories passed all-atom validation; 5 structurally distinct conformations kept.', { lead: 'trna_1: ' }),
+    note('trna_1: 5 conformations in 118 s.', { lead: 'trna_1: ' }),
+    note('third failed: none of the trajectories gave a model that passed the all-atom validation, so there is no conformation to show. Run it again with more sampling (Advanced settings ▸ Sampling ▸ Thorough) or another random seed, or give a known secondary structure', { level: 'error', lead: 'third ' }),
+    note('Batch finished: 2 of 3 sequences predicted. Choose one to open in the viewer; the others stay in the batch folder.'),
+    note(`AlphaFold 3 started for 76 nt (2 seeds, 5 samples each, no MSA search); output in ${out}/af3_output.`, { keep: [`${out}/af3_output`] }),
+    note('10 AlphaFold 3 models opened (best ranking score first); colour by Confidence to see the pLDDT.'),
+    note('Cancelled by the user.', { level: 'warning' }),
+  ];
+}
+
+// Start page and variants table in another language: the lines that change while typing and while a prediction
+// runs (status, estimate, progress card with its notes, batch list and results, jobs dock) must not stay English. In
+// the notes, file paths, titles of structures and names stay as they are. Made-up jobs are drawn directly; nothing is
+// computed.
+export async function langstart(app, w, log, sleep) {
+  const D = w.document, W = app.welcome, I = app.i18n;
+  // the variants table of the Switch tab, prepared in English (one entry cannot be read, one is outside the sequence)
+  app.selectEnsemble(byName(app, /1EHZ|tRNA/i));
+  app.showTab('switch');
+  if (!await waitFor(sleep, () => app.switchPanel.result?.scan)) throw new Error('switch analysis did not load');
+  const body = app.tabBody('switch');
+  const va = await openAdv(w, sleep, body, 'Variants');
+  const input = va().querySelector('input');
+  input.value = 'G1C, G10A+C25U, A999G, hello, G1G';
+  input.dispatchEvent(new w.Event('input'));
+  clickBtn(va(), /Analyse/);
+  if (!await waitFor(sleep, () => va()?.querySelectorAll('table tbody tr').length === 2)) throw new Error('variants: ' + va()?.textContent.slice(0, 300));
+  const variants = () => [...app.tabBody('switch').querySelectorAll('details.adv')].find(d => d.querySelector('.adv-effect'));   // not by its title: that is translated
+  const seen = {};                                    // language -> Map(text -> where)
+  let left = null;
+  const DATA = [/^GPU: /, /^RCV \d/, /^RNA Conformation Viewer$/, /^AlphaFold Server…$/, /^(mod|s\d+|uucg_2)$/, /^No trajectory passed/, /^[ACGU.()\[\]{}<>\s·×0-9+–-]+$/, /^(uucg|gnra|tar|bad\w*|long\w*|withss|HIV1?_TAR\w*|1EHZ_A|tRNA\w*)\b/i, /^ViennaRNA( [\d.]+)?$/, /^AlphaFold 3$/, /^RCV$/, /^nt$/, /^ΔG MFE$/, /^3D$/, /^Z-RNA$/, /^m6A|^PS\b|^Ψ/];
+  const scan = async (root, where) => {
+    await sleep(140);
+    if (!root) throw new Error('nothing to look at: ' + where);
+    for (const s of I.untranslated(root)) if (!DATA.some(re => re.test(s)) && !left.has(s)) left.set(s, where);
+  };
+  const dockStates = async () => {
+    const api = app.api, realGet = api.get, id = 'lang-' + I.current();
+    let dock = { id, status: 'running', title: 'Explore pull · G12', progress: 0.3, elapsed_s: 30, eta_s: 95, stages: [{ id: 'sample', label: 'Pull-guided sampling', state: 'active', detail: '3 of 12 trajectories' }] };
+    api.get = function (path, ...rest) { if (path === '/api/jobs/' + id) return Promise.resolve(dock); return realGet.call(this, path, ...rest); };
+    try {
+      app.jobsDock.track({ id, title: dock.title, status: 'running' });
+      const host = D.querySelector('#jobs-dock');
+      await sleep(400); await scan(host, 'dock: running');
+      dock = { ...dock, eta_s: null, stages: [{ id: 'ss', label: 'Secondary structures', state: 'active', detail: 'current 2D + ViennaRNA alternatives' }] }; await sleep(1400); await scan(host, 'dock: 2D');
+      dock = { ...dock, eta_s: 40, stages: [{ id: 'select', label: 'Relaxation and validation', state: 'active', detail: '' }] }; await sleep(1400); await scan(host, 'dock: relaxation');
+      dock = { ...dock, eta_s: null, stages: [{ id: 'load', label: 'Adding to the ensemble', state: 'active', detail: 'merging new conformations' }] }; await sleep(1400); await scan(host, 'dock: adding');
+      dock = { ...dock, stages: [{ id: 'load', label: 'Adding to the ensemble', state: 'done', detail: '2 new conformation(s)' }] }; await sleep(1400); await scan(host, 'dock: added');
+      dock = { ...dock, lost: true }; await sleep(1400); await scan(host, 'dock: lost');
+      dock = { ...dock, lost: false };
+      dock = { ...dock, cancelling: true }; await sleep(1400); await scan(host, 'dock: cancelling');
+      dock = { ...dock, status: 'cancelled' }; await sleep(1400); await scan(host, 'dock: cancelled');
+    } finally { api.get = realGet; }
+  };
+  // A text that reads the same in a language (German "Name") is not told apart from one without a translation, so
+  // two unrelated languages are walked and only what stays English in both is reported.
+  for (const code of ['de', 'ja']) {
+    left = seen[code] = new Map();
+    await app.setLanguage(code);
+    await sleep(300);
+    app.showPage('viewer'); app.showTab('switch');
+    await sleep(300);
+    await scan(variants(), 'variants');
+    await dockStates();
+    // --- the start page while typing
+    app.showPage('welcome'); await sleep(300);
+    const type = async (seq, where, ss = '') => { W.seqIn.value = seq; W.ssIn.value = ss; W._estimate(); await scan(W.root, where); };
+    const zOn = W.zrnaIn?.checked, cores0 = W.coresIn.value;
+    await type('', 'empty');
+    await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'sequence');
+    await type('1 ggcagatctg agcctgggag ctctctgcc', 'numbered');
+    await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'dot-bracket length', '((((....))))');
+    await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'dot-bracket unmatched', '(((((.......................)');
+    await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'dot-bracket unclosed', '((((((......................)');
+    await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'dot-bracket character', '(((((...x...............)))))');
+    await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'dot-bracket short loop', '(((((.......(())........)))))');
+    await type('GGCXAGAUCUGAGCZC', 'letters');
+    await type('GGCA', 'short');
+    await type('GGCAGAUCUG'.repeat(21), 'above 200');
+    await type('GGCAGAUCUG'.repeat(41), 'above 400');
+    await type('GGC[m6A]CU[Y]GAGCC*UGGGAGCUCUCUGCC', 'modified');
+    await type('GGC[zzz]CUGAGCCUGGGAGC', 'unknown modification');
+    await type('GGC[m6ACUGAGCCUGGGAGC', 'unclosed bracket');
+    await type('GGCAGAUCUGAGCCUGGGAGC*', 'star at the end');
+    await type('*GGCAGAUCUGAGCCUGGGAGC', 'star at the start');
+    await type('GGC[ps]AGAUCUGAGCCUGGGAGC', 'linkage in brackets');
+    if (W.zrnaIn) { W.zrnaIn.checked = true; await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'Z-RNA on'); W.zrnaIn.checked = !!zOn; }
+    W.coresIn.value = 1; await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'one core'); W.coresIn.value = cores0;
+    const batch = '>uucg\nGGCACUUCGGUGCC\n>gnra\nGGACGAAAGUCC\n>withss\nGGGGAAAACCCC\n((((....))))\n>mod\nGGC[m6A]CUUCGGUGCC\n';
+    await type(batch, 'batch');
+    await type(batch + '>bad1\nGGXXCC\n>bad2\nGGCA\n>bad3\nGGGGAAAACCCC\n((((....)))\n>bad4\nGG[zzz]GAAAACCCC\n>uucg\nGGCACUUCGGUGCC\n', 'batch with problems');
+    if (W.zrnaIn) { W.zrnaIn.checked = true; await type(batch, 'batch, Z-RNA on'); W.zrnaIn.checked = !!zOn; }
+    await type(Array.from({ length: 101 }, (_, k) => `>s${k}\nGGCACUUCGGUGCC\n`).join(''), 'batch above 100');
+    await type('GGCAGAUCUGAGCCUGGGAGCUCUCUGCC', 'back to one');
+    const engine0 = W.engine;
+    for (const seeds of [1, 3]) { W.engine = 'alphafold3'; const af0 = W.af3; W.af3 = { ...(af0 || {}), seeds }; W._estimate(); await scan(W.root, 'AlphaFold 3 chosen'); W.af3 = af0; }
+    W.engine = engine0; W._estimate();
+    // --- progress card
+    const stages = (...d) => [['ss', 'Secondary structures'], ['sample', '3D sampling'], ['select', 'Validation and selection'], ['load', 'Opening the viewer']]
+      .map(([id, label], i) => ({ id, label, state: d[i] === undefined ? 'pending' : i === d.length - 1 ? 'active' : 'done', detail: d[i] || '' }));
+    const base = { kind: 'predict', status: 'running', title: 'tar · 29 nt', progress: 0.4, elapsed_s: 95, eta_s: 120, notes: [], result: { cores: 4, trajectories: 32 } };
+    const notes = sampleNotes();
+    const checkNotes = () => {
+      const shown = [...W.progress.querySelectorAll('.wl-notes li')].map(li => li.lastElementChild.textContent);
+      if (shown.length !== notes.length) throw new Error(`notes drawn: ${shown.length} of ${notes.length}`);
+      const bad = [];
+      shown.forEach((text, k) => {
+        const n = notes[k];
+        if (/[\uE000-\uE1FF]/.test(text)) bad.push('marker left: ' + text);
+        for (const part of [...(n.keep || []), n.lead].filter(Boolean)) if (!text.includes(part)) bad.push(`"${part}" changed: ${text}`);
+        if (n.lead && !text.startsWith(n.lead)) bad.push('name not in front: ' + text);
+        if (text === n.text) bad.push('not translated: ' + text);
+      });
+      if (bad.length) throw new Error(`notes in ${I.current()}: ${bad.slice(0, 4).join(' | ')}`);
+    };
+    const cards = [
+      ['notes', { ...base, id: 'l0', stages: stages('6 hypotheses (ViennaRNA 2.7.0)', '12 of 32 trajectories'), notes }],
+      ['queued', { ...base, id: 'l1', status: 'queued', progress: 0, eta_s: null, elapsed_s: 2, stages: stages() }],
+      ['2D', { ...base, id: 'l1', eta_s: null, stages: stages('ViennaRNA') }],
+      ['2D given', { ...base, id: 'l1', stages: stages('from your dot-bracket') }],
+      ['sampling', { ...base, id: 'l1', stages: stages('3 hypotheses (ViennaRNA 2.7.0)', '12 of 32 trajectories') }],
+      ['sampling, one hypothesis', { ...base, id: 'l1', elapsed_s: 4000, eta_s: 7300, stages: stages('1 hypothesis (user-supplied)', '0 of 32 trajectories') }],
+      ['selecting', { ...base, id: 'l1', stages: stages('3 hypotheses (ViennaRNA 2.7.0)', '32 of 32 trajectories', 'validating and clustering') }],
+      ['loading', { ...base, id: 'l1', stages: stages('3 hypotheses (ViennaRNA 2.7.0)', '32 of 32 trajectories', '30 of 32 valid · 8 distinct conformations', 'computing energies and ensemble statistics') }],
+      ['one conformation', { ...base, id: 'l1', stages: stages('3 hypotheses (ViennaRNA 2.7.0)', '32 of 32 trajectories', '1 of 32 valid · 1 distinct conformation', '1 conformation') }],
+      ['done', { ...base, id: 'l1', status: 'done', progress: 1, stages: stages('3 hypotheses (ViennaRNA 2.7.0)', '32 of 32 trajectories', '30 of 32 valid · 8 distinct conformations', '8 conformations').map(x => ({ ...x, state: 'done' })) }],
+      ['cancelling', { ...base, id: 'l1', cancelling: true, stages: stages('ViennaRNA', '12 of 32 trajectories') }],
+      ['lost', { ...base, id: 'l1', lost: true, stages: stages('ViennaRNA', '12 of 32 trajectories') }],
+      ['cancelled', { ...base, id: 'l1', status: 'cancelled', stages: stages('ViennaRNA', '12 of 32 trajectories') }],
+      ['failed', { ...base, id: 'l1', status: 'failed', error: 'none of the trajectories gave a model that passed the all-atom validation, so there is no conformation to show. Run it again with more sampling (Advanced settings ▸ Sampling ▸ Thorough) or another random seed, or give a known secondary structure', stages: stages('ViennaRNA', '12 of 32 trajectories') }],
+      ['no ViennaRNA', { ...base, id: 'l1', stages: stages('2 hypotheses (seed structures only (ViennaRNA unavailable))', '0 of 32 trajectories') }],
+      ['AlphaFold 3', { ...base, id: 'l3', title: 'tar · 29 nt', result: { engine: 'alphafold3', seeds: 2 }, stages: [{ id: 'input', label: 'AlphaFold 3 input', state: 'done', detail: '2 seeds × 5 samples · without MSA' },
+        { id: 'run', label: 'AlphaFold 3 (data pipeline and inference)', state: 'active', detail: 'starting' }, { id: 'load', label: 'Opening the viewer', state: 'pending', detail: 'reading the models and computing energies' }] }],
+      ...['data pipeline (MSA search)', 'featurising the input', 'model inference', 'extracting the structures', 'writing the models', 'finished'].map(d => ['AlphaFold 3 ' + d, { ...base, id: 'l3', result: { engine: 'alphafold3', seeds: 2 },
+        stages: [{ id: 'input', label: 'AlphaFold 3 input', state: 'done', detail: '2 seeds × 5 samples' }, { id: 'run', label: 'AlphaFold 3 (data pipeline and inference)', state: 'active', detail: d }, { id: 'load', label: 'Opening the viewer', state: 'pending', detail: '' }] }]),
+      ['AlphaFold 3 done', { ...base, id: 'l3', result: { engine: 'alphafold3', seeds: 1 }, stages: [{ id: 'input', label: 'AlphaFold 3 input', state: 'done', detail: '1 seed × 5 samples' }, { id: 'run', label: 'AlphaFold 3 (data pipeline and inference)', state: 'done', detail: '' }, { id: 'load', label: 'Opening the viewer', state: 'done', detail: '5 models' }] }],
+      ['AlphaFold 3, one model', { ...base, id: 'l3', result: { engine: 'alphafold3', seeds: 1 }, stages: [{ id: 'input', label: 'AlphaFold 3 input', state: 'done', detail: '1 seed × 5 samples · without MSA' }, { id: 'load', label: 'Opening the viewer', state: 'done', detail: '1 model' }] }],
+      ['batch', { ...base, id: 'l4', kind: 'batch', title: '3 sequences', result: { cores: 4, items: [{}, {}, {}] }, stages: [{ id: 'item0', label: 'uucg · 14 nt', state: 'done', detail: '3 conformations' },
+        { id: 'item1', label: 'gnra · 12 nt', state: 'active', detail: '3D sampling · 12 of 32 trajectories' }, { id: 'item2', label: 'tar · 29 nt', state: 'pending', detail: '' }] }],
+      ['batch other states', { ...base, id: 'l4', kind: 'batch', title: '3 sequences', result: { cores: 1, items: [{}, {}, {}] }, stages: [{ id: 'item0', label: 'uucg · 14 nt', state: 'done', detail: '1 conformation' },
+        { id: 'item1', label: 'gnra · 12 nt', state: 'active', detail: 'starting' }, { id: 'item2', label: 'tar · 29 nt', state: 'pending', detail: 'cancelled' }] }],
+      ['batch stages', { ...base, id: 'l4', kind: 'batch', title: '3 sequences', result: { cores: 4, items: [{}, {}, {}] }, stages: [{ id: 'item0', label: 'uucg · 14 nt', state: 'active', detail: 'Secondary structures · ViennaRNA' },
+        { id: 'item1', label: 'gnra · 12 nt', state: 'active', detail: 'Validation and selection · validating and clustering' }, { id: 'item2', label: 'tar · 29 nt', state: 'active', detail: 'Opening the viewer · computing energies and ensemble statistics' }] }],
+      ['batch failure', { ...base, id: 'l4', kind: 'batch', title: '3 sequences', status: 'failed', error: 'none of the trajectories gave a model that passed the all-atom validation, so there is no conformation to show. Run it again with more sampling (Advanced settings ▸ Sampling ▸ Thorough) or another random seed, or give a known secondary structure', result: { cores: 4, items: [{}, {}, {}] }, stages: [{ id: 'item0', label: 'uucg · 14 nt', state: 'done', detail: '3 conformations' }] }],
+    ];
+    W._showProgress(true);
+    for (const [where, job] of cards) { W._render(job); await scan(W.progress, 'card: ' + where); if (where === 'notes') checkNotes(); }
+    W._showProgress(false);
+    // --- batch results
+    W.batch = { result: { out: '/home/user/RCV/batch_1', items: [
+      { name: 'uucg', length: 14, status: 'done', rcv: '/x/uucg.rcv', n_conformations: 3, best_score: -12.3, dg_mfe: -5.1, distinct_2d: 2, elapsed_s: 9 },
+      { name: 'gnra', length: 12, status: 'failed', error: 'No trajectory passed the all-atom validation' },
+      { name: 'tar', length: 29, status: 'cancelled' }, { name: 'long', length: 60, status: 'queued' }, { name: 'long2', length: 60, status: 'running' }, { name: 'long3', length: 60, status: 'failed' }] } };
+    W._batchResults(); await scan(W.batchBox, 'batch results');
+    W.batch = null; W._batchResults();
+    await type('', 'empty again');
+  }
+  await app.setLanguage('en');
+  await sleep(200);
+  const list = [...seen.de].filter(([s]) => seen.ja.has(s)).map(([s, where]) => `[${where}] ${s}`);
+  log('checked de and ja · English text left in both', list.length);
+  for (const x of list) log('   ', x);
+  if (list.length) throw new Error(`${list.length} texts of the start page or the variants table have no translation`);
+}
+
 async function langShot(app, w, sleep, code, page) {
   await app.setLanguage(code);
   if (page === 'welcome') { app.showPage('welcome'); await sleep(600); return; }
@@ -943,6 +1143,22 @@ export async function langzh(app, w, log, sleep) {
   w.document.querySelectorAll('.menu-btn')[2].click();          // View menu open in the screenshot
   await sleep(200);
   log('language', app.i18n.current());
+}
+// The progress page of a running prediction in Japanese: stages, time left and the notes (0.7.6, audit F5 and F6).
+export async function langnotes(app, w, log, sleep) {
+  const W = app.welcome;
+  await langShot(app, w, sleep, 'ja', 'welcome');
+  const stage = (id, label, state, detail = '') => ({ id, label, state, detail });
+  W._showProgress(true);
+  W._render({ id: 'shot', kind: 'predict', status: 'running', title: 'my_rna · 76 nt', progress: 0.4, elapsed_s: 35, eta_s: 40, result: { cores: 4, trajectories: 32 }, notes: sampleNotes(),
+    stages: [stage('ss', 'Secondary structures', 'done', '6 hypotheses (ViennaRNA 2.7.0)'), stage('sample', '3D sampling', 'active', '12 of 32 trajectories'),
+      stage('select', 'Validation and selection', 'pending'), stage('load', 'Opening the viewer', 'pending')] });
+  await sleep(500);
+  const notes = W.progress.querySelector('.wl-notes');
+  notes.style.maxHeight = 'none';                         // all of them in the picture
+  const first = notes.querySelector('li').lastElementChild.textContent;
+  if (!first.includes('/home/some user/RCV predictions/my rna_1') || /Prediction of/.test(first)) throw new Error('first note: ' + first);
+  log('language', app.i18n.current(), '· notes', notes.children.length, '·', W.progress.querySelector('.wl-pg-meta')?.textContent);
 }
 export async function langde(app, w, log, sleep) { await langShot(app, w, sleep, 'de'); log('language', app.i18n.current()); }
 export async function langja(app, w, log, sleep) { await langShot(app, w, sleep, 'ja', 'welcome'); log('language', app.i18n.current()); }
@@ -1447,38 +1663,23 @@ export async function insightdetails(app, w, log, sleep) {
   log('motifs', motifs.join(', '), '| target windows', ta().querySelectorAll('tbody tr').length, '| compare', rmsd);
 }
 
-// Help > Check for updates: the window shown when a newer version exists (a made-up release, no network), in
-// German (translated texts) and then in English for the screenshot. Nothing may be downloaded by itself.
+// 0.7.6: RCV has no update check (Microsoft Store builds are updated by the Store; RCV never fetches installers):
+// no Help menu item, no Preferences option, no /api/update.
 export async function update1(app, w, log, sleep) {
   const D = w.document;
-  const items = [];
   [...D.querySelectorAll('.menu-btn')].find(b => /Help/.test(b.textContent))?.click();
   await sleep(200);
-  for (const e of D.querySelectorAll('.menu-pop .menu-item, .menu [role="menuitem"], .menu-pop button')) items.push(e.textContent.trim());
+  const items = [...D.querySelectorAll('.menu-pop .menu-item, .menu [role="menuitem"], .menu-pop button')].map(e => e.textContent.trim());
   D.body.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   D.body.click();
   await sleep(100);
-  const fake = { current: '0.7.4', latest: '0.8.0', date: '2026-12-01', newer: true, platform: 'windows-x64',
-    platform_label: 'Windows (64-bit)', installed: true, file: 'RCV-0.8.0-Windows-x64-Setup.exe',
-    download: 'https://www.rnaconfviewer.com/download/v0.8.0/RCV-0.8.0-Windows-x64-Setup.exe',
-    page: 'https://www.rnaconfviewer.com/#download', notes: 'https://www.rnaconfviewer.com/#releases' };
-  await app.setLanguage('de');
-  let d = app.showUpdate(fake);
-  await sleep(400);
-  const de = d.dlg.querySelector('h2').textContent;
-  const deBtns = [...d.dlg.querySelectorAll('.dlg-foot button')].map(b => b.textContent);
-  d.close();
-  await app.setLanguage('en');
-  d = app.showUpdate(fake);
-  await sleep(400);
-  const btns = [...d.dlg.querySelectorAll('.dlg-foot button')].map(b => b.textContent);
-  const body = d.dlg.querySelector('.dlg-body').textContent;
-  if (de !== 'Update verfügbar') throw new Error('German title: ' + de);
-  if (!deBtns.includes('Herunterladen')) throw new Error('German buttons: ' + deBtns.join('|'));
-  if (btns.join('|') !== 'Skip this version|Release notes|Later|Download') throw new Error('buttons: ' + btns.join('|'));
-  if (!body.includes('RCV-0.8.0-Windows-x64-Setup.exe') || !body.includes('RCV 0.8.0 is available. You have version 0.7.4.')) throw new Error('body: ' + body);
-  if (!items.some(t => t.startsWith('Check for updates'))) log('note: Help menu items not read:', items.slice(0, 12).join(' | '));
-  log('de', de, '|', deBtns.join(' · '), '| en', btns.join(' · '), '| help menu has it:', items.some(t => t.startsWith('Check for updates')));
+  if (!items.length) throw new Error('Help menu not read');
+  if (items.some(t => /update/i.test(t))) throw new Error('Help menu still offers updates: ' + items.join(' | '));
+  let api = 'absent';
+  try { await app.api.get('/api/update'); api = 'present'; } catch { /* expected: 404 */ }
+  if (api !== 'absent') throw new Error('/api/update still answers');
+  if ('update' in (app.info || {})) throw new Error('app info still has update settings');
+  log('help menu:', items.length, 'items, none about updates | /api/update', api);
 }
 
 // 0.7.5 layout: drag the side panels' inner edge (limits, saved per screen size, double-click = default), a hidden
@@ -1745,4 +1946,336 @@ export async function screenpage(app, w, log, sleep) {
   await scr.loadExample();
   await sleep(400);
   log('cards', w.document.querySelectorAll('#screenpage .wl-card').length, '| library', scr.library?.count);
+}
+
+// 0.7.6: the modified-nucleotide editor of the start page — select, apply m6A, preset (left open: screenshot).
+async function openModEditor(app, w, log, sleep) {
+  app.showPage('welcome');
+  const W = app.welcome;
+  W.seqIn.value = '>edited\nGGACUAGGACUUCGGUCCAGUCC';
+  W._estimate();
+  await W.editModifications();
+  for (let i = 0; i < 200 && !w.document.querySelector('dialog.dlg .mod-map'); i++) await sleep(100);
+  const D = [...w.document.querySelectorAll('dialog.dlg')].pop();
+  if (!D?.querySelector('.mod-map')) throw new Error('modification editor did not open');
+  const cells = [...D.querySelectorAll('.mod-nt')];
+  if (cells.length !== 23) throw new Error(`expected 23 nucleotides in the map, got ${cells.length}`);
+  cells[2].click(); await sleep(100);                                   // A3 (GGACU: DRACH centre)
+  const m6a = [...D.querySelectorAll('.mod-item')].find(b => b.querySelector('.mod-code')?.textContent === 'm6A');
+  if (!m6a) throw new Error('m6A not offered for an A');
+  m6a.click(); await sleep(50);
+  const apply = [...D.querySelectorAll('button')].find(b => /^Apply to 1/.test(b.textContent));
+  if (!apply) throw new Error('no Apply button for the selection');
+  apply.click(); await sleep(100);
+  [...D.querySelectorAll('.mod-presets .linkbtn')].find(b => /every U → Ψ/.test(b.textContent))?.click();
+  await sleep(100);
+  D.querySelectorAll('.mod-nt')[10].click(); await sleep(150);          // U11, now Ψ: its details
+  const preview = D.querySelector('.mod-preview').textContent;
+  log('preview', preview);
+  if (!/\[m6A\]/.test(preview) || !/\[Y\]/.test(preview)) throw new Error(`notation preview wrong: ${preview}`);
+  return { W, D };
+}
+
+export async function modeditor(app, w, log, sleep) { await openModEditor(app, w, log, sleep); await sleep(300); }
+
+export async function modapply(app, w, log, sleep) {
+  const { W, D } = await openModEditor(app, w, log, sleep);
+  [...D.querySelectorAll('.dlg-foot button')].find(b => /Use in the sequence/.test(b.textContent)).click();
+  await sleep(200);
+  const box = W.seqIn.value;
+  if (!/\[m6A\]/.test(box) || !/\[Y\]/.test(box) || !box.startsWith('>edited')) throw new Error(`sequence box not updated: ${box}`);
+  W._estimate(); await sleep(200);
+  log('status', W.seqStatus.textContent);
+  if (!/modified/.test(W.seqStatus.textContent)) throw new Error('status line does not count the modifications');
+  if (!W.modBtn.classList.contains('on')) throw new Error('modification button not marked');
+}
+
+// 0.7.6: modified-nucleotide colour scheme and console keyword on a loaded ensemble.
+export async function modview(app, w, log, sleep) {
+  app.selectEnsemble(ids(app)[0]);
+  await sleep(200);
+  app.setColorScheme('modified');
+  await sleep(200);
+  log('scheme', app.state.colorScheme, 'mods', (app.ens.doc.modifications || []).length);
+  await app.console?.run?.('select modified');
+  app.setColorScheme('nucleotide');
+}
+
+// 0.7.6: Z-RNA regions. Opens the Z-RNA duplex of PDB 2GXB, checks the live detection, the 3D and 2D highlight, the
+// console keyword, the View-menu switch and the off-by-default Z-RNA prediction option of the welcome page.
+async function openZrna(app, w, sleep) {
+  const txt = await (await w.fetch('/_dev/zrna_2gxb_duplex.pdb')).text();
+  await app.openLocalFiles([new w.File([txt], 'zrna_2gxb_duplex.pdb')]);
+  await sleep(800);
+  app.showPage?.('viewer');
+  app.viewer.needsRender = true;
+  await sleep(400);
+}
+
+export async function zrna(app, w, log, sleep) {
+  await openZrna(app, w, sleep);
+  const z = app.zrna;
+  log('enabled', z.enabled, 'regions', z.regions.length, 'residues', z.residues.size, 'layer', z.svg.children.length);
+  if (!z.enabled) throw new Error('Z-RNA identification should be on by default');
+  if (z.regions.length !== 1 || z.residues.size !== 12) throw new Error(`expected one 12-nt Z region, got ${JSON.stringify(z.summary())}`);
+  if (!z.svg.children.length) throw new Error('no Z-RNA highlight drawn in 3D');
+  log('summary', JSON.stringify(z.summary()));
+  if (!app.ss2d.visible) app.ss2d.setVisible(true);
+  app.ss2d.draw(); await sleep(200);
+  const ztag = [...app.ss2d.svg.querySelectorAll('text')].some(t => t.textContent === 'Z-RNA');
+  log('2D tag', ztag);
+  if (!ztag) throw new Error('no Z-RNA tag in the 2D drawing');
+  await app.console?.run?.('select zrna');
+  log('select zrna', app.state.selection.size);
+  if (app.state.selection.size !== 12) throw new Error('select zrna should select the 12 nucleotides');
+  z.set(false); app.viewer.needsRender = true; await sleep(300);
+  log('off', z.regions.length, z.svg.children.length);
+  if (z.regions.length || z.svg.children.length) throw new Error('switching off should remove the highlight');
+  z.set(true); app.viewer.needsRender = true; await sleep(300);
+  if (z.regions.length !== 1) throw new Error('switching on again should restore it');
+  // the demo prediction (A-form RNA) has no Z region
+  const tar = [...app.ensembles.keys()].find(k => app.ensembles.get(k)?.name !== app.ens.name);
+  if (tar) { app.selectEnsemble(tar); await sleep(400); app.viewer.needsRender = true; await sleep(200); log('demo regions', z.regions.length); if (z.regions.length) throw new Error('false Z region on an A-form ensemble'); }
+  // welcome: Z-RNA prediction is an advanced option, off by default; salt and binder appear when it is on
+  app.showPage('welcome'); await sleep(300);
+  const W = app.welcome;
+  log('welcome option', W.zrnaIn.checked, 'opts hidden', W.zOpts.hidden);
+  if (W.zrnaIn.checked || !W.zOpts.hidden) throw new Error('Z-RNA prediction must be off by default with its options hidden');
+  if (!W.adv.contains(W.zrnaIn)) throw new Error('the Z-RNA option belongs in Advanced settings');
+  W.zrnaIn.checked = true; W.zrnaIn.dispatchEvent(new w.Event('change')); await sleep(100);
+  log('estimate', W.estimate.textContent, 'opts hidden', W.zOpts.hidden);
+  if (W.zOpts.hidden || !/Z-RNA/.test(W.estimate.textContent)) throw new Error('turning it on should show its options and the extra trajectories');
+  W.zrnaIn.checked = false; W.zrnaIn.dispatchEvent(new w.Event('change'));
+  app.showPage('viewer');
+}
+
+export async function zrnashot(app, w, log, sleep) {
+  await openZrna(app, w, sleep);
+  if (!app.ss2d.visible) app.ss2d.setVisible(true);
+  app.viewer.resetView?.();
+  app.viewer.needsRender = true; await sleep(500);
+  log('regions', app.zrna.regions.length);
+}
+
+// ---------------------------------------------------------------- 0.7.6: what is bound to the RNA
+// A complex written from the NMR demo (3 models): the RNA plus a six-atom ligand, a magnesium ion, water and a
+// short protein chain that sit in the same place relative to the RNA in every model.
+function complexPdb(ens, models = 3) {
+  const pad = (s, n) => String(s).padStart(n), fx = v => v.toFixed(3).padStart(8);
+  const row = (rec, serial, name, comp, chain, num, p, elem) =>
+    `${rec.padEnd(6)}${pad(serial, 5)} ${name.length < 4 ? ' ' + name.padEnd(3) : name} ${comp.padStart(3)} ${chain}${pad(num, 4)}    ${fx(p[0])}${fx(p[1])}${fx(p[2])}  1.00  0.00          ${elem.padStart(2)}`;
+  const out = [];
+  for (let k = 0; k < models; k++) {
+    const c = ens.coords[k];
+    out.push(`MODEL     ${pad(k + 1, 4)}`);
+    let serial = 1;
+    ens.residues.forEach((res, r) => {
+      for (let a = res.first_atom; a < res.first_atom + res.n_atoms; a++) out.push(row('ATOM', serial++, ens.atomNames[a], res.name, 'A', r + 1, [c[3 * a], c[3 * a + 1], c[3 * a + 2]], ens.elements[a]));
+    });
+    const anchor = ens.trace[10], o = [c[3 * anchor], c[3 * anchor + 1], c[3 * anchor + 2]];
+    const ring = [['C1', 'C'], ['C2', 'C'], ['N3', 'N'], ['C4', 'C'], ['O5', 'O'], ['C6', 'C']];
+    ring.forEach(([n, e], i) => out.push(row('HETATM', serial++, n, 'LIG', 'A', 101, [o[0] + 6 + 1.4 * Math.cos(i * Math.PI / 3), o[1] + 1.4 * Math.sin(i * Math.PI / 3), o[2] + 3], e)));
+    out.push(row('HETATM', serial++, 'MG', 'MG', 'A', 102, [o[0] - 5, o[1] + 4, o[2]], 'MG'));
+    out.push(row('HETATM', serial++, 'O', 'HOH', 'A', 201, [o[0] - 5, o[1] + 6, o[2]], 'O'));
+    for (let i = 0; i < 12; i++) out.push(row('ATOM', serial++, 'CA', 'ALA', 'B', i + 1, [o[0] + 12 + 1.5 * Math.cos(i * 1.75), o[1] + 1.5 * Math.sin(i * 1.75), o[2] - 9 + 3.2 * i * 0.47], 'C'));
+    out.push('ENDMDL');
+  }
+  return out.join('\n') + '\nEND\n';
+}
+
+async function openComplex(app, sleep) {
+  app.selectEnsemble(byName(app, /NMR/i));
+  await sleep(300);
+  const src = app.ens;
+  const s = await app.api.post('/api/upload', { files: [{ name: 'tar_complex.pdb', text: complexPdb(src) }] });
+  await app.loadServerDocument(s.id);
+  await sleep(600);
+  return src;
+}
+
+export async function bound(app, w, log, sleep) {
+  await openComplex(app, sleep);
+  const ens = app.ens, ctx = ens.context, layer = app.viewer.context;
+  if (!ctx) throw new Error('the ligand, ion and protein of the file were not read as context');
+  log('context', ctx.summary, '| atoms', ctx.nAtoms, 'points', ctx.nPoints, 'bonds', ctx.bonds.length / 2, 'segments', ctx.segs.length);
+  if (ctx.nAtoms !== 7 || ctx.nPoints !== 12 || ctx.groups.length !== 2) throw new Error('expected a 6-atom ligand, one ion and 12 protein residues');
+  if (ctx.bonds.length / 2 !== 6) throw new Error('the ring of the ligand should have 6 bonds');
+  if (ens.nRes !== 29 || ens.n !== 3) throw new Error('the RNA itself must be unchanged (29 nt, 3 models)');
+  if (!app.context.enabled || !layer.group.visible) throw new Error('bound molecules should be shown by default');
+  if (layer.atoms.mesh.count !== 6 || layer.ions.mesh.count !== 1 || layer.joints.mesh.count !== 12 || layer.segs.mesh.count !== ctx.segs.length) throw new Error('the layer does not draw every part');
+  // the ligand keeps its place relative to the RNA in every conformation, also during and after a morph
+  const dist = (c, k) => { const a = ens.trace[10], x = ens.coords[k]; return Math.hypot(c[0] - x[3 * a], c[1] - x[3 * a + 1], c[2] - x[3 * a + 2]); };
+  const d = ens.conformations.map((_, k) => dist(ctx.coords[k], k));
+  log('ligand atom to C4′ of residue 11, per model', d.map(v => v.toFixed(2)).join(' '));
+  if (d.some(v => Math.abs(v - d[0]) > 0.02)) throw new Error('the bound molecules were not moved with their conformation');
+  const target = app.order.find(k => k !== app.state.conf);
+  app.goTo(target, { duration: 0.4 });
+  await sleep(1200);
+  const diff = Math.max(...[...layer.shown].map((v, i) => Math.abs(v - ctx.coords[target][i])));
+  log('after morph to', ens.shortId(target), 'max difference', diff.toFixed(4));
+  if (diff > 1e-3) throw new Error('the bound molecules did not follow the shown conformation');
+  // hover: the ligand in front of the RNA is named
+  app.viewer.resetView(); app.viewer.needsRender = true; await sleep(400);
+  const rect = app.viewer.canvas.getBoundingClientRect();
+  const proj = app.viewer.projector(app.viewer._cameraFor(app.viewer.cssSize[0] / app.viewer.cssSize[1]), ...app.viewer.cssSize);
+  const names = new Set();
+  for (let a = 0; a < ctx.nAtoms + ctx.nPoints; a++) {
+    const [px, py] = proj(layer.shown[3 * a], layer.shown[3 * a + 1], layer.shown[3 * a + 2]);
+    const hit = app.viewer.pickContext(rect.left + px, rect.top + py);
+    if (hit) names.add(`${hit.what}:${hit.name}`);
+  }
+  log('named under the pointer', [...names].slice(0, 6).join(', '));
+  if (![...names].some(n => /^ligand:LIG 101/.test(n)) || ![...names].some(n => /^ion:MG 102/.test(n)) || ![...names].some(n => /^protein:ALA/.test(n))) throw new Error('hover should name the ligand, the ion and protein residues');
+  // one switch in the View menu
+  const item = app.menuDefs.find(m => m.label === 'View').items().find(i => /^Bound molecules/.test(i.label));
+  if (!item || item.disabled || !item.checked) throw new Error('View menu: the switch should be there, enabled and on');
+  item.action(); await sleep(200);
+  if (layer.group.visible || app.viewer.pickContext(rect.left + 5, rect.top + 5)) throw new Error('switching off should hide the bound molecules');
+  item.action(); await sleep(200);
+  if (!layer.group.visible) throw new Error('switching on again should show them');
+  // superposing on a selection keeps the ligand with its conformation
+  app.select([8, 9, 10, 11, 12], 'set');
+  app.superposeOnSelection(); await sleep(300);
+  const d2 = ens.conformations.map((_, k) => dist(ens.context.coords[k], k));
+  if (d2.some(v => Math.abs(v - d[0]) > 0.02)) throw new Error('superposing on a selection moved the RNA without its ligand');
+  app.resetSuperposition(); app.select([], 'set'); await sleep(200);
+  // an ensemble without bound molecules: the switch is disabled, nothing is drawn
+  app.selectEnsemble(byName(app, /prediction|sequence/i)); await sleep(400);
+  const item2 = app.menuDefs.find(m => m.label === 'View').items().find(i => /^Bound molecules/.test(i.label));
+  log('prediction: switch disabled', !!item2.disabled, 'layer', !!app.viewer.context.ctx);
+  if (!item2.disabled || app.viewer.context.ctx) throw new Error('no context expected for a prediction');
+  if (app.unexpected?.length) throw new Error('unexpected errors: ' + JSON.stringify(app.unexpected));
+}
+
+export async function boundshot(app, w, log, sleep) {
+  await openComplex(app, sleep);
+  app.setColorScheme('nucleotide');
+  app.viewer.resetView(); app.viewer.controls.zoom = 0.8; app.viewer.needsRender = true;
+  await sleep(700);
+  log('context', app.ens.context?.summary);
+}
+
+// ---------------------------------------------------------------- 0.7.6: fixes from the audit
+// Export of the 2D structure, the cancel question, the progress card (notes, lost connection), the page shown
+// without 3D graphics and a lost graphics context.
+export async function audit76(app, w, log, sleep) {
+  const doc = w.document;
+  app.selectEnsemble(byName(app, /prediction|sequence/i));
+  await sleep(300);
+  // --- Export ▸ Secondary structure
+  const exp = app.menuDefs.find(m => m.label === 'Export').items().find(i => /^Secondary structure/.test(i.label));
+  if (!exp || exp.disabled) throw new Error('Export menu: no secondary-structure entry');
+  if (!app.ss2d.saveBtn || !app.ss2d.head.contains(app.ss2d.saveBtn)) throw new Error('the 2D window has no export button');
+  const dlg = await app.exportSecondary();
+  const area = dlg.body.querySelector('textarea'), [fmtSel, whichSel] = dlg.body.querySelectorAll('select');
+  const ens = app.ens;
+  const lines = area.value.trim().split('\n');
+  log('2D export', lines.length / 3, 'records |', lines[0].slice(0, 60));
+  if (lines.length % 3 || lines[1] !== ens.sequence || !ens.conformations.some(c => c.dbn === lines[2]) || !lines[0].startsWith('>')) throw new Error('dot-bracket export is not >name / sequence / structure');
+  if (lines.length / 3 !== new Set(ens.conformations.map(c => c.dbn)).size) throw new Error('"every different 2D once" should list each structure once');
+  whichSel.value = 'all'; whichSel.dispatchEvent(new w.Event('change'));
+  if (area.value.trim().split('\n').length !== 3 * ens.n) throw new Error('all conformations: one record each expected');
+  fmtSel.value = 'ct'; fmtSel.dispatchEvent(new w.Event('change'));
+  const ct = area.value.split('\n');
+  if (parseInt(ct[0], 10) !== ens.nRes || ct[1].trim().split(/\s+/).length !== 6) throw new Error('CT export malformed: ' + ct.slice(0, 2).join(' / '));
+  fmtSel.value = 'bpseq'; fmtSel.dispatchEvent(new w.Event('change'));
+  if (!/^1 [ACGU] \d+$/.test(area.value.split('\n')[1])) throw new Error('BPSEQ export malformed');
+  dlg.close(); await sleep(200);
+  // --- Cancel asks first when a run is older than a minute (progress card of the start page, jobs dock of the viewer).
+  // The requests of the made-up jobs are answered here; everything else goes to the server as usual.
+  const W = app.welcome;
+  app.showPage('welcome'); await sleep(300);
+  const note = k => ({ t: k * 3, level: 'info', text: `note ${k}: trajectory ${k} finished with a long explanatory text to fill the line` });
+  const job = { id: 'fake-1', kind: 'predict', status: 'running', title: 'test · 29 nt', progress: 0.4, elapsed_s: 95, eta_s: 120, result: { cores: 4 },
+    stages: [{ id: 'a', label: 'Secondary structures', state: 'done' }, { id: 'b', label: '3D sampling', state: 'active', detail: '12 of 32' }], notes: Array.from({ length: 40 }, (_, k) => note(k)) };
+  const api = app.api, realPost = api.post, realGet = api.get, posted = [];
+  let dockState = { id: 'fake-3', status: 'running', title: 'Pull exploration', progress: 0.3, elapsed_s: 600, stages: [] };
+  api.post = function (path, ...rest) { if (/\/api\/jobs\/fake-/.test(path)) { posted.push(path); return Promise.resolve({}); } return realPost.call(this, path, ...rest); };
+  api.get = function (path, ...rest) { if (path === '/api/jobs/fake-3') return Promise.resolve(dockState); return realGet.call(this, path, ...rest); };
+  try {
+    const question = () => [...doc.querySelectorAll('dialog.dlg')].find(d => d.open);
+    const clickIn = re => { const b = [...(question()?.querySelectorAll('button') || [])].find(x => re.test(x.textContent)); if (!b) throw new Error('no button ' + re); b.click(); };
+    const cardCancel = () => [...W.progress.querySelectorAll('.wl-row.end button')].find(b => /^Cancel/.test(b.textContent));
+    W._showProgress(true);
+    W._render({ ...job, id: 'fake-0', elapsed_s: 12 }); await sleep(150);
+    cardCancel().click(); await sleep(300);
+    if (posted.length !== 1 || question()) throw new Error('a run of a few seconds is cancelled without a question');
+    W._cancelling = null;
+    const old = { ...job, id: 'fake-2', elapsed_s: 600 };
+    W._render(old); await sleep(150);
+    cardCancel().click(); await sleep(400);
+    const q = question();
+    if (!q || !/Cancel this run\?/.test(q.textContent) || !/10 min/.test(q.textContent)) throw new Error('no question before cancelling a 10-minute run: ' + q?.textContent);
+    clickIn(/Keep running/); await sleep(300);
+    if (posted.length !== 1 || question()) throw new Error('"Keep running" must not cancel');
+    cardCancel().click(); await sleep(400);
+    clickIn(/Cancel the run/); await sleep(300);
+    if (posted[1] !== '/api/jobs/fake-2/cancel') throw new Error('confirming should cancel the job: ' + posted);
+    W._render(old); await sleep(100);
+    const cb = cardCancel();
+    log('cancel:', posted.join(' '), '| button', cb.textContent, cb.disabled, '|', W.progress.querySelector('.wl-pg-meta').textContent);
+    if (!cb.disabled || !/Cancelling/.test(cb.textContent) || !/Cancelling/.test(W.progress.querySelector('.wl-pg-meta').textContent)) throw new Error('after Cancel the card should say that the run is being cancelled');
+    W._cancelling = null;
+    app.jobsDock.track({ id: 'fake-3', title: 'Pull exploration', status: 'running' });
+    await sleep(500);
+    const dockBtn = doc.querySelector('#jobs-dock .job-item button[aria-label="Cancel job"]');
+    if (!dockBtn) throw new Error('the jobs dock shows no cancel button');
+    dockBtn.click(); await sleep(400);
+    if (!/Cancel this exploration\?/.test(question()?.textContent || '')) throw new Error('exploration wording missing');
+    clickIn(/Cancel the exploration/); await sleep(300);
+    if (posted[2] !== '/api/jobs/fake-3/cancel' || !dockBtn.disabled) throw new Error('confirming should cancel the exploration: ' + posted);
+    dockState = { ...dockState, status: 'cancelled' };
+    await sleep(1600);
+  } finally { api.post = realPost; api.get = realGet; }
+  // --- progress card: notes can be read while new ones arrive; a lost connection is said in words
+  W._showProgress(true);
+  W._render(job); await sleep(200);
+  const list = W.progress.querySelector('.wl-notes');
+  if (list.scrollHeight <= list.clientHeight) throw new Error('test needs a scrollable notes list');
+  const atBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 4;
+  if (!atBottom()) throw new Error('the newest note should be in view at first');
+  list.scrollTop = 20; await sleep(100);
+  job.notes.push(note(40)); W._render(job); await sleep(100);
+  log('notes: scrolled up stays at', list.scrollTop);
+  if (Math.abs(list.scrollTop - 20) > 2) throw new Error('reading older notes was interrupted by a new note');
+  const first = list.firstChild;
+  W._render(job);
+  if (list.firstChild !== first) throw new Error('the notes were rebuilt although nothing was added');
+  list.scrollTop = list.scrollHeight; await sleep(100);
+  job.notes.push(note(41)); W._render(job); await sleep(100);
+  if (!atBottom()) throw new Error('at the bottom, the list should follow the newest note');
+  W._render({ ...job, lost: true }); await sleep(100);
+  const meta = W.progress.querySelector('.wl-pg-meta').textContent;
+  const btns = [...W.progress.querySelectorAll('.wl-row.end button')];
+  log('lost:', meta.slice(0, 60), '| buttons', btns.map(b => b.textContent).join(', '));
+  if (!/connection to the RCV engine was lost/.test(meta) || !btns.some(b => /Back to the start page/.test(b.textContent))) throw new Error('a lost connection should be said, with a way back');
+  if (W.progress.querySelectorAll('.wl-steps li').length !== 2) throw new Error('the last known stages should stay visible');
+  btns.find(b => /Back to the start page/.test(b.textContent)).click(); await sleep(200);
+  if (!W.progress.hidden && W.progress.offsetParent) throw new Error('"Back to the start page" should leave the progress card');
+  app.showPage('viewer'); await sleep(300);
+  // --- no 3D graphics: a page that says so instead of a blank window
+  const frame = w.parent.document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;z-index:20;background:#fff;border:0';
+  frame.src = '/?simulate-no-webgl#token=' + new URLSearchParams(w.parent.location.search).get('token');
+  w.parent.document.body.append(frame);
+  if (!await waitFor(sleep, () => frame.contentDocument?.body?.dataset.ready === 'fatal', 20000)) throw new Error('without WebGL 2 the page should show the explanation');
+  const fatal = frame.contentDocument.querySelector('.fatal');
+  log('no WebGL:', fatal.querySelector('h1').textContent, '|', fatal.querySelectorAll('li').length, 'reasons');
+  if (!/3D graphics are not available/.test(fatal.textContent) || fatal.querySelectorAll('li').length !== 3 || !fatal.querySelector('button')) throw new Error('the no-graphics page is incomplete');
+  frame.remove();
+  // --- the graphics context is lost and comes back
+  const v = app.viewer, ext = v.renderer.getContext().getExtension('WEBGL_lose_context');
+  if (ext) {
+    ext.loseContext();
+    if (!await waitFor(sleep, () => v.contextLost, 5000)) throw new Error('context loss was not noticed');
+    const lost = doc.querySelector('.gl-lost');
+    if (!lost || lost.hidden || !/3D graphics were interrupted/.test(lost.textContent)) throw new Error('no note about the interrupted graphics');
+    ext.restoreContext();
+    if (!await waitFor(sleep, () => !v.contextLost, 8000)) throw new Error('the context did not come back');
+    await sleep(600);
+    if (!lost.hidden) throw new Error('the note should disappear when the graphics are back');
+    app.goTo(app.order[1], { duration: 0.3 }); await sleep(900);
+    log('context lost and restored; view redrawn');
+  } else log('WEBGL_lose_context not offered by this browser: skipped');
+  if (app.unexpected.length) throw new Error('unexpected errors: ' + JSON.stringify(app.unexpected));
 }

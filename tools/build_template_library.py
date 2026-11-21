@@ -36,7 +36,7 @@ from scipy.spatial import cKDTree
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 
-from rnafold3d.structure_io import parse_cif, _mmcif_model          # noqa: E402
+from rnafold3d.structure_io import L_RNA, parse_cif, _mmcif_model   # noqa: E402
 from rnafold3d.annotate import _pair_score                          # noqa: E402
 from rnafold3d.geomutil import dihedral                              # noqa: E402
 
@@ -170,6 +170,8 @@ def process_chain(pdb, model, chain, cache):
     chains, _ = _mmcif_model(cif, rna_only=True, model_id=None, label=f'{pdb}.{chain}')
     ch = next((c for c in chains.values() if c.auth_asym_id == chain), None)
     if ch is None or not ch.residues:
+        return None
+    if any(r.comp_id in L_RNA for r in ch.residues):      # mirror-image RNA: left-handed helices are no templates
         return None
     seq = ''.join(b if b in 'ACGU' else 'N' for b in ch.sequence)
     # residue index = label_seq_id (1-based position in the full polymer sequence)

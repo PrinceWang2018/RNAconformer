@@ -7,6 +7,7 @@ const log = (...a) => {
   const body = JSON.stringify({ level: 'test', message: `[${q.get('steps')}] ` + a.join(' ') });
   chain = chain.then(() => fetch('/api/client-log', { method: 'POST', headers: { 'X-Viewer-Token': q.get('token'), 'Content-Type': 'application/json' }, body }).catch(() => {}));
 };
+log('LOADED');                       // this page runs: a browser that never gets here is started once more (viewer_smoketest.py)
 const f = document.getElementById('f');
 f.src = '/' + (q.get('lang') ? '?lang=' + encodeURIComponent(q.get('lang')) : '') + '#token=' + q.get('token');
 const sleep = ms => new Promise(r => setTimeout(r, ms));

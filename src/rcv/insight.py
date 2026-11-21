@@ -216,41 +216,73 @@ def experiments(doc, states, a, b, cond, coords=None):
 
 
 # --------------------------------------------------------------------------------- Switch tab: variants
-_VARIANT = re.compile(r'^([ACGUT])?(\d+)([ACGUT])$')
+_VARIANT = re.compile(r'^(?P<frm>[ACGUT])?(?P<pos>-?\d+)(?P<to>[ACGUT])$')
+_VARIANT_HGVS = re.compile(r'^(?P<pos>-?\d+)(?P<frm>[ACGUT])>(?P<to>[ACGUT])$')          # 34G>U
 
 
-def parse_variants(text, seq, limit=60):
-    """'G34U, A12C+G30C' -> [(label, mutant sequence, [positions])]. Substitutions only; T is read as U."""
+def parse_variants(text, seq, limit=60, numbers=None, skipped=None):
+    """'G34U, A12C+G30C' -> [(label, mutant sequence, [positions])]. Substitutions only; T is read as U; 34G>U and
+    a prefix such as n. or r. are read too.
+
+    numbers: the residue numbers shown in RCV (one per nucleotide). When given and unambiguous, a position is
+    that number (a structure whose file starts at 17 is addressed as RCV displays it); otherwise positions count
+    from 1 along the sequence. skipped: a list that receives {'text', 'reason'} for every entry that cannot be
+    used, so that one mistyped entry does not stop the others; without it the first problem raises ValueError."""
+    index = None
+    if numbers is not None:
+        nums = [str(x).strip() for x in numbers]
+        if len(nums) == len(seq) and len(set(nums)) == len(nums) and all(re.fullmatch(r'-?\d+', x) for x in nums) \
+                and nums != [str(i) for i in range(1, len(seq) + 1)]:
+            index = {int(x): i for i, x in enumerate(nums)}
+    shown = (lambda i: sorted(index, key=lambda k: index[k])[i]) if index else (lambda i: i + 1)
+    span = f'{shown(0)}-{shown(len(seq) - 1)}'
     out = []
     for token in re.split(r'[\s,;]+', (text or '').strip().upper()):
         if not token:
             continue
-        m_seq, pos = list(seq), []
-        for part in token.split('+'):
-            m = _VARIANT.match(part.replace('>', ''))
-            if not m:
-                raise ValueError(f'cannot read variant "{part}" (write G34U or 34U; several changes: A12C+G30C)')
-            frm, p, to = m.group(1), int(m.group(2)), m.group(3).replace('T', 'U')
-            if not 1 <= p <= len(seq):
-                raise ValueError(f'variant "{part}": position {p} is outside the sequence (1-{len(seq)})')
-            if frm and frm.replace('T', 'U') != seq[p - 1]:
-                raise ValueError(f'variant "{part}": position {p} is {seq[p - 1]}, not {frm}')
-            if to == seq[p - 1]:
-                raise ValueError(f'variant "{part}": position {p} is already {to}')
-            m_seq[p - 1] = to
-            pos.append(p - 1)
-        out.append(('+'.join(f'{seq[p]}{p + 1}{m_seq[p]}' for p in pos), ''.join(m_seq), pos))
+        try:
+            m_seq, pos = list(seq), []
+            for part in token.split('+'):
+                clean = re.sub(r'^[NRCG]\.', '', part)
+                m = _VARIANT.match(clean.replace('>', '')) or _VARIANT_HGVS.match(clean)
+                if not m:
+                    raise ValueError(f'cannot read variant "{part}" (write G34U or 34U; several changes: A12C+G30C)')
+                frm, p, to = m.group('frm'), int(m.group('pos')), m.group('to').replace('T', 'U')
+                i = index.get(p) if index else (p - 1 if 1 <= p <= len(seq) else None)
+                if i is None:
+                    raise ValueError(f'variant "{part}": position {p} is outside the sequence ({span})')
+                if frm and frm.replace('T', 'U') != seq[i]:
+                    raise ValueError(f'variant "{part}": position {p} is {seq[i]}, not {frm}')
+                if to == seq[i]:
+                    raise ValueError(f'variant "{part}": position {p} is already {to}')
+                if i in pos:
+                    raise ValueError(f'variant "{token}": position {p} is changed twice')
+                m_seq[i] = to
+                pos.append(i)
+        except ValueError as exc:
+            if skipped is None:
+                raise
+            skipped.append({'text': token, 'reason': str(exc)})
+            continue
+        label = '+'.join(f'{seq[i]}{shown(i)}{m_seq[i]}' for i in pos)
+        if any(label == o[0] for o in out):
+            continue                                  # the same variant entered twice
+        out.append((label, ''.join(m_seq), pos))
         if len(out) > limit:
             raise ValueError(f'at most {limit} variants at a time')
     if not out:
-        raise ValueError('enter at least one variant, e.g. G34U')
+        raise ValueError(skipped[0]['reason'] if skipped else 'enter at least one variant, e.g. G34U')
     return out
 
 
-def variants(seq, states, cond, text, a=None, b=None):
+def variants(seq, states, cond, text, a=None, b=None, numbers=None):
     """Effect of sequence variants on the ensemble: change of the pairing profile (1 - Pearson correlation of
     the per-nucleotide unpaired probabilities, as in riboSNitch studies), where it changes most, how many base
-    pairs of the most stable structure change, and the shift of the A/B equilibrium when two states are chosen."""
+    pairs of the most stable structure change, and the shift of the A/B equilibrium when two states are chosen.
+    numbers: the residue numbers shown in RCV (see parse_variants). Entries that cannot be used are returned
+    under 'skipped' with the reason; the others are analysed."""
+    skipped = []
+    parsed = parse_variants(text, seq, numbers=numbers, skipped=skipped)
     wt_u, wt_s, wt_e, _G = _unpaired_profile(cond, seq)
     two = a is not None and b is not None and a != b and 0 <= a < len(states) and 0 <= b < len(states)
     kT = cond.kT
@@ -258,7 +290,7 @@ def variants(seq, states, cond, text, a=None, b=None):
     frac = lambda d: 1.0 / (1.0 + math.exp(max(-60.0, min(60.0, d / kT))))
     wt_pairs = set(pairs_of(wt_s))
     rows = []
-    for label, mseq, pos in parse_variants(text, seq):
+    for label, mseq, pos in parsed:
         u, s, e, _g = _unpaired_profile(cond, mseq)
         if wt_u.std() > 1e-9 and u.std() > 1e-9:
             change = 1.0 - float(np.corrcoef(wt_u, u)[0, 1])
@@ -279,7 +311,7 @@ def variants(seq, states, cond, text, a=None, b=None):
             'moderate' if row['change'] >= 0.1 or row['pairs_changed'] >= 3 else 'small')
         rows.append(row)
     return {'rows': rows, 'wt': {'mfe_dbn': wt_s, 'mfe': round(wt_e, 2), 'frac_a': round(frac(d0), 4) if two else None},
-            'two_state': two, 'conditions_text': cond.describe()}
+            'two_state': two, 'skipped': skipped, 'conditions_text': cond.describe()}
 
 
 # ------------------------------------------------------------------------ Pathway tab: growing transcript
@@ -573,16 +605,22 @@ def target_sites(doc, cond, width=18, top=5):
     P = np.array(fc.bpp())[1:n + 1, 1:n + 1]
     unpaired = np.clip(1.0 - P.sum(0) - P.sum(1), 0.0, 1.0)
     conf_unp = np.array([[ch == '.' for ch in conf_dbn(doc, k)] for k in range(len(doc['conformations']))], float)
-    step = max(1, n // 400)
+    opening = _opening_energies(seq, cond, width, mfe)
+    step = 1
+    if opening is None:                 # ViennaRNA without the sliding-window interface: one constrained fold per window
+        step = max(1, n // 400)
+        opening = {}
+        for s in range(0, n - width + 1, step):
+            f2 = RNA.fold_compound(seq, md)
+            for t in range(s, s + width):
+                f2.hc_add_up(t + 1, RNA.CONSTRAINT_CONTEXT_ALL_LOOPS)
+            f2.exp_params_rescale(mfe)
+            _, G1 = f2.pf()
+            opening[s] = G1 - G0
     rows = []
     for s in range(0, n - width + 1, step):
-        f2 = RNA.fold_compound(seq, md)
-        for t in range(s, s + width):
-            f2.hc_add_up(t + 1, RNA.CONSTRAINT_CONTEXT_ALL_LOOPS)
-        f2.exp_params_rescale(mfe)
-        _, G1 = f2.pf()
         win = seq[s:s + width]
-        rows.append({'start': s, 'end': s + width - 1, 'dg_open': round(max(0.0, G1 - G0), 2),
+        rows.append({'start': s, 'end': s + width - 1, 'dg_open': round(max(0.0, opening[s]), 2),
                      'gc': round(sum(ch in 'GC' for ch in win) / width, 2),
                      'open_conformations': round(float((conf_unp[:, s:s + width].mean(1) >= 0.8).mean()), 3),
                      'unpaired': round(float(unpaired[s:s + width].mean()), 3), 'sequence': win})
@@ -596,6 +634,38 @@ def target_sites(doc, cond, width=18, top=5):
     return {'width': width, 'profile': [r['dg_open'] for r in rows], 'starts': [r['start'] for r in rows],
             'unpaired': [round(float(x), 3) for x in unpaired], 'best': best,
             'conditions_text': f'{cond.temperature:g} °C, {cond.sodium:g} M Na+'}
+
+
+def _opening_energies(seq, cond, width, mfe):
+    """{start: free energy (kcal/mol) to make seq[start:start + width] single-stranded} for every window, from one
+    pass over the whole ensemble: -RT ln of the probability that the window is unpaired (the unpaired probabilities
+    of RNAplfold, with the window and the base-pair span set to the full length, so nothing is left out). It equals
+    the difference of two ensemble free energies, with and without the window constrained (checked to 0.0001
+    kcal/mol on RNAs of 76-300 nt), and replaces one constrained partition function per window: 300 nt take 0.2 s
+    instead of 20 s. None when this ViennaRNA has no such interface or a probability comes out unusable."""
+    import RNA
+    n = len(seq)
+    try:
+        md = cond.model()
+        md.window_size = n
+        md.max_bp_span = n
+        fc = RNA.fold_compound(seq, md, RNA.OPTION_WINDOW)
+        fc.exp_params_rescale(mfe)
+        up = {}
+
+        def collect(v, v_size, i, maxsize, what, data=None):
+            if what & RNA.PROBS_WINDOW_UP and (what & RNA.ANY_LOOP) == RNA.ANY_LOOP and v_size >= width:
+                up[i] = v[width]
+        fc.probs_window(width, RNA.PROBS_WINDOW_UP, collect)
+    except (AttributeError, TypeError, RuntimeError):
+        return None
+    out = {}
+    for s in range(0, n - width + 1):
+        pr = up.get(s + width)
+        if pr is None or not 0.0 < pr <= 1.0 + 1e-6 or not math.isfinite(pr):
+            return None
+        out[s] = -cond.kT * math.log(min(1.0, pr))
+    return out
 
 
 # ------------------------------------------------------------------------------ Details tab: compare

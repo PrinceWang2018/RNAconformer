@@ -1,0 +1,710 @@
+{
+ "summary": {
+  "runs": "runs_v076",
+  "targets": 15,
+  "models": 75,
+  "nucleotides": 6095,
+  "model_1_r_over_targets": 0.564,
+  "per_model_r": 0.477,
+  "per_model_bias": 0.066,
+  "per_nucleotide_r": 0.499,
+  "per_nucleotide_mean_abs_error": 0.165,
+  "lddt_model_1": 0.65,
+  "lddt_highest_confidence": 0.615,
+  "lddt_best_of_5": 0.679,
+  "bands": [
+   {
+    "band": "very low",
+    "from": 0.0,
+    "to": 0.5,
+    "nucleotides": 1248,
+    "lddt": 0.419,
+    "template": {
+     "nucleotides": 486,
+     "lddt": 0.46
+    },
+    "no_template": {
+     "nucleotides": 762,
+     "lddt": 0.393
+    }
+   },
+   {
+    "band": "low",
+    "from": 0.5,
+    "to": 0.65,
+    "nucleotides": 1189,
+    "lddt": 0.591,
+    "template": {
+     "nucleotides": 427,
+     "lddt": 0.649
+    },
+    "no_template": {
+     "nucleotides": 762,
+     "lddt": 0.559
+    }
+   },
+   {
+    "band": "medium",
+    "from": 0.65,
+    "to": 0.8,
+    "nucleotides": 1638,
+    "lddt": 0.685,
+    "template": {
+     "nucleotides": 739,
+     "lddt": 0.693
+    },
+    "no_template": {
+     "nucleotides": 899,
+     "lddt": 0.68
+    }
+   },
+   {
+    "band": "high",
+    "from": 0.8,
+    "to": 1.0,
+    "nucleotides": 2020,
+    "lddt": 0.708,
+    "template": {
+     "nucleotides": 1784,
+     "lddt": 0.706
+    },
+    "no_template": {
+     "nucleotides": 236,
+     "lddt": 0.729
+    }
+   }
+  ]
+ },
+ "targets": [
+  {
+   "target": "R1203",
+   "length": 134,
+   "resolved": 134,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.7123,
+     "lddt": 0.6658,
+     "r_per_nucleotide": 0.629,
+     "template": "7LYF_A+1I9F_A"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.7102,
+     "lddt": 0.7307,
+     "r_per_nucleotide": 0.663,
+     "template": "7LYG_A"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.7244,
+     "lddt": 0.7225,
+     "r_per_nucleotide": 0.714,
+     "template": "8S95_C"
+    },
+    {
+     "rank": 4,
+     "confidence": 0.7241,
+     "lddt": 0.6545,
+     "r_per_nucleotide": 0.538,
+     "template": "7LYF_A+1I9F_A"
+    },
+    {
+     "rank": 5,
+     "confidence": 0.6929,
+     "lddt": 0.7061,
+     "r_per_nucleotide": 0.697,
+     "template": "7LYG_A"
+    }
+   ]
+  },
+  {
+   "target": "R1205",
+   "length": 59,
+   "resolved": 55,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.5448,
+     "lddt": 0.3987,
+     "r_per_nucleotide": 0.435,
+     "template": null
+    },
+    {
+     "rank": 2,
+     "confidence": 0.5,
+     "lddt": 0.4086,
+     "r_per_nucleotide": 0.616,
+     "template": null
+    },
+    {
+     "rank": 3,
+     "confidence": 0.4912,
+     "lddt": 0.4021,
+     "r_per_nucleotide": 0.752,
+     "template": null
+    },
+    {
+     "rank": 4,
+     "confidence": 0.5109,
+     "lddt": 0.4018,
+     "r_per_nucleotide": 0.695,
+     "template": null
+    },
+    {
+     "rank": 5,
+     "confidence": 0.4942,
+     "lddt": 0.3809,
+     "r_per_nucleotide": 0.338,
+     "template": null
+    }
+   ]
+  },
+  {
+   "target": "R1209",
+   "length": 72,
+   "resolved": 72,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.6241,
+     "lddt": 0.643,
+     "r_per_nucleotide": 0.86,
+     "template": null
+    },
+    {
+     "rank": 2,
+     "confidence": 0.6035,
+     "lddt": 0.6198,
+     "r_per_nucleotide": 0.828,
+     "template": null
+    },
+    {
+     "rank": 3,
+     "confidence": 0.6099,
+     "lddt": 0.6265,
+     "r_per_nucleotide": 0.879,
+     "template": null
+    },
+    {
+     "rank": 4,
+     "confidence": 0.6077,
+     "lddt": 0.6289,
+     "r_per_nucleotide": 0.854,
+     "template": null
+    },
+    {
+     "rank": 5,
+     "confidence": 0.6098,
+     "lddt": 0.6242,
+     "r_per_nucleotide": 0.878,
+     "template": null
+    }
+   ]
+  },
+  {
+   "target": "R1211",
+   "length": 90,
+   "resolved": 90,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.8127,
+     "lddt": 0.7742,
+     "r_per_nucleotide": 0.678,
+     "template": "8DP3_R"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.8079,
+     "lddt": 0.7428,
+     "r_per_nucleotide": 0.651,
+     "template": "8SP9_C"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.7463,
+     "lddt": 0.627,
+     "r_per_nucleotide": 0.443,
+     "template": "8S95_C"
+    },
+    {
+     "rank": 4,
+     "confidence": 0.7643,
+     "lddt": 0.6328,
+     "r_per_nucleotide": 0.434,
+     "template": "8S95_C"
+    },
+    {
+     "rank": 5,
+     "confidence": 0.6839,
+     "lddt": 0.6083,
+     "r_per_nucleotide": 0.496,
+     "template": "8S95_C"
+    }
+   ]
+  },
+  {
+   "target": "R1212",
+   "length": 247,
+   "resolved": 117,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.5705,
+     "lddt": 0.5572,
+     "r_per_nucleotide": 0.64,
+     "template": null
+    },
+    {
+     "rank": 2,
+     "confidence": 0.6332,
+     "lddt": 0.5598,
+     "r_per_nucleotide": 0.249,
+     "template": null
+    },
+    {
+     "rank": 3,
+     "confidence": 0.5954,
+     "lddt": 0.547,
+     "r_per_nucleotide": 0.423,
+     "template": null
+    },
+    {
+     "rank": 4,
+     "confidence": 0.6093,
+     "lddt": 0.547,
+     "r_per_nucleotide": 0.218,
+     "template": null
+    },
+    {
+     "rank": 5,
+     "confidence": 0.6479,
+     "lddt": 0.5453,
+     "r_per_nucleotide": 0.234,
+     "template": null
+    }
+   ]
+  },
+  {
+   "target": "R1221s3",
+   "length": 86,
+   "resolved": 82,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.5881,
+     "lddt": 0.6051,
+     "r_per_nucleotide": 0.475,
+     "template": "7UO1_C"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.7847,
+     "lddt": 0.5834,
+     "r_per_nucleotide": 0.219,
+     "template": "4V9K_AW"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.7788,
+     "lddt": 0.5815,
+     "r_per_nucleotide": 0.218,
+     "template": "7Q4K_D2"
+    },
+    {
+     "rank": 4,
+     "confidence": 0.7939,
+     "lddt": 0.585,
+     "r_per_nucleotide": 0.149,
+     "template": "4V9K_AW"
+    },
+    {
+     "rank": 5,
+     "confidence": 0.7737,
+     "lddt": 0.5861,
+     "r_per_nucleotide": 0.258,
+     "template": "7Q4K_D2"
+    }
+   ]
+  },
+  {
+   "target": "R1224s3",
+   "length": 86,
+   "resolved": 82,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.5881,
+     "lddt": 0.612,
+     "r_per_nucleotide": 0.559,
+     "template": "7UO1_C"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.7847,
+     "lddt": 0.6385,
+     "r_per_nucleotide": 0.258,
+     "template": "4V9K_AW"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.7788,
+     "lddt": 0.6406,
+     "r_per_nucleotide": 0.235,
+     "template": "7Q4K_D2"
+    },
+    {
+     "rank": 4,
+     "confidence": 0.7939,
+     "lddt": 0.6376,
+     "r_per_nucleotide": 0.264,
+     "template": "4V9K_AW"
+    },
+    {
+     "rank": 5,
+     "confidence": 0.7737,
+     "lddt": 0.6385,
+     "r_per_nucleotide": 0.353,
+     "template": "7Q4K_D2"
+    }
+   ]
+  },
+  {
+   "target": "R1261",
+   "length": 89,
+   "resolved": 87,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.6798,
+     "lddt": 0.7015,
+     "r_per_nucleotide": 0.716,
+     "template": "5BTP_B"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.7232,
+     "lddt": 0.7029,
+     "r_per_nucleotide": 0.721,
+     "template": "5BTP_B"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.7052,
+     "lddt": 0.7095,
+     "r_per_nucleotide": 0.64,
+     "template": "5BTP_B"
+    },
+    {
+     "rank": 4,
+     "confidence": 0.7833,
+     "lddt": 0.6931,
+     "r_per_nucleotide": 0.445,
+     "template": "5BTP_B"
+    },
+    {
+     "rank": 5,
+     "confidence": 0.7315,
+     "lddt": 0.7056,
+     "r_per_nucleotide": 0.562,
+     "template": "5BTP_B"
+    }
+   ]
+  },
+  {
+   "target": "R1262",
+   "length": 89,
+   "resolved": 84,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.6941,
+     "lddt": 0.695,
+     "r_per_nucleotide": 0.696,
+     "template": "5BTP_B"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.7364,
+     "lddt": 0.6929,
+     "r_per_nucleotide": 0.687,
+     "template": "5BTP_B"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.7161,
+     "lddt": 0.701,
+     "r_per_nucleotide": 0.605,
+     "template": "5BTP_B"
+    },
+    {
+     "rank": 4,
+     "confidence": 0.7832,
+     "lddt": 0.6949,
+     "r_per_nucleotide": 0.459,
+     "template": "5BTP_B"
+    },
+    {
+     "rank": 5,
+     "confidence": 0.7327,
+     "lddt": 0.6994,
+     "r_per_nucleotide": 0.624,
+     "template": "5BTP_B"
+    }
+   ]
+  },
+  {
+   "target": "R1263",
+   "length": 64,
+   "resolved": 64,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.7829,
+     "lddt": 0.9598,
+     "r_per_nucleotide": 0.161,
+     "template": "4XWF_A"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.8371,
+     "lddt": 0.5139,
+     "r_per_nucleotide": 0.448,
+     "template": "4ZNP_A"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.6025,
+     "lddt": 0.569,
+     "r_per_nucleotide": 0.36,
+     "template": null
+    },
+    {
+     "rank": 4,
+     "confidence": 0.5848,
+     "lddt": 0.5666,
+     "r_per_nucleotide": 0.781,
+     "template": null
+    },
+    {
+     "rank": 5,
+     "confidence": 0.5378,
+     "lddt": 0.5443,
+     "r_per_nucleotide": 0.695,
+     "template": null
+    }
+   ]
+  },
+  {
+   "target": "R1264",
+   "length": 64,
+   "resolved": 64,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.7829,
+     "lddt": 0.8672,
+     "r_per_nucleotide": -0.065,
+     "template": "4XWF_A"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.8371,
+     "lddt": 0.521,
+     "r_per_nucleotide": 0.44,
+     "template": "4ZNP_A"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.6025,
+     "lddt": 0.5812,
+     "r_per_nucleotide": 0.287,
+     "template": null
+    },
+    {
+     "rank": 4,
+     "confidence": 0.5848,
+     "lddt": 0.5762,
+     "r_per_nucleotide": 0.741,
+     "template": null
+    },
+    {
+     "rank": 5,
+     "confidence": 0.5378,
+     "lddt": 0.5494,
+     "r_per_nucleotide": 0.663,
+     "template": null
+    }
+   ]
+  },
+  {
+   "target": "R1271",
+   "length": 77,
+   "resolved": 77,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.8594,
+     "lddt": 0.4792,
+     "r_per_nucleotide": -0.001,
+     "template": "7LJ3_B"
+    },
+    {
+     "rank": 2,
+     "confidence": 0.8749,
+     "lddt": 0.5652,
+     "r_per_nucleotide": 0.137,
+     "template": "5E6M_C"
+    },
+    {
+     "rank": 3,
+     "confidence": 0.8868,
+     "lddt": 0.7153,
+     "r_per_nucleotide": -0.087,
+     "template": "8QPP_U"
+    },
+    {
+     "rank": 4,
+     "confidence": 0.8066,
+     "lddt": 0.5071,
+     "r_per_nucleotide": 0.452,
+     "template": "5E6M_C"
+    },
+    {
+     "rank": 5,
+     "confidence": 0.849,
+     "lddt": 0.5641,
+     "r_per_nucleotide": 0.231,
+     "template": "5E6M_C"
+    }
+   ]
+  },
+  {
+   "target": "R1288",
+   "length": 58,
+   "resolved": 57,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.6281,
+     "lddt": 0.5873,
+     "r_per_nucleotide": 0.61,
+     "template": null
+    },
+    {
+     "rank": 2,
+     "confidence": 0.6347,
+     "lddt": 0.5732,
+     "r_per_nucleotide": 0.586,
+     "template": null
+    },
+    {
+     "rank": 3,
+     "confidence": 0.6525,
+     "lddt": 0.5723,
+     "r_per_nucleotide": 0.591,
+     "template": null
+    },
+    {
+     "rank": 4,
+     "confidence": 0.6194,
+     "lddt": 0.5808,
+     "r_per_nucleotide": 0.655,
+     "template": null
+    },
+    {
+     "rank": 5,
+     "confidence": 0.6202,
+     "lddt": 0.6135,
+     "r_per_nucleotide": 0.605,
+     "template": null
+    }
+   ]
+  },
+  {
+   "target": "R1293",
+   "length": 82,
+   "resolved": 82,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.5346,
+     "lddt": 0.5094,
+     "r_per_nucleotide": 0.272,
+     "template": null
+    },
+    {
+     "rank": 2,
+     "confidence": 0.5776,
+     "lddt": 0.5268,
+     "r_per_nucleotide": 0.422,
+     "template": null
+    },
+    {
+     "rank": 3,
+     "confidence": 0.5873,
+     "lddt": 0.5404,
+     "r_per_nucleotide": 0.378,
+     "template": null
+    },
+    {
+     "rank": 4,
+     "confidence": 0.5295,
+     "lddt": 0.5468,
+     "r_per_nucleotide": 0.412,
+     "template": null
+    },
+    {
+     "rank": 5,
+     "confidence": 0.6001,
+     "lddt": 0.506,
+     "r_per_nucleotide": 0.129,
+     "template": null
+    }
+   ]
+  },
+  {
+   "target": "R1296",
+   "length": 72,
+   "resolved": 72,
+   "models": [
+    {
+     "rank": 1,
+     "confidence": 0.6699,
+     "lddt": 0.6983,
+     "r_per_nucleotide": 0.564,
+     "template": null
+    },
+    {
+     "rank": 2,
+     "confidence": 0.6332,
+     "lddt": 0.6873,
+     "r_per_nucleotide": 0.833,
+     "template": null
+    },
+    {
+     "rank": 3,
+     "confidence": 0.6421,
+     "lddt": 0.6977,
+     "r_per_nucleotide": 0.81,
+     "template": null
+    },
+    {
+     "rank": 4,
+     "confidence": 0.637,
+     "lddt": 0.7144,
+     "r_per_nucleotide": 0.795,
+     "template": null
+    },
+    {
+     "rank": 5,
+     "confidence": 0.6388,
+     "lddt": 0.6839,
+     "r_per_nucleotide": 0.782,
+     "template": null
+    }
+   ]
+  }
+ ]
+}
