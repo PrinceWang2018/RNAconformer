@@ -24,6 +24,13 @@ function splitFasta(text) {
   return { header: header[0] || '', seq: modseq.cleanLine(seqLines.join('')), structure: structure.join('') };
 }
 
+// The pair whose stacking energies a correction is added to, when it is not the parent base with this partner
+// (8-oxoG with A: the energies of a U-A pair).
+function refPair(e, partner) {
+  const ref = e.ddg_ref?.[partner];
+  return ref && ref !== e.parent + partner ? ` (on ${ref[0]}–${ref[1]})` : '';
+}
+
 export async function modificationsDialog(app, { text, onApply }) {
   const cat = await modseq.loadCatalogue(app.api);
   if (!cat) { toast('The modification list comes from the engine, which is not reachable.', 'error', 'Modified nucleotides'); return; }
@@ -112,7 +119,7 @@ export async function modificationsDialog(app, { text, onApply }) {
       el('div', { class: 'mod-dhead' }, el('b', { translate: 'no', text: `${modseq.display(e.code)} · ${e.name}` }), el('span', { class: `mod-badge p-${e.pairing}`, title: what, text: badge })),
       el('div', { class: 'mod-facts' },
         el('span', {}, 'Pairs with: ', el('b', { translate: 'no', text: partners })),
-        e.ddg ? el('span', { translate: 'no', text: `ΔΔG per stack: ${Object.entries(e.ddg).map(([p, v]) => `${p} ${v > 0 ? '+' : ''}${v.toFixed(2)}`).join(', ')} kcal/mol` }) : null,
+        e.ddg ? el('span', { translate: 'no', text: `ΔΔG per stack: ${Object.entries(e.ddg).map(([p, v]) => `${p} ${v > 0 ? '+' : ''}${v.toFixed(2)}${refPair(e, p)}`).join(', ')} kcal/mol` }) : null,
         e.ccd ? el('span', {}, 'PDB component: ', el('b', { translate: 'no', text: e.ccd })) : null,
         e.build !== e.parent ? el('span', { text: `${e.parent} → built on ${e.build}` }) : null,
         e.syn ? el('span', { text: 'syn when unpaired' }) : null,

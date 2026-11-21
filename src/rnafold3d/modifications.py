@@ -151,11 +151,12 @@ PS = (('swap', 'OP1', 'S1P', 'P', 1.96),)
 
 
 def _e(code, name, parent, category, energy=None, *, build=None, aliases=(), atoms=(), syn=False,
-       pucker=None, evidence='', note='', core_only=False, kind='base'):
+       pucker=None, evidence='', note='', core_only=False, kind='base', adjacent=False):
     # 'ccd' (PDB chemical component), 'names' and 'also' are filled from COMPONENTS below
     return {'code': code, 'name': name, 'parent': parent, 'build': build or parent, 'category': category,
             'energy': energy, 'ccd': '', 'aliases': tuple(aliases), 'atoms': tuple(atoms), 'syn': syn,
-            'pucker': pucker, 'evidence': evidence, 'note': note, 'core_only': core_only, 'kind': kind}
+            'pucker': pucker, 'evidence': evidence, 'note': note, 'core_only': core_only, 'kind': kind,
+            'adjacent': adjacent}                # a stack of two such pairs carries the correction of both
 
 
 V = lambda name: ('vienna', name)                       # measured parameters shipped with ViennaRNA
@@ -258,11 +259,29 @@ ENTRIES = [
     _e('8BrG', '8-bromoguanosine', 'G', 'damage', _pairs(C=('GC', 0.6), U=('GU', 0.6)), aliases=('br8G',),
        atoms=(('ring', 'BR8', 'C8', 'N7', 'N9', 1.87),), syn=True, evidence=EST,
        note='Bulky 8-bromo group: syn guanosine, used to lock Z-DNA and Z-RNA; weakens A-form pairing.'),
-    _e('8oxoG', '8-oxo-7,8-dihydroguanosine', 'G', 'damage', _pairs(C=('GC', 0.75), A=('GU', 0.8)),
+    # 8-oxoG, pairing energies (2026-11-21).
+    # Measured: melting temperatures of Choi et al., Nucleic Acids Res. 2017, 45:2099 (Table 1: 12-mer duplex
+    # AAGAGGGAUGAC, lesion at G6; 2.5 uM RNA, 5 mM MgCl2), converted here to ddG(37 C) with the nearest-neighbour dH
+    # of the unmodified duplex (-115.4 kcal/mol) in a two-state model:
+    #   oxoG-C  Tm 72.6 -> 62.4 C   ddG +3.0 (2.5 to 3.4 over three read-outs and the enthalpy/entropy limits)
+    #   oxoG-A  Tm 72.6 -> 60.3 C   ddG +3.8 (3.5 to 4.1)
+    #   two and three adjacent oxoG-C: +6.1 and +10.4, about 3 per lesion
+    # C: fitted to this, 2 stacks x +1.5; the stack shared by two lesions carries both corrections (adjacent=True).
+    # A: NOT the fit (that would be +0.4 per stack on G-U wobble stacks, which leaves oxoG-A weaker than oxoG-C in
+    #    28 of 36 neighbour contexts). By decision of the author the pair with A is the dominant one: 8-oxoG(syn)-A
+    #    has the stacking energies of a U-A pair, the lesion reads as U. In the measured duplex this makes oxoG-A
+    #    cost +2.3 instead of the +3.8 derived from its melting temperature.
+    # U: no measurement found. Assumption: the lesion weakens the wobble pair as much as the pair with C (+1.5 per
+    #    stack on G-U stacks), so 8-oxoG-U is the weakest of the three.
+    # With these values oxoG-A is more stable than oxoG-C by 0.5 to 2.2 kcal/mol in all 36 neighbour contexts.
+    _e('8oxoG', '8-oxo-7,8-dihydroguanosine', 'G', 'damage', _pairs(C=('GC', 1.5), A=('UA', 0.0), U=('GU', 1.5)), adjacent=True,
        aliases=('8-oxoG', 'oxoG', 'o8G', '8OG', '8-oxo-G'), atoms=(('ring', 'O8', 'C8', 'N7', 'N9', 1.23),), syn=True,
-       evidence=EST, note='The main oxidative RNA lesion. In anti it pairs with C (weaker than G-C); in syn its Hoogsteen '
-       'edge pairs with A (oxoG(syn)-A mismatch), which is why it miscodes. Both pairs are allowed in the 2D; oxoG-A pairs '
-       'are kept as helix distance restraints in 3D, and an unpaired 8-oxoG is turned syn.'),
+       evidence=EST, note='The main oxidative RNA lesion. In syn its Hoogsteen edge pairs with A (oxoG(syn)-A), which is '
+       'why it miscodes: it is read as U. This is the strongest pair in the model, with the energies of a U-A pair (a '
+       'model choice). In anti it pairs with C, weaker than G-C by about 3 kcal/mol per lesion (fitted to the duplex '
+       'melting temperatures of Choi et al. 2017, Nucleic Acids Res. 45:2099, in which the pair with A melted 2 degrees '
+       'below the pair with C). The wobble pair with U is weakened by the same amount (assumed, not measured). oxoG-A '
+       'pairs are kept as helix distance restraints in 3D, and an unpaired 8-oxoG is turned syn.'),
     _e('O6mG', 'O6-methylguanosine', 'G', 'damage', _pairs(U=('GU', 0.2), C=('GC', 1.2)), aliases=('O6-meG', 'm6G', 'O6meG'),
        atoms=(('z', 'CM6', 'O6', 'C6', 'N1', 1.44, 117.0, (0.0, 180.0)),), evidence=EST,
        note='Alkylation lesion: the methyl on O6 favours pairing with U (Watson-Crick-like) over C, so it miscodes.'),
@@ -669,6 +688,14 @@ def generated_json(entry, code_letter, unmodified):
         t = 0.0 if ref in ('GC', 'CG') else term_au
         terms[f'{M}{partner}'] = t
         terms[f'{partner}{M}'] = t
+    if entry.get('adjacent'):
+        # two modified pairs on top of each other (key: 5'-top-3' then the partners of these two nucleotides)
+        for p1, (ref1, d1) in spec.items():
+            for p2, (ref2, d2) in spec.items():
+                a, b = ref1, ref2                                             # reference pairs, modified base first
+                stacks[f'{M}{M}{p1}{p2}'] = round(_stack(a, b) + d1 + d2, 2)            # both in the top strand
+                stacks[f'{M}{p2}{p1}{M}'] = round(_stack(a, b[::-1]) + d1 + d2, 2)      # top strand, then bottom strand
+                stacks[f'{p1}{M}{M}{p2}'] = round(_stack(a[::-1], b) + d1 + d2, 2)      # bottom strand, then top strand
     return json.dumps({'modified_base': {
         'name': entry['name'], 'unmodified': unmodified, 'one_letter_code': M, 'fallback': entry['build'],
         'pairing_partners': sorted(spec), 'stacking_energies': stacks, 'terminal_energies': terms,
@@ -1279,6 +1306,7 @@ def catalogue():
                      'category': e['category'], 'ccd': e['ccd'], 'ccd_also': sorted(e['also']),
                      'aliases': list(e['aliases']), 'pairing': pairing,
                      'partners': partners, 'ddg': ({p: v[1] for p, v in en[1].items()} if en and en[0] == 'pairs' else None),
+                     'ddg_ref': ({p: v[0] for p, v in en[1].items()} if en and en[0] == 'pairs' else None),
                      'syn': e['syn'], 'pucker': e['pucker'], 'evidence': e['evidence'], 'note': e['note'],
                      'core_only': e['core_only'], 'kind': e['kind'], 'atoms3d': bool(e['atoms'])})
     return {'categories': CATEGORIES, 'entries': rows}

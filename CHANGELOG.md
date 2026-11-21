@@ -92,6 +92,34 @@ errors are reported in words.
 - `tests/test_v076_audit.py` (51 tests), `tests/js/audit_unit.mjs`, `tests/js/notes_unit.mjs`; smoke scenarios
   `audit76`, `langstart` and `langnotes`.
 ### Changed
+- **8-oxo-G: new pairing energies; the pair with A is the dominant one** (audit F11). In the first build of 0.7.6
+  (installers of 21 November 2026, replaced the same day) the two corrections were chosen values without a source (+0.75 kcal/mol per stack with C; +0.8 per stack on G·U
+  wobble energies with A), and 8-oxo-G opposite U was folded like plain G·U, the strongest of the three in some
+  contexts. Now, in the order of stability:
+  - **with A** (8-oxo-G in *syn*): the stacking energies of a U–A pair, the lesion is read as U. This is a
+    decision of the author, not a fit: it makes 8-oxo-G–A more stable than 8-oxo-G–C by 0.5–2.2 kcal/mol in
+    all 36 neighbour contexts.
+  - **with C**: +1.5 per stack, fitted to the duplex melting temperatures of Choi, Gibala, Ayele, Deventer and
+    Resendiz, *Nucleic Acids Res.* 2017, 45:2099 (Table 1; 12-mer `AAGAGGGAUGAC`, lesion at G6, 5 mM MgCl2).
+    The paper gives melting temperatures, not free energies; the shift 72.6 → 62.4 °C was converted with a
+    two-state model and the nearest-neighbour enthalpy of the unmodified duplex: +3.0 kcal/mol per lesion
+    (2.5–3.4).
+  - **with U**: +1.5 per stack on G·U wobble energies, the same weakening as with C. Assumed; the paper has no
+    U opposite the lesion and no other measurement was read.
+- **Adjacent 8-oxo-G lesions add up.** The stack between two neighbouring lesions had no correction, so two or
+  three lesions in a row cost the same as one. It now carries the correction of both: +6.0 and +9.0 kcal/mol
+  for two and three opposite C (from the melting temperatures: +6.1 and +10.4). Only 8-oxo-G; other
+  modifications are unchanged.
+- The catalogue window names the pair a correction refers to when it is not the parent base (“A +0.00 (on U–A)”).
+- What the measurement says about A, for the record: in the same duplex 8-oxo-G–A melted at 60.3 °C, 2 °C below
+  8-oxo-G–C (+3.8 kcal/mol, 3.5–4.1); a fit would be +0.4 per stack on G·U energies and would leave the pair
+  with A weaker than the pair with C in most contexts. The model gives +2.3 there. Further limits: one sequence
+  context and one buffer; the same conversion gives +5.0 for the plain G/A mismatch of that paper where the
+  Turner 2004 parameters say +7.1, so absolute values are uncertain by 1–2 kcal/mol. Test:
+  `tests/test_v076.py` (`test_8oxoG_energies_follow_the_melting_data`).
+- **Citation shown by the software** (Methods and citation text): the Zenodo record of this version,
+  <https://zenodo.org/records/24413591>, instead of the concept DOI. `CITATION.cff` and the README keep the
+  concept DOI 10.5281/zenodo.24163503, which resolves to the latest version.
 - **Sequences copied from a database record can be pasted as they are** (audit C1): position numbers, spaces
   and a closing `//` are ignored (`1 ggcagatctg agcctgggag …`), in the start page, FASTA files, batches and
   `rnafold3d predict --sequence`. Digits inside the brackets of a modified nucleotide (`[m2,2G]`) are kept.

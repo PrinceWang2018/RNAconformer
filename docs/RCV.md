@@ -275,7 +275,13 @@ notation works in FASTA files, in batches and on the command line (`rnafold3d pr
   purine and 7-deaza-A use the nearest-neighbour parameters shipped with ViennaRNA 2.7.
 * *Estimated*: the others that keep or change pairing use the Turner stacks of a reference pair with a
   correction per stack from the literature — e.g. **8-oxo-G** pairs with C (weaker) and, in its *syn* form,
-  with **A** (the G·A mismatch that makes it mutagenic); m2,2G pairs with U and A but not C; 2-thio-U
+  with **A** (the G·A mismatch that makes it mutagenic). The pair with A is the strongest pair of 8-oxo-G in
+  the model: it has the energies of a U–A pair, the lesion is read as U (a model choice). The pair with C is
+  fitted to the duplex melting temperatures of Choi et al. (*Nucleic Acids Res.* 2017, 45:2099): +1.5 kcal/mol
+  per stack, so one lesion lowers the stability of a helix by about 3 kcal/mol (the melting temperature of a
+  12-mer by 10 °C). In that duplex the pair with A melted 2 °C below the pair with C; the model deliberately
+  ranks them the other way round. The wobble pair with U is weakened like the pair with C (assumed, no
+  measurement) and is the weakest of the three; m2,2G pairs with U and A but not C; 2-thio-U
   stabilises U–A and weakens U·G; 2′-O-methyl, 2′-F and LNA stabilise the pairs they are in.
 * *Blocks pairing*: modifications on the Watson-Crick edge (m1A, m1G, m3C, m3U, m1I, t6A, yW …) are kept
   unpaired in every 2D structure; a known 2D (dot-bracket) that pairs them is corrected, with a warning.

@@ -94,6 +94,39 @@ class TestEnergies(unittest.TestCase):
         self.assertEqual(info['measured'], [5, 6])
         self.assertLess(e1, e0)                          # pseudouridine stabilises the stem
 
+    def test_8oxoG_energies_follow_the_melting_data(self):
+        """Choi et al., Nucleic Acids Res. 2017, 45:2099, Table 1: the 12-mer duplex AAGAGGGAUGAC with 8-oxoG at G6,
+        G6+G7 and G5+G6+G7, and with A opposite the lesion. Free-energy differences to the unmodified duplex from
+        the melting temperatures (two-state model, nearest-neighbour enthalpy): +3.0, +6.1, +10.4 and +3.8 kcal/mol.
+        The pair with C follows these numbers. The pair with A does not: by the author's decision it is the
+        strongest pair of 8-oxoG (energies of a U-A pair); the wobble pair with U is the weakest."""
+        full = '(' * 12 + ')' * 12
+
+        def energy(seq, sites):
+            fc, _ = M.fold_compound(seq, [{'pos': k, 'code': '8oxoG'} for k in sites])
+            return fc.eval_structure(full)
+        c, a = 'AAGAGGGAUGAC&GUCAUCCCUCUU', 'AAGAGGGAUGAC&GUCAUCACUCUU'
+        ref = energy(c, [])
+        for seq, sites, measured, tol in ((c, [6], 3.0, 0.5), (c, [6, 7], 6.1, 0.5), (c, [5, 6, 7], 10.4, 1.5)):
+            self.assertAlmostEqual(energy(seq, sites) - ref, measured, delta=tol, msg=f'{sites} in {seq}')
+        u = 'AAGAGGGAUGAC&GUCAUCUCUCUU'
+        with_c, with_a, with_u = energy(c, [6]), energy(a, [6]), energy(u, [6])
+        self.assertLess(with_a, with_c - 0.4)                # A is the dominant partner ...
+        self.assertLess(with_c, with_u - 1.0)                # ... and U the weakest
+        self.assertAlmostEqual(with_u - energy(u, []), 3.0, delta=0.05)      # the wobble is weakened like the pair with C
+        e = M.BY_CODE['8oxoG']['energy'][1]
+        for up in M.CANON:                                   # in every neighbour context
+            for down in M.CANON:
+                two = {p: M._stack(up, ref) + M._stack(ref, down) + 2 * d for p, (ref, d) in e.items()}
+                self.assertLess(two['A'], two['C'], (up, down))
+                self.assertLess(two['C'], two['U'], (up, down))
+        # the stack shared by two lesions carries both corrections, whichever strands the lesions are in
+        for seq, sites in (('GGAGCGUCC&GGACGCUCC', [4, 14]), ('GGACGAUCC&GGAUCGUCC', [5, 15])):
+            fc, _ = M.fold_compound(seq, [{'pos': k, 'code': '8oxoG'} for k in sites])
+            fc0, _ = M.fold_compound(seq, [])
+            s9 = '(' * 9 + ')' * 9
+            self.assertAlmostEqual(fc.eval_structure(s9) - fc0.eval_structure(s9), 6.0, delta=0.05)
+
     def test_8oxoG_pairs_with_A(self):
         seq = 'GGGAGCUUCGGAUCCC'                         # G5 faces A12: a mismatch for G
         mods = [{'pos': 5, 'code': '8oxoG'}]
